@@ -88,8 +88,9 @@ async function _resolveProfile(session: OAuthSession, agent: Agent): Promise<voi
 
     let avatar: string | undefined;
     if (profileResp.status === 'fulfilled') {
-      const rec = profileResp.value.data.value as { avatar?: { ref?: { $link?: string } } };
-      const cid = rec.avatar?.ref?.['$link'];
+      // getRecord decodes blob refs into BlobRef instances (ref becomes a CID object, not { $link }) — see uploadBlob() below
+      const rec = profileResp.value.data.value as { avatar?: { ref?: { toString(): string } } };
+      const cid = rec.avatar?.ref?.toString();
       if (cid) {
         const base = session.server.issuer.replace(/\/$/, '');
         avatar = `${base}/xrpc/com.atproto.sync.getBlob?did=${session.sub}&cid=${encodeURIComponent(cid)}`;

@@ -242,6 +242,9 @@
     border: none;
     padding: 0;
     margin: 0;
+    width: 24px;
+    height: 24px;
+    line-height: 1;
     cursor: pointer;
     border-radius: 50%;
     display: flex;
