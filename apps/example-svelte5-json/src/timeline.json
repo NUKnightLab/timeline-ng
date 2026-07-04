@@ -1,0 +1,74 @@
+{
+  "title": {
+    "text": {
+      "headline": "A Brief History of the Web",
+      "text": "<p>Key moments in the evolution of the World Wide Web, from its invention at CERN to the modern era of browsers and open standards.</p>"
+    }
+  },
+  "events": [
+    {
+      "start_date": { "year": 1989, "month": 3 },
+      "text": {
+        "headline": "The Web is Proposed",
+        "text": "<p>Tim Berners-Lee submits \"Information Management: A Proposal\" to his supervisor at CERN. The memo describes a global hypertext system linking documents across networked computers.</p>"
+      },
+      "media": {
+        "url": "https://en.wikipedia.org/wiki/World_Wide_Web",
+        "caption": "World Wide Web — Wikipedia"
+      }
+    },
+    {
+      "start_date": { "year": 1991, "month": 8, "day": 6 },
+      "text": {
+        "headline": "First Website Goes Live",
+        "text": "<p>Berners-Lee publishes the first website at CERN, describing the Web project itself. The site runs on a NeXT computer and is still accessible today at its original URL.</p>"
+      }
+    },
+    {
+      "start_date": { "year": 1993, "month": 1 },
+      "text": {
+        "headline": "NCSA Mosaic",
+        "text": "<p>The NCSA Mosaic browser, developed at the University of Illinois, becomes the first browser to display images inline with text. It sparks explosive public interest in the Web.</p>"
+      },
+      "media": {
+        "url": "https://youtu.be/HqgGEAKmjms",
+        "caption": "The early web browser era"
+      }
+    },
+    {
+      "start_date": { "year": 1994, "month": 10 },
+      "text": {
+        "headline": "W3C Founded",
+        "text": "<p>Berners-Lee founds the World Wide Web Consortium (W3C) at MIT to develop open standards for the Web. The W3C's mission: \"to lead the Web to its full potential.\"</p>"
+      }
+    },
+    {
+      "start_date": { "year": 1995 },
+      "text": {
+        "headline": "JavaScript Invented",
+        "text": "<p>Brendan Eich creates JavaScript at Netscape in ten days. Originally called Mocha, then LiveScript, it becomes the programming language of the Web.</p>"
+      }
+    },
+    {
+      "start_date": { "year": 2004, "month": 6 },
+      "text": {
+        "headline": "Firefox 1.0",
+        "text": "<p>Mozilla releases Firefox, reviving open-source competition in the browser market after years of Internet Explorer dominance. Firefox 1.0 ships in November 2004 and gains 100 million downloads in a year.</p>"
+      }
+    },
+    {
+      "start_date": { "year": 2008, "month": 9 },
+      "text": {
+        "headline": "Chrome Launches",
+        "text": "<p>Google releases Chrome, built on the V8 JavaScript engine and the WebKit rendering engine. Its multi-process architecture and speed benchmarks shift the competitive landscape.</p>"
+      }
+    },
+    {
+      "start_date": { "year": 2014, "month": 10 },
+      "text": {
+        "headline": "HTML5 Standardized",
+        "text": "<p>The W3C publishes HTML5 as an official recommendation, formalizing native video, canvas drawing, offline storage, and semantic elements — ending the era of Flash plugins.</p>"
+      }
+    }
+  ]
+}

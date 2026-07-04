@@ -1,0 +1,125 @@
+<title>Timeline data format — Timeline NG</title>
+<style>
+  .field-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+    margin: 0 0 1.5rem;
+  }
+  .field-table th, .field-table td {
+    text-align: left;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid #e5e7eb;
+    vertical-align: top;
+  }
+  .field-table th { color: #6b7280; font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.03em; }
+  .field-table td:first-child { white-space: nowrap; font-family: 'Courier New', monospace; font-size: 0.85em; }
+  .required { color: #93370c; font-weight: 600; font-size: 0.75rem; }
+</style>
+
+<h1>Timeline data format</h1>
+<p class="subtitle">The JSON shape behind every Timeline NG timeline, whether it's saved to your PDS or exported as a file.</p>
+
+<h2>Overview</h2>
+<p>
+  A timeline is a single JSON object with an optional <code>title</code> slide and an array of
+  <code>events</code>. If you're writing timelines by hand or generating them from code, this
+  page describes every field. If you want a machine-checkable version, see the JSON Schema
+  section further down this page.
+</p>
+<pre><code>{
+  "title": { "text": { "headline": "My Timeline" } },
+  "events": [
+    {
+      "start_date": { "year": 2020, "month": 1, "day": 1 },
+      "text": { "headline": "First event", "text": "&lt;p&gt;What happened.&lt;/p&gt;" },
+      "media": { "url": "https://example.com/photo.jpg", "caption": "A photo" }
+    }
+  ]
+}</code></pre>
+
+<h2>Timeline</h2>
+<table class="field-table">
+  <tr><th>Field</th><th>Type</th><th>Notes</th></tr>
+  <tr><td>title</td><td>Event</td><td>Optional. Shown first, without a date, as an intro slide.</td></tr>
+  <tr><td>events</td><td>Event[]</td><td><span class="required">Required.</span> Rendered in chronological order.</td></tr>
+  <tr><td>settings</td><td>Settings</td><td>Optional. Playback and display configuration — see below.</td></tr>
+</table>
+
+<h2>Settings</h2>
+<table class="field-table">
+  <tr><th>Field</th><th>Type</th><th>Notes</th></tr>
+  <tr><td>language</td><td>string</td><td>Locale code for UI chrome and date formatting. <code>"en"</code> and <code>"es"</code> have full UI translations; other codes fall back to English chrome but still format dates correctly. Default: <code>"en"</code>.</td></tr>
+  <tr><td>theme</td><td><code>"light"</code> | <code>"dark"</code> | <code>"auto"</code></td><td>Color theme. <code>"auto"</code> follows the viewer's OS/browser preference. Default: <code>"auto"</code>.</td></tr>
+  <tr><td>initialIndex</td><td>number</td><td>0-based index of the slide shown first (counting the title slide, if present). Default: <code>0</code>.</td></tr>
+  <tr><td>reverseOrder</td><td>boolean</td><td>Show events newest-first. The title slide, if any, always stays first. Default: <code>false</code>.</td></tr>
+</table>
+
+<h2>Event</h2>
+<table class="field-table">
+  <tr><th>Field</th><th>Type</th><th>Notes</th></tr>
+  <tr><td>unique_id</td><td>string</td><td>Optional identifier, useful for deep-linking to a specific slide.</td></tr>
+  <tr><td>start_date</td><td>Date</td><td><span class="required">Required</span> on every event except the title slide.</td></tr>
+  <tr><td>end_date</td><td>Date</td><td>Optional. Renders the event as a date range.</td></tr>
+  <tr><td>text</td><td>Text</td><td>Headline and body copy.</td></tr>
+  <tr><td>media</td><td>Media</td><td>An image, video, audio, or embed for the slide.</td></tr>
+  <tr><td>media_position</td><td><code>"left"</code> | <code>"right"</code></td><td>Which side the media appears on. Defaults to <code>"left"</code>.</td></tr>
+  <tr><td>group</td><td>string</td><td>Optional label; events sharing a group are visually clustered in the navigation.</td></tr>
+  <tr><td>background</td><td>Background</td><td>Optional color or image behind the slide.</td></tr>
+</table>
+
+<h2>Date</h2>
+<p>Only <code>year</code> is required — add more fields for finer precision.</p>
+<table class="field-table">
+  <tr><th>Field</th><th>Type</th><th>Notes</th></tr>
+  <tr><td>year</td><td>number</td><td><span class="required">Required.</span> Negative values are BCE. Very large magnitudes (cosmological scale) are supported.</td></tr>
+  <tr><td>month</td><td>number</td><td>1-based (January is <code>1</code>).</td></tr>
+  <tr><td>day, hour, minute, second, millisecond</td><td>number</td><td>Add as much precision as you have.</td></tr>
+  <tr><td>display_date</td><td>string</td><td>Override the rendered date text entirely, e.g. <code>"circa 1900"</code>.</td></tr>
+</table>
+
+<h2>Text</h2>
+<table class="field-table">
+  <tr><th>Field</th><th>Type</th><th>Notes</th></tr>
+  <tr><td>headline</td><td>string</td><td>May contain inline HTML (bold, italic, links).</td></tr>
+  <tr><td>text</td><td>string</td><td>Body copy. May contain HTML.</td></tr>
+</table>
+
+<h2>Media</h2>
+<table class="field-table">
+  <tr><th>Field</th><th>Type</th><th>Notes</th></tr>
+  <tr><td>url</td><td>string</td><td>A media URL — image, video, audio file, or a link the player knows how to embed (YouTube, Spotify, Bluesky posts, and more — see the <a href="./docs.html#media-types">media types guide</a>).</td></tr>
+  <tr><td>caption</td><td>string</td><td>Shown beneath the media.</td></tr>
+  <tr><td>credit</td><td>string</td><td>Attribution text.</td></tr>
+  <tr><td>alt</td><td>string</td><td>Alt text for images. Falls back to <code>caption</code> if omitted.</td></tr>
+  <tr><td>thumbnail</td><td>string</td><td>Optional thumbnail override for the navigation track.</td></tr>
+</table>
+<p>
+  Media saved through the editor's Atmosphere browser also carries a <code>blobRef</code>
+  field pointing at a PDS-hosted blob — you won't need to set this by hand.
+</p>
+
+<h2>Background</h2>
+<table class="field-table">
+  <tr><th>Field</th><th>Type</th><th>Notes</th></tr>
+  <tr><td>color</td><td>string</td><td>Any valid CSS color.</td></tr>
+  <tr><td>url</td><td>string</td><td>A background image URL.</td></tr>
+</table>
+
+<h2>JSON Schema</h2>
+<p>
+  If you're generating or validating timeline JSON programmatically — especially outside
+  JavaScript — the <code>@knight-lab/timeline-ng-core</code> npm package ships a JSON Schema
+  for this exact format at <code>schema/timeline.schema.json</code>, generated directly from
+  the TypeScript types so it can't drift out of sync. See the
+  <a href="https://npmx.dev/package/@knight-lab/timeline-ng-core" target="_blank" rel="noopener">package README</a>
+  for a validation example.
+</p>
+
+<h2>Migrating from TimelineJS 3</h2>
+<p>
+  If you have existing TimelineJS 3 JSON or a Google Sheets CSV export, the
+  <code>@knight-lab/timeline-ng-core</code> package's <code>fromTL3</code> and
+  <code>fromTL3CSV</code> functions convert them to this format. 
+</p>
+<p>You could also do this in the editor if that's easier!</p>

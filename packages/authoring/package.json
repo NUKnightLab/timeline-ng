@@ -1,0 +1,35 @@
+{
+  "name": "@timeline-ng/authoring",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "dev:devnet": "vite --mode devnet",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "svelte-check --tsconfig ./tsconfig.json && tsc --noEmit",
+    "test": "vitest",
+    "test:run": "vitest run"
+  },
+  "dependencies": {
+    "@atproto/api": "^0.20.16",
+    "@atproto/oauth-client-browser": "^0.4.2",
+    "@knight-lab/timeline-ng-core": "workspace:*",
+    "@tiptap/core": "^3.27.0",
+    "@tiptap/extension-link": "^3.27.0",
+    "@tiptap/pm": "^3.27.0",
+    "@tiptap/starter-kit": "^3.27.0",
+    "dompurify": "^3.2.0",
+    "vanilla-colorful": "^0.7.2"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^5.0.0",
+    "@types/dompurify": "^3.2.0",
+    "svelte": "^5.0.0",
+    "svelte-check": "^4.0.0",
+    "typescript": "^5.7.0",
+    "vite": "^6.0.0",
+    "vitest": "^3.2.4"
+  }
+}

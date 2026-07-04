@@ -1,0 +1,76 @@
+services:
+  # Provide postgres for PLC
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${DEVNET_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DEVNET_DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DEVNET_DB_NAME:-plc}
+    ports:
+      - "${DEVNET_POSTGRES_PORT:-5433}:5432"
+    networks:
+      - atproto-devnet
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DEVNET_DB_USER:-postgres}"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  # Provide maildev for PDS email verification
+  maildev:
+    image: maildev/maildev:latest
+    ports:
+      - "${DEVNET_MAILDEV_WEB_PORT:-1081}:1080"
+      - "${DEVNET_MAILDEV_SMTP_PORT:-1026}:1025"
+    networks:
+      - atproto-devnet
+
+  # Wire PLC to our postgres
+  plc:
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # Wire PDS to our maildev; trust the mkcert CA so it can fetch client metadata from https://devnet.test
+  pds:
+    environment:
+      PDS_EMAIL_SMTP_URL: smtp://maildev:1025
+      NODE_EXTRA_CA_CERTS: /mkcert-ca/rootCA.pem
+    volumes:
+      - ${MKCERT_CAROOT:-~/.local/share/mkcert}:/mkcert-ca:ro
+
+  # Point init at the correct script/data paths (resolved from --project-directory .)
+  init:
+    volumes:
+      - ../../src/atproto-devnet/scripts:/scripts:ro
+      - ../../src/atproto-devnet/data:/devnet-data
+
+  # HTTPS proxy for devnet.test → pds:3000
+  # Required for browser ATProto OAuth (PDS service endpoint must be HTTPS)
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "443:443"
+      - "80:80"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./caddy/client-metadata.json:/srv/client-metadata.json:ro
+      - ./caddy/certs/devnet.internal.pem:/certs/devnet.internal.pem:ro
+      - ./caddy/certs/devnet.internal-key.pem:/certs/devnet.internal-key.pem:ro
+      - caddy-data:/data
+    networks:
+      atproto-devnet:
+        aliases:
+          - devnet.internal
+    depends_on:
+      pds:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "caddy", "validate", "--config", "/etc/caddy/Caddyfile"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+volumes:
+  caddy-data:

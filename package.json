@@ -1,0 +1,23 @@
+{
+  "name": "timeline-ng",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "test:run": "pnpm -r test:run",
+    "dev": "pnpm -r --parallel dev",
+    "authoring": "pnpm --filter @timeline-ng/authoring dev",
+    "authoring:devnet": "pnpm --filter @timeline-ng/authoring dev:devnet",
+    "embed": "pnpm --filter @timeline-ng/embed dev",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "devDependencies": {
+    "playwright": "^1.61.1",
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=9"
+  }
+}

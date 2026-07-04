@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "paths": {
+      "@knight-lab/timeline-ng-core": ["../core/src/index.ts"],
+      "@knight-lab/timeline-ng": ["../player/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*"]
+}

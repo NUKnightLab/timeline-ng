@@ -1,0 +1,157 @@
+/* ── Timeline NG — Design Tokens ─────────────────────────────────────────── */
+:root {
+  --tl-font-heading: system-ui, sans-serif;
+  --tl-font-body: system-ui, sans-serif;
+
+  --tl-color-bg: #ffffff;
+  --tl-color-surface: #f5f5f5;
+  --tl-color-text: #111111;
+  --tl-color-text-muted: #555555;
+  --tl-color-accent: #d4550e;
+  --tl-color-accent-hover: #b5400a;
+  --tl-color-border: #dddddd;
+  --tl-color-nav-bg: #e0e0e0;
+  --tl-color-nav-marker: #555555;
+  --tl-color-nav-marker-active: #111111;
+  --tl-color-nav-marker-hover: #333333;
+
+  --tl-radius: 4px;
+  --tl-gap: 1rem;
+  --tl-slide-padding: 2rem;
+  --tl-nav-height: 80px;
+  --tl-transition-speed: 300ms;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --tl-color-bg: #1a1a1a;
+    --tl-color-surface: #2a2a2a;
+    --tl-color-text: #f0f0f0;
+    --tl-color-text-muted: #aaaaaa;
+    --tl-color-border: #444444;
+    --tl-color-nav-bg: #111111;
+    --tl-color-nav-marker: #aaaaaa;
+    --tl-color-nav-marker-active: #ffffff;
+    --tl-color-nav-marker-hover: #cccccc;
+  }
+}
+
+[data-tl-theme="dark"] {
+  --tl-color-bg: #1a1a1a;
+  --tl-color-surface: #2a2a2a;
+  --tl-color-text: #f0f0f0;
+  --tl-color-text-muted: #aaaaaa;
+  --tl-color-border: #444444;
+  --tl-color-nav-bg: #111111;
+  --tl-color-nav-marker: #aaaaaa;
+  --tl-color-nav-marker-active: #ffffff;
+  --tl-color-nav-marker-hover: #cccccc;
+}
+
+[data-tl-theme="light"] {
+  --tl-color-bg: #ffffff;
+  --tl-color-surface: #f5f5f5;
+  --tl-color-text: #111111;
+  --tl-color-text-muted: #555555;
+  --tl-color-border: #dddddd;
+  --tl-color-nav-bg: #e0e0e0;
+  --tl-color-nav-marker: #555555;
+  --tl-color-nav-marker-active: #111111;
+  --tl-color-nav-marker-hover: #333333;
+}
+
+/* ── Reduced motion ─────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition-duration: 0ms !important;
+    animation-duration: 0ms !important;
+  }
+}
+
+/* ── Base reset (scoped to .tl-player) ──────────────────────────────────── */
+.tl-player * {
+  box-sizing: border-box;
+}
+
+.tl-player {
+  font-family: var(--tl-font-body);
+  color: var(--tl-color-text);
+  background: var(--tl-color-bg);
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  container-type: inline-size;
+  container-name: tl-player;
+}
+
+/*
+ * Isolation resets — undo host-page CSS framework rules (Orangeline, Bootstrap,
+ * etc.) that target bare element names and would otherwise bleed into the player.
+ * These must be lower-specificity than the component styles that follow.
+ */
+.tl-player button {
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: normal;
+  text-transform: none;
+  letter-spacing: normal;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  text-shadow: none;
+  border-radius: 0;
+  cursor: pointer;
+  display: inline-block;
+  appearance: none;
+  -webkit-appearance: none;
+  line-height: inherit;
+  color: inherit;
+}
+
+.tl-player nav {
+  overflow: visible;
+  max-width: none;
+  font-size: inherit;
+  font-family: inherit;
+}
+
+.tl-player a {
+  color: inherit;
+  text-decoration: none;
+  text-shadow: none;
+  background-image: none;
+}
+
+.tl-player ul,
+.tl-player ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tl-player img {
+  border: none;
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+.tl-player blockquote {
+  margin: 0;
+  padding: 0;
+  border: none;
+  font-family: var(--tl-font-body);
+  font-size: inherit;
+  font-weight: normal;
+  font-style: normal;
+  line-height: inherit;
+  color: inherit;
+  background: none;
+  quotes: none;
+}
+
+.tl-player blockquote cite::before {
+  content: none;
+}

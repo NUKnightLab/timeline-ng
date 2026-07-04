@@ -1,0 +1,5 @@
+allowBuilds:
+  esbuild: true
+minimumReleaseAgeExclude:
+  - '@knight-lab/timeline-ng-core'
+  - '@knight-lab/timeline-ng'

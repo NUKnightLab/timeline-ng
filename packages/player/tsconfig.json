@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@knight-lab/timeline-ng-core": ["../core/src/index.ts"]
+    }
+  },
+  "include": ["src", ".storybook"]
+}

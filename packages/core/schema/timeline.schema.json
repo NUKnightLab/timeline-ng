@@ -1,0 +1,225 @@
+{
+  "$id": "https://raw.githubusercontent.com/NUKnightLab/timeline-ng/main/packages/core/schema/timeline.schema.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$ref": "#/definitions/TLTimeline",
+  "definitions": {
+    "TLTimeline": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "$ref": "#/definitions/TLEvent",
+          "description": "Optional title slide. Shown first; not linked to a date."
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/TLEvent"
+          }
+        },
+        "settings": {
+          "$ref": "#/definitions/TLSettings",
+          "description": "Optional playback/display settings for this timeline."
+        }
+      },
+      "required": [
+        "events"
+      ],
+      "additionalProperties": false
+    },
+    "TLEvent": {
+      "type": "object",
+      "properties": {
+        "unique_id": {
+          "type": "string"
+        },
+        "start_date": {
+          "$ref": "#/definitions/TLDateInput",
+          "description": "Required on all events except the title slide."
+        },
+        "end_date": {
+          "$ref": "#/definitions/TLDateInput"
+        },
+        "text": {
+          "$ref": "#/definitions/TLText"
+        },
+        "media": {
+          "$ref": "#/definitions/TLMedia"
+        },
+        "media_position": {
+          "type": "string",
+          "enum": [
+            "left",
+            "right"
+          ],
+          "description": "Which side the media column appears on. Defaults to 'left'."
+        },
+        "group": {
+          "type": "string",
+          "description": "Optional grouping label."
+        },
+        "background": {
+          "$ref": "#/definitions/TLBackground"
+        }
+      },
+      "additionalProperties": false
+    },
+    "TLDateInput": {
+      "type": "object",
+      "properties": {
+        "year": {
+          "type": "number"
+        },
+        "month": {
+          "type": "number"
+        },
+        "day": {
+          "type": "number"
+        },
+        "hour": {
+          "type": "number"
+        },
+        "minute": {
+          "type": "number"
+        },
+        "second": {
+          "type": "number"
+        },
+        "millisecond": {
+          "type": "number"
+        },
+        "display_date": {
+          "type": "string",
+          "description": "Override the rendered date string entirely."
+        }
+      },
+      "required": [
+        "year"
+      ],
+      "additionalProperties": false,
+      "description": "Variable-resolution date. Only `year` is required. Negative year = BCE. Values may be outside JS Date range (cosmological scale)."
+    },
+    "TLText": {
+      "type": "object",
+      "properties": {
+        "headline": {
+          "type": "string",
+          "description": "Headline text; may contain inline HTML."
+        },
+        "text": {
+          "type": "string",
+          "description": "Body text; may contain HTML."
+        }
+      },
+      "additionalProperties": false
+    },
+    "TLMedia": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string",
+          "description": "URL of the media resource. Should be a valid https:// URL."
+        },
+        "blobRef": {
+          "$ref": "#/definitions/ATProtoBlobRef",
+          "description": "ATProto blob reference for media uploaded to a PDS. When present, url is hydrated at load time from the PDS endpoint."
+        },
+        "mimeType": {
+          "type": "string",
+          "description": "MIME type hint. Takes precedence over URL pattern matching in the resolver. Populated automatically when blobRef is hydrated."
+        },
+        "caption": {
+          "type": "string"
+        },
+        "credit": {
+          "type": "string"
+        },
+        "thumbnail": {
+          "type": "string"
+        },
+        "alt": {
+          "type": "string",
+          "description": "Alt text for image media; falls back to caption if omitted."
+        }
+      },
+      "additionalProperties": false
+    },
+    "ATProtoBlobRef": {
+      "type": "object",
+      "properties": {
+        "$type": {
+          "type": "string",
+          "const": "blob"
+        },
+        "ref": {
+          "type": "object",
+          "properties": {
+            "$link": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "$link"
+          ],
+          "additionalProperties": false
+        },
+        "mimeType": {
+          "type": "string"
+        },
+        "size": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "$type",
+        "ref",
+        "mimeType",
+        "size"
+      ],
+      "additionalProperties": false,
+      "description": "ATProto blob reference, as returned by com.atproto.repo.uploadBlob."
+    },
+    "TLBackground": {
+      "type": "object",
+      "properties": {
+        "color": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "blobRef": {
+          "$ref": "#/definitions/ATProtoBlobRef"
+        }
+      },
+      "additionalProperties": false
+    },
+    "TLSettings": {
+      "type": "object",
+      "properties": {
+        "language": {
+          "type": "string",
+          "description": "UI locale for chrome and date formatting. Currently supported: 'en' (default), 'es'."
+        },
+        "theme": {
+          "type": "string",
+          "enum": [
+            "light",
+            "dark",
+            "auto"
+          ],
+          "description": "Color theme. 'auto' (default) follows the viewer's OS/browser preference."
+        },
+        "initialIndex": {
+          "type": "number",
+          "description": "0-based index of the slide to display first (counting the title slide if present). Defaults to 0."
+        },
+        "reverseOrder": {
+          "type": "boolean",
+          "description": "Show events newest-first. The title slide (if any) always stays first. Defaults to false."
+        }
+      },
+      "additionalProperties": false,
+      "description": "Timeline-level playback/display configuration. All fields optional; omitted = player default."
+    }
+  }
+}

@@ -1,0 +1,89 @@
+<title>Media types — Timeline NG</title>
+<style>
+  .field-table {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+    margin: 0 0 1.5rem;
+  }
+  .field-table th, .field-table td {
+    text-align: left;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid #e5e7eb;
+    vertical-align: top;
+  }
+  .field-table th { color: #6b7280; font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.03em; }
+  .field-table th:first-child, .field-table td:first-child { width: 60%; }
+  .field-table th:last-child, .field-table td:last-child { width: 40%; }
+
+  @media (max-width: 640px) {
+    .field-table, .field-table tbody, .field-table tr, .field-table th, .field-table td {
+      display: block;
+      width: auto;
+    }
+    .field-table tr:has(th) { display: none; }
+    .field-table tr { padding: 0.5rem 0; border-bottom: 1px solid #e5e7eb; }
+    .field-table td { padding: 0.15rem 0; border-bottom: none; }
+    .field-table td:last-child { padding-left: 1.25rem; color: #4b5563; }
+  }
+</style>
+
+<h1>Media types</h1>
+<p class="subtitle">Timeline supports many ways to illustrate your story</p>
+
+<h2>Just upload files</h2>
+<p>
+  You may already have images, video and audio you want to use. Timeline NG lets you upload those files right in the editor. You have to be signed in with an <a href="./docs.html#atmosphere">atmosphere</a> account to upload files. If you are, they'll be saved to your own server.
+</p>
+
+<h2>Paste a URL, get an embed</h2>
+<p>
+  If the media you want to include is already on the web, use the editor's <strong>URL / Embed</strong> tab, or the
+  <code>media.url</code> field if you're writing JSON directly. Timeline NG looks at the
+  shape of the URL itself and picks the right way to show it. There's nothing special to
+  configure: paste the same link you'd copy from your browser's address bar or a site's
+  "Share" button, and the player figures out the rest.
+</p>
+<p>
+  If a URL doesn't match any of the patterns below, Timeline NG tries it as a generic
+  embedded frame as a last resort. Some sites block this (via <code>X-Frame-Options</code>),
+  in which case the slide will show a blank space or refuse to load — if that happens, look
+  for that site's own "embed code" option (see Raw HTML below) or link out to it directly
+  instead.
+</p>
+
+<h2>Recognized URL patterns</h2>
+<table class="field-table">
+  <tr><th>Paste a link like&hellip;</th><th>You get</th></tr>
+  <tr><td>A direct file link ending in <code>.jpg</code>, <code>.png</code>, <code>.gif</code>, <code>.svg</code>, or <code>.webp</code></td><td>The image itself</td></tr>
+  <tr><td>A direct file link ending in <code>.mp3</code>, <code>.wav</code>, <code>.m4a</code>, <code>.ogg</code>, or <code>.flac</code></td><td>An audio player</td></tr>
+  <tr><td>A direct file link ending in <code>.mp4</code>, <code>.webm</code>, <code>.mov</code>, or <code>.ogv</code></td><td>A video player</td></tr>
+  <tr><td>A direct link ending in <code>.pdf</code></td><td>An inline PDF viewer</td></tr>
+  <tr><td>A YouTube link (<code>youtube.com/watch?v=&hellip;</code> or <code>youtu.be/&hellip;</code>)</td><td>A video player. Start/end time parameters (<code>?t=</code>, <code>&amp;start=</code>, <code>&amp;end=</code>) are honored.</td></tr>
+  <tr><td>A Vimeo link</td><td>A video player</td></tr>
+  <tr><td>A DailyMotion or Wistia link</td><td>A video player</td></tr>
+  <tr><td>A SoundCloud track link</td><td>An audio player</td></tr>
+  <tr><td>A Spotify track, album, or playlist link (or a <code>spotify:</code> URI)</td><td>An audio player</td></tr>
+  <tr><td>A Bluesky post link (bsky.app or a compatible app like Blacksky or Mu.social)</td><td>The post, embedded</td></tr>
+  <tr><td>A TikTok video link</td><td>The video, embedded</td></tr>
+  <tr><td>A Twitter/X status link</td><td>The post, embedded</td></tr>
+  <tr><td>A Wikipedia article link</td><td>A summary card with thumbnail and excerpt</td></tr>
+  <tr><td>A Wikimedia Commons file link</td><td>The full image</td></tr>
+  <tr><td>A Google Maps link</td><td>An embedded map</td></tr>
+  <tr><td>A Google Drive or Google Docs/Sheets/Slides link</td><td>An embedded document viewer</td></tr>
+  <tr><td>A Flickr photo page link</td><td>The image itself</td></tr>
+</table>
+
+<h2>Raw HTML</h2>
+<p>
+  If a site gives you an "embed code" snippet rather than a plain link (often starting with
+  <code>&lt;blockquote&gt;</code> or <code>&lt;iframe&gt;</code>), you can paste that whole
+  snippet into the media field instead of a URL. Timeline NG detects that it's markup, not a
+  link, and renders it as-is. <strong>Note: </strong> embeds that require <code>script</code> tags will not work—those get stripped out for safety reasons.
+</p>
+
+<h2>Atmosphere Apps</h2>
+<p>
+  Most people start with Bluesky, but there are other <a href="./docs.html#atmosphere">atmosphere</a> apps coming out all the time. Once you're signed in here, we can help you bring data from your other apps into your timeline. Use the "atmosphere" tab in the media editor to add them, and let us know if there are other apps you think we should support.
+</p>

@@ -1,0 +1,11 @@
+{
+  "client_id": "https://timeline.knilab.com/ng/client-metadata.json",
+  "client_name": "TimelineJS Authoring (staging)",
+  "redirect_uris": ["https://timeline.knilab.com/ng/"],
+  "scope": "atproto repo:com.knightlab.timeline blob:*/*",
+  "grant_types": ["authorization_code", "refresh_token"],
+  "response_types": ["code"],
+  "token_endpoint_auth_method": "none",
+  "application_type": "web",
+  "dpop_bound_access_tokens": true
+}

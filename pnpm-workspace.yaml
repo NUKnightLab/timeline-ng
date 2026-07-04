@@ -1,0 +1,11 @@
+packages:
+  - 'packages/*'
+  - 'apps/*'
+
+minimumReleaseAgeExclude:
+  - '@knight-lab/timeline-ng-core'
+  - '@knight-lab/timeline-ng'
+
+allowBuilds:
+  core-js: true
+  esbuild: true

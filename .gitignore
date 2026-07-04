@@ -1,0 +1,12 @@
+.claude
+.vscode
+node_modules/
+dist/
+*.tgz
+.turbo/
+*.tsbuildinfo
+.DS_Store
+storybook-static/
+coverage/
+caddy/certs/
+.env.local

@@ -1,0 +1,90 @@
+<title>About Atmosphere — Timeline NG</title>
+
+<h1>About Atmosphere</h1>
+<p class="subtitle">How this editor uses the open social web to keep your content yours.</p>
+
+<h2>What is Atmosphere?</h2>
+<p>
+  Atmosphere is the general name for the open ecosystem of apps built on the
+  <a href="https://atproto.com" target="_blank" rel="noopener">AT Protocol</a> (atproto for short) —
+  the same open standard that powers <a href="https://bsky.app" target="_blank" rel="noopener">Bluesky</a>.
+  Any app that stores data on atproto can participate in the Atmosphere, including this editor. 
+</p>
+<p>
+  The Atmosphere gives you a universal login and a place to store your own data. TimelineNG uses the Atmosphere as a place to save your timelines — you don't have to have a Google account any more, and now we can help you upload images and media for your timelines. You can also include media from other Atmosphere apps!
+</p>
+<p>
+  You don't need a separate account. If you have a Bluesky account, you already have an
+  Atmosphere account. Sign in with your Bluesky handle and this editor can read and write
+  to your personal data store. If you don't have an Atmosphere account yet, you have many options even beyond BlueSky.
+</p>
+
+<h2>What signing in lets you do</h2>
+<ul>
+  <li><strong>Save timelines</strong> — your timeline is stored as a record in your PDS. You can edit it from anywhere.</li>
+  <li><strong>Share your timelines</strong> — for casual users, signing in is really the only way to let other people see your timeline. You can get a direct link or an embed code just like in the original version of TimelineJS.</li>
+  <li><strong>Upload media</strong> — images, audio, and video are stored as blobs on your PDS alongside the timeline record that references them.</li>
+  <li><strong>Browse media from other apps</strong> — if you use Atmosphere apps that store photos or audio in your PDS, you can pick that media directly when editing a slide. If there's an app you use that we don't support, <a href="https://github.com/NUKnightLab/timeline-ng/issues" target="_blank" rel="noopener">let us know</a> and we'll try to add it!</li>
+  </ul>
+
+<h2>Getting an account</h2>
+<p>
+  If you don't already have a Bluesky or other Atmosphere account, here are a few ways to get one.
+</p>
+<ul class="app-list">
+  <li>
+    <div class="app-name"><a href="https://bsky.app" target="_blank" rel="noopener">Bluesky</a></div>
+    <div class="app-desc">a full-featured microblogging app and the most common Atmosphere account provider.</div>
+  </li>
+  <li>
+    <div class="app-name"><a href="https://blacksky.community/" target="_blank" rel="noopener">Blacksky</a></div>
+    <div class="app-desc">A microblogging app compatible with Bluesky, but with its own approach to moderating content and with plans for new features.</div>
+  </li>
+  <li>
+    <div class="app-name"><a href="https://mu.social/" target="_blank" rel="noopener">Mu.social</a></div>
+    <div class="app-desc">A microblogging app compatible with Bluesky running on systems based in Europe. They had an edit button before Bluesky, and a cute cat too!</div>
+  </li>
+  <li>
+    <div class="app-name"><a href="https://tangled.org/" target="_blank" rel="noopener">Tangled</a></div>
+    <div class="app-desc">A code collaboration and git hosting service built on the Atmosphere, if microblogging isn't your thing.</div>
+  </li>
+  <li>
+    <div class="app-name"><a href="https://npmx.dev/" target="_blank" rel="noopener">npmx</a></div>
+    <div class="app-desc">An alternative npm registry frontend built which uses the Atmosphere for social and collaboration features.</div>
+  </li>
+</ul>
+<p>More Atmosphere apps and providers are launching all the time — or you can self-host your own PDS. And you can change your mind later: your ability to move is fundamental to the protocol and there are tools that make it really easy.</p>
+<div class="callout">
+  Once you have an account, sign in from the top-right corner of the editor. You'll be
+  redirected to your PDS to authorize the editor, then returned here.
+</div>
+
+<h2>Apps that work with this editor</h2>
+<p>
+  These Atmosphere apps store media in your PDS. When you sign in and have content from
+  them, you can browse and reuse that media directly from the slide editor.
+</p>
+<ul class="app-list">
+  <li>
+    <div class="app-name"><a href="https://currents.is" target="_blank" rel="noopener">Currents.is</a></div>
+    <div class="app-desc">Save and organize images from around the web.</div>
+  </li>
+  <li>
+    <div class="app-name"><a href="https://grain.social" target="_blank" rel="noopener">Grain.social</a></div>
+    <div class="app-desc">A film photography journal.</div>
+  </li>
+  <li>
+    <div class="app-name"><a href="https://plyr.fm" target="_blank" rel="noopener">Plyr.fm</a></div>
+    <div class="app-desc">Upload and share audio tracks.</div>
+  </li>
+</ul>
+
+<h2>Privacy and data ownership</h2>
+<p>
+  Knight Lab does not store your timeline data, your
+  uploaded media, or your credentials. Whether or not you sign-in, the timeline you are editing is saved in your browser until you click the "discard" button. If you sign in, your browser talks directly to your server to get permission to save your timeline and uploads to the atmosphere. We don't keep any record that you've used our tool.
+</p>
+<p>
+  But: note that timelines you save on the Atmosphere and publish using our embeds are readable by anyone and it's not very hard for people to discover your timelines if they want to. The Atmosphere doesn't currently support private or semi-private content yet, although they are working on it, and we are following the work closely. <p>
+    <p>If strong privacy or anonymity are important to you, you should export the JSON from our editor and look into <a href="./docs.html#self-hosting" target="_blank" rel="noopener">self-hosting</HelpLink>.
+</</p>

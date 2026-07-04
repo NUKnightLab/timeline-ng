@@ -1,0 +1,21 @@
+{
+  "name": "@timeline-ng/example-svelte5-json",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@knight-lab/timeline-ng": "0.1.0-beta.1",
+    "@knight-lab/timeline-ng-core": "0.1.0-beta.1"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^5.0.0",
+    "svelte": "^5.0.0",
+    "typescript": "^5.7.0",
+    "vite": "^6.0.0"
+  }
+}

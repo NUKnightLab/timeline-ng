@@ -1,0 +1,96 @@
+<title>Self-hosting your timeline — Timeline NG</title>
+
+<h1>Self-hosting your timeline</h1>
+<p class="subtitle">Embed a timeline on your own site without using the Atmosphere network.</p>
+
+<h2>Overview</h2>
+<p>
+  The Timeline NG player is a standalone web component you can include on your own web pages.
+  You can export your timeline data as a JSON file from the editor, host it alongside your site,
+  and point the player at it. No server-side code required. You do have to use modern javascript build tools; unlike our other tools, there is currently no support for simply loading Timeline NG with a <code>&lt;script src=&quot;...&quot;&gt;</code> tag.
+</p>
+
+<h2>1. Export your data</h2>
+<p>
+  In the editor, open <strong>Publish</strong> and click <strong>Download JSON</strong>.
+  Save the file somewhere in your site's assets — for example <code>timeline.json</code>.
+  See the <a href="./docs.html#data-format">timeline data format guide</a> if you're writing
+  or generating this JSON by hand instead.
+</p>
+
+<h2>2. Install the player</h2>
+<p>Install via npm:</p>
+<pre><code>npm install @knight-lab/timeline-ng</code></pre>
+<p>Then import the styles once in your app entry point:</p>
+<pre><code>import '@knight-lab/timeline-ng/styles.css';</code></pre>
+
+<h2>3. Add the player to your page</h2>
+<p>
+  The player ships as a <a href="https://svelte.dev" target="_blank" rel="noopener">Svelte</a> component.
+  Use <code>loadTimeline</code> to fetch your JSON, then pass the result to <code>SlidePlayer</code>:
+</p>
+<pre><code>import { SlidePlayer, loadTimeline } from '@knight-lab/timeline-ng';
+import '@knight-lab/timeline-ng/styles.css';
+
+const result = await loadTimeline('/path/to/timeline.json');
+if (result.ok) {
+  // mount SlidePlayer with result.timeline
+}</code></pre>
+<p>
+  See the
+  <a href="https://github.com/NUKnightLab/timeline-ng" target="_blank" rel="noopener">project README</a>
+  for complete framework integration examples.
+</p>
+
+<h2>4. Configuration options</h2>
+<p>
+  If your timeline JSON includes a <code>settings</code> object (see the
+  <a href="./docs.html#data-format">data format guide</a>), the Timeline NG embed app reads it automatically
+  and applies it. When using <code>SlidePlayer</code> directly, as shown above, you're responsible for
+  reading <code>timeline.settings</code> yourself and passing the matching props — the props below let you
+  override or supply these values manually:
+</p>
+<ul>
+  <li><code>language</code> — locale code for date formatting (default: <code>"en"</code>)</li>
+  <li><code>theme</code> — <code>"light"</code>, <code>"dark"</code>, or <code>"auto"</code> (default)</li>
+  <li><code>initialIndex</code> — slide number to start on (default: <code>0</code>)</li>
+  <li><code>reverseOrder</code> — show events newest-first (default: <code>false</code>)</li>
+</ul>
+
+<h2>5. Styling</h2>
+<p>
+  The player exposes CSS custom properties for theming. Set them on the container or
+  any ancestor element:
+</p>
+<pre><code>#my-timeline {
+  --tl-color-accent: #0066cc;
+  --tl-font-heading: 'Georgia', serif;
+  --tl-stage-min-height: 300px;
+}</code></pre>
+
+<h2>Need help?</h2>
+<p>
+  Open an issue on the
+  <a href="https://github.com/NUKnightLab/timeline-ng" target="_blank" rel="noopener">GitHub repository</a>
+  or check the project README for the latest guidance.
+</p>
+
+<h2>Example apps</h2>
+<p>
+  The <a href="https://github.com/NUKnightLab/timeline-ng" target="_blank" rel="noopener">timeline-ng repository</a>
+  includes a few small example apps demonstrating different integration patterns:
+</p>
+<ul class="app-list">
+  <li>
+    <div class="app-name"><a href="https://github.com/NUKnightLab/timeline-ng/blob/main/apps/example-svelte5/README.md" target="_blank" rel="noopener">example-svelte5</a></div>
+    <div class="app-desc">Fetches a timeline at runtime (from an AT URI or any URL) with <code>loadTimeline()</code> inside a Svelte component.</div>
+  </li>
+  <li>
+    <div class="app-name"><a href="https://github.com/NUKnightLab/timeline-ng/blob/main/apps/example-vanilla/README.md" target="_blank" rel="noopener">example-vanilla</a></div>
+    <div class="app-desc">Mounts the player with a plain, hand-written timeline object — no Svelte component authoring required.</div>
+  </li>
+  <li>
+    <div class="app-name"><a href="https://github.com/NUKnightLab/timeline-ng/blob/main/apps/example-svelte5-json/README.md" target="_blank" rel="noopener">example-svelte5-json</a></div>
+    <div class="app-desc">Renders the player from a static JSON file bundled with the app — the pattern this guide walks through above.</div>
+  </li>
+</ul>
