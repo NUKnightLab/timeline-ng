@@ -1,4 +1,5 @@
 <script lang="ts">
+	import HelpLink from './HelpLink.svelte';
   import { getAuthState, signIn, signOut, clearAuthError } from '../lib/atproto.svelte.ts';
 
   interface Props {
@@ -163,7 +164,7 @@
     </button>
     {#if showPanel}
       <div class="auth-panel" style="top: {panelTop}px">
-        <p class="auth-panel-label">Sign in with your <a href="https://atmosphereaccount.com/" target="atmosphere_account">Atmosphere account</a>.</p>
+        <p class="auth-panel-label">Sign in with your <HelpLink doc="atmosphere">Atmosphere account</HelpLink>.</p>
         <div class="auth-input-wrap">
           <div class="auth-form-wrap">
           <form class="auth-form" onsubmit={handleSignIn}>

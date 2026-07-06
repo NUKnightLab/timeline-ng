@@ -679,13 +679,13 @@
 
   <div class="tl-nav__zoom-controls" style="width: {controlGutter}px; height: {contentHeight}px;" role="group" aria-label="Timeline controls" onpointerdown={(e) => e.stopPropagation()}>
     {#if displayRows === 0}
-      <button class="tl-nav__zoom-btn" onclick={goToStart} aria-label="Go to beginning" title="Beginning">⏮</button>
-      <button class="tl-nav__zoom-btn" onclick={goToEnd} aria-label="Go to end" title="End">⏭</button>
+      <button class="tl-nav__zoom-btn" onclick={goToStart} aria-label="Go to beginning" title="Beginning">⏮︎</button>
+      <button class="tl-nav__zoom-btn" onclick={goToEnd} aria-label="Go to end" title="End">⏭︎</button>
     {:else}
-      {#if !compact}<button class="tl-nav__zoom-btn" onclick={goToStart} aria-label="Go to beginning" title="Beginning">⏮</button>{/if}
+      {#if !compact}<button class="tl-nav__zoom-btn" onclick={goToStart} aria-label="Go to beginning" title="Beginning">⏮︎</button>{/if}
       <button class="tl-nav__zoom-btn" onclick={zoomIn}  aria-label="Zoom in"  title="Zoom in"  disabled={viewRange <= MIN_RANGE}>+</button>
       <button class="tl-nav__zoom-btn" onclick={zoomOut} aria-label="Zoom out" title="Zoom out" disabled={!isZoomed}>−</button>
-      {#if !compact}<button class="tl-nav__zoom-btn" onclick={goToEnd} aria-label="Go to end" title="End">⏭</button>{/if}
+      {#if !compact}<button class="tl-nav__zoom-btn" onclick={goToEnd} aria-label="Go to end" title="End">⏭︎</button>{/if}
     {/if}
   </div>
 
