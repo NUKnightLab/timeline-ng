@@ -1,6 +1,7 @@
 packages:
   - 'packages/*'
   - 'apps/*'
+  - 'workers/*'
 
 minimumReleaseAgeExclude:
   - '@knight-lab/timeline-ng-core'
@@ -9,3 +10,5 @@ minimumReleaseAgeExclude:
 allowBuilds:
   core-js: true
   esbuild: true
+  sharp: false
+  workerd: true

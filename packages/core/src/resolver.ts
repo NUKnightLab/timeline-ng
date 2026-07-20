@@ -1,4 +1,4 @@
-import type { TLMedia } from './types.ts';
+import type { TLBackground, TLEvent, TLMedia } from './types.ts';
 
 export type ResolvedMedia =
   | { kind: 'embed-markup'; html: string }
@@ -262,4 +262,23 @@ export function resolveMedia(media: TLMedia): ResolvedMedia {
 
   // Catch-all: iframe
   return { kind: 'iframe', src: url };
+}
+
+// Backgrounds are always meant to be a plain image (unlike `media`, which can
+// be any embed type), so no need to run them through the classification
+// above — just a directly-usable URL. blobRef backgrounds aren't hydrated
+// here (that needs a PDS endpoint, which callers must resolve themselves).
+function backgroundImageUrl(background?: TLBackground): string | undefined {
+  const url = background?.url?.trim();
+  return url && /^https?:\/\//i.test(url) ? url : undefined;
+}
+
+/** Best available plain-image URL for a slide: its background, else its media if that's an image. */
+export function pickSlideImageUrl(slide?: TLEvent): string | undefined {
+  if (!slide) return undefined;
+  const bg = backgroundImageUrl(slide.background);
+  if (bg) return bg;
+  if (!slide.media) return undefined;
+  const resolved = resolveMedia(slide.media);
+  return resolved.kind === 'image' ? resolved.src : undefined;
 }

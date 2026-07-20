@@ -28,6 +28,16 @@ settable — instead, a slide's background color could optionally propagate to i
 a toggle next to the background-color control ("marker too?"). Background *images*
 propagating to markers is out of scope (too visually noisy at marker scale).
 
+### Custom typography — Medium value, Medium complexity
+
+No per-timeline font override exists today (`TLSettings` has no font field; the player
+always uses its built-in font stack). Would need a schema field, a font-picker/loader in
+`SettingsPanel.svelte`, and CSS custom-property plumbing through the player. Also affects
+the poster/`og:image` generator (`packages/authoring/src/lib/poster.ts`) — it currently
+hardcodes `system-ui` for headline/description text via Canvas 2D, so once custom fonts
+exist, the poster would need to load/apply the same font (e.g. via `FontFace`) to stay in
+sync with the real timeline's look, or explicitly fall back with that tradeoff understood.
+
 ### Eras — High value, Large complexity, **needs a design pass first**
 
 Not yet implemented at all. TL3 issues (#292 unbounded/ongoing eras, #229 overlap, #321
@@ -47,6 +57,16 @@ Mirror of the existing opening title slide, shown at the end (#204). Pairs natur
 i18n infrastructure (flat JSON + `Intl.DateTimeFormat`) should already support this; layout
 (slide direction, TimeNav direction) is untested and likely needs CSS logical-property
 work. — TL3 #828
+
+### Sign-in entry point on Home screen — Medium value, Small complexity
+
+`AuthButton.svelte` (fully built: sign-in panel, handle typeahead, sign-out) is only
+rendered inside `EditorView.svelte`. `HomeView.svelte`'s "Your timelines" section is
+wrapped in `{#if auth.status === 'signed-in'}`, so a signed-out visitor on the home screen
+has no way to sign in without first creating/importing a timeline. Leaning towards: make
+"Your timelines" always visible and drop `AuthButton` into its header row (signed-out state
+shows "Sign in to save and revisit your timelines here"), reusing the component wholesale
+instead of adding a second bespoke sign-in affordance next to New/From File/From URL.
 
 ### Deep link to event by ID — Medium value, Small-Medium complexity
 

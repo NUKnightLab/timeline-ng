@@ -1,7 +1,7 @@
 import { BrowserOAuthClient } from '@atproto/oauth-client-browser';
 import type { OAuthSession } from '@atproto/oauth-client-browser';
 import { Agent } from '@atproto/api';
-import type { ATProtoBlobRef, TLEvent, TLMedia, TLTimeline } from '@knight-lab/timeline-ng-core';
+import type { ATProtoBlobRef, TLEvent, TLMedia, TLSettings, TLTimeline } from '@knight-lab/timeline-ng-core';
 import { collections } from './collections.ts';
 import type { CollectionDef } from './collections.ts';
 
@@ -171,7 +171,7 @@ export type SaveResult =
   | { ok: true; uri: string }
   | { ok: false; error: string };
 
-export async function uploadBlob(file: File): Promise<ATProtoBlobRef> {
+export async function uploadBlob(file: Blob): Promise<ATProtoBlobRef> {
   if (_state.status !== 'signed-in') throw new Error('Not signed in.');
   const { agent } = _state;
   const buf = await file.arrayBuffer();
@@ -229,6 +229,24 @@ function stripBlobUrls(events: TLEvent[]): TLEvent[] {
   });
 }
 
+function hydrateOgImage(settings: TLSettings | undefined, base: string, did: string): TLSettings | undefined {
+  const blobRef = settings?.ogImage?.blobRef;
+  if (!blobRef) return settings;
+  const cid = extractCid(blobRef.ref);
+  if (!cid) return settings;
+  return {
+    ...settings,
+    ogImage: { ...settings.ogImage, url: `${base}/xrpc/com.atproto.sync.getBlob?did=${did}&cid=${encodeURIComponent(cid)}` },
+  };
+}
+
+function stripOgImageUrl(settings: TLSettings | undefined): TLSettings | undefined {
+  if (!settings?.ogImage?.blobRef || !settings.ogImage.url) return settings;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { url: _u, ...ogImage } = settings.ogImage;
+  return { ...settings, ogImage };
+}
+
 export async function saveTimeline(timeline: TLTimeline, meta: { title?: string }, existingUri?: string): Promise<SaveResult> {
   if (_state.status !== 'signed-in') {
     return { ok: false, error: 'Not signed in.' };
@@ -241,6 +259,7 @@ export async function saveTimeline(timeline: TLTimeline, meta: { title?: string 
       ...timeline,
       events: stripBlobUrls(timeline.events),
       ...(timeline.title ? { title: stripBlobUrls([timeline.title])[0] } : {}),
+      ...(timeline.settings ? { settings: stripOgImageUrl(timeline.settings) } : {}),
     };
     const resp = await agent.com.atproto.repo.putRecord({
       repo: agent.assertDid,
@@ -385,6 +404,7 @@ export async function getTimeline(uri: string): Promise<{ title?: string; timeli
         ...tl,
         events: hydrateBlobRefs(tl.events, base, did),
         ...(tl.title ? { title: hydrateBlobRefs([tl.title], base, did)[0] } : {}),
+        ...(tl.settings ? { settings: hydrateOgImage(tl.settings, base, did) } : {}),
       },
     };
   } catch {

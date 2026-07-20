@@ -69,6 +69,12 @@ export interface TLEvent {
   background?: TLBackground;
 }
 
+/** Social-share preview image — auto-generated at save time, or (eventually) user-set. */
+export interface TLOgImage {
+  url?: string;
+  blobRef?: ATProtoBlobRef;
+}
+
 /** Timeline-level playback/display configuration. All fields optional; omitted = player default. */
 export interface TLSettings {
   /** UI locale for chrome and date formatting. Currently supported: 'en' (default), 'es'. */
@@ -79,6 +85,8 @@ export interface TLSettings {
   initialIndex?: number;
   /** Show events newest-first. The title slide (if any) always stays first. Defaults to false. */
   reverseOrder?: boolean;
+  /** Social-share preview image for this timeline. */
+  ogImage?: TLOgImage;
 }
 
 export interface TLTimeline {

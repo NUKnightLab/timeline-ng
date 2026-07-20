@@ -10,6 +10,7 @@
     "authoring": "pnpm --filter @timeline-ng/authoring dev",
     "authoring:devnet": "pnpm --filter @timeline-ng/authoring dev:devnet",
     "embed": "pnpm --filter @timeline-ng/embed dev",
+    "og-preview": "pnpm --filter @timeline-ng/og-preview dev",
     "typecheck": "pnpm -r typecheck"
   },
   "devDependencies": {

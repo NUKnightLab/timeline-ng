@@ -56,6 +56,8 @@
   const _embedMeta = document.querySelector('meta[name="tl-embed-base"]')?.getAttribute('content');
   const EMBED_BASE = (_embedMeta && !_embedMeta.startsWith('__')) ? _embedMeta : 'http://127.0.0.1:5200/';
   const EMBED_ORIGIN = (() => { try { return new URL(EMBED_BASE).origin; } catch { return EMBED_BASE; } })();
+  const _shareMeta = document.querySelector('meta[name="tl-share-base"]')?.getAttribute('content');
+  const SHARE_BASE = (_shareMeta && !_shareMeta.startsWith('__')) ? _shareMeta : 'http://localhost:8787/ng/share';
   const previewUrl = `${EMBED_BASE}?preview`;
   const EMBED_PLC = import.meta.env.VITE_ATPROTO_PLC_URL as string | undefined;
   const EMBED_RESOLVER = import.meta.env.VITE_ATPROTO_HANDLE_RESOLVER as string | undefined;
@@ -168,6 +170,19 @@
     return `${EMBED_BASE}?${p}`;
   });
 
+  // Points at the OG-preview worker rather than the embed page directly —
+  // this is the URL meant to be pasted/shared standalone (Slack, social,
+  // email), where social-preview meta tags matter. The iframe snippet above
+  // still embeds the player directly; nested-iframe OG tags aren't seen by
+  // crawlers anyway, so there's nothing to gain by routing that through here.
+  const shareUrl = $derived.by(() => {
+    if (!atUri) return '';
+    const p = new URLSearchParams({ src: atUri });
+    if (EMBED_PLC) p.set('plc', EMBED_PLC);
+    if (EMBED_RESOLVER) p.set('resolver', EMBED_RESOLVER);
+    return `${SHARE_BASE}?${p}`;
+  });
+
   const iframeCode = $derived(
     atUri ? `<iframe src="${embedUrl}" width="100%" height="650" frameborder="0" allowfullscreen></iframe>` : ''
   );
@@ -263,12 +278,12 @@
             </button>
           </div>
           <div class="publish-code-row">
-            <span class="publish-code-label">Direct link</span> 
-            <code class="publish-code">{embedUrl}</code>
-            <button class="btn-copy" onclick={() => copyEmbed(embedUrl, 'uri')}>
+            <span class="publish-code-label">Direct link</span>
+            <code class="publish-code">{shareUrl}</code>
+            <button class="btn-copy" onclick={() => copyEmbed(shareUrl, 'uri')}>
               {copiedEmbed === 'uri' ? 'Copied!' : 'Copy'}
             </button>
-            
+
           </div>
           <div class="publish-code-row">
             <span class="publish-code-label">AT URI</span>

@@ -216,10 +216,27 @@
         "reverseOrder": {
           "type": "boolean",
           "description": "Show events newest-first. The title slide (if any) always stays first. Defaults to false."
+        },
+        "ogImage": {
+          "$ref": "#/definitions/TLOgImage",
+          "description": "Social-share preview image for this timeline."
         }
       },
       "additionalProperties": false,
       "description": "Timeline-level playback/display configuration. All fields optional; omitted = player default."
+    },
+    "TLOgImage": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string"
+        },
+        "blobRef": {
+          "$ref": "#/definitions/ATProtoBlobRef"
+        }
+      },
+      "additionalProperties": false,
+      "description": "Social-share preview image — auto-generated at save time, or (eventually) user-set."
     }
   }
 }

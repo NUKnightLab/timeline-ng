@@ -1,0 +1,19 @@
+{
+  "name": "@timeline-ng/og-preview",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy --env production",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@knight-lab/timeline-ng-core": "workspace:*"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260719.1",
+    "typescript": "^5.7.0",
+    "wrangler": "^4.112.0"
+  }
+}

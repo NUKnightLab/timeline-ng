@@ -9,12 +9,14 @@ case $target in
     CLIENT_ID="https://timeline.knilab.com/ng/client-metadata.json"
     CLIENT_METADATA_SRC=packages/authoring/public/client-metadata.stg.json
     EMBED_BASE_URL="https://timeline.knilab.com/ng/embed/"
+    SHARE_BASE_URL="https://timeline.knilab.com/ng/share"
     ;;
   prd)
     BUCKET=timeline.knightlab.com
     CLIENT_ID="https://timeline.knightlab.com/ng/client-metadata.json"
     CLIENT_METADATA_SRC=packages/authoring/public/client-metadata.prd.json
     EMBED_BASE_URL="https://timeline.knightlab.com/ng/embed/"
+    SHARE_BASE_URL="https://timeline.knightlab.com/ng/share"
     ;;
   *)
     echo "You must specify either 'prd' or 'stg'" 1>&2
@@ -34,6 +36,7 @@ if [ $? -ne 0 ]; then
 fi
 
 perl -pi -e "s|__TL_EMBED_BASE__|$EMBED_BASE_URL|g" packages/authoring/dist/index.html
+perl -pi -e "s|__TL_SHARE_BASE__|$SHARE_BASE_URL|g" packages/authoring/dist/index.html
 
 cp "$CLIENT_METADATA_SRC" packages/authoring/dist/client-metadata.json
 

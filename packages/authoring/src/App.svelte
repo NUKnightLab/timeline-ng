@@ -2,8 +2,9 @@
   import { onMount } from 'svelte';
   import type { TLEvent, TLTimeline, TLSettings } from '@knight-lab/timeline-ng-core';
   import { parseTLDate, compareDates } from '@knight-lab/timeline-ng-core';
-  import { getAuthState, saveTimeline, signOut } from './lib/atproto.svelte.ts';
+  import { getAuthState, saveTimeline, signOut, uploadBlob } from './lib/atproto.svelte.ts';
   import { initAuth } from './lib/atproto.svelte.ts';
+  import { generatePoster } from './lib/poster.ts';
   import { saveDraft, loadDraft, clearDraft } from './lib/draft.ts';
   import type { Draft } from './lib/draft.ts';
   import HomeView from './components/HomeView.svelte';
@@ -311,7 +312,22 @@
 
   async function handleSave() {
     saveStatus = 'Saving…';
-    const result = await saveTimeline(timeline, { title: timelineTitle }, atUri ?? undefined);
+
+    // Auto-generate a share-preview poster from the current title slide.
+    // Best-effort: on any failure, keep whatever ogImage already existed
+    // rather than losing it over a transient generation/upload error.
+    let ogImage = settings.ogImage;
+    try {
+      const poster = await generatePoster(timeline);
+      if (poster) {
+        ogImage = { blobRef: await uploadBlob(poster) };
+      }
+    } catch {
+      // best-effort, see above
+    }
+    const timelineToSave: TLTimeline = { ...timeline, settings: { ...settings, ogImage } };
+
+    const result = await saveTimeline(timelineToSave, { title: timelineTitle }, atUri ?? undefined);
     if (result.ok) {
       atUri = result.uri;
       pdsClean = true;

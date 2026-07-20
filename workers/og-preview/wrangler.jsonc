@@ -1,0 +1,20 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "timeline-og-preview",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-20",
+  "vars": {
+    // Local dev default — points at the embed dev server (`pnpm embed`).
+    "EMBED_BASE_URL": "http://127.0.0.1:5200/"
+  },
+  "env": {
+    "production": {
+      "routes": [
+        { "pattern": "timeline.knightlab.com/ng/share*", "zone_name": "knightlab.com" }
+      ],
+      "vars": {
+        "EMBED_BASE_URL": "https://timeline.knightlab.com/ng/embed/"
+      }
+    }
+  }
+}

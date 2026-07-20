@@ -4,6 +4,7 @@ node_modules/
 dist/
 *.tgz
 .turbo/
+.wrangler/
 *.tsbuildinfo
 .DS_Store
 storybook-static/
