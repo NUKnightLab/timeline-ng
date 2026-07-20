@@ -104,17 +104,22 @@
   }
 
   interface WikipediaImageResult { src: string; label: string }
-  async function fetchWikipediaImage(fileTitle: string): Promise<WikipediaImageResult> {
+  // Fair-use/non-free files (e.g. book covers) live only on the local
+  // language wiki, not on Commons, so fall back to it when given.
+  async function fetchWikipediaImage(fileTitle: string, language?: string): Promise<WikipediaImageResult> {
     const encoded = encodeURIComponent(fileTitle);
-    const url = `https://commons.wikimedia.org/w/api.php?action=query&prop=imageinfo&iiprop=url|extmetadata&iiurlwidth=1200&titles=${encoded}&format=json&origin=*`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error('wikimedia fetch failed');
-    const data = await res.json();
-    const pages = data.query?.pages ?? {};
-    const page = Object.values(pages)[0] as { title?: string; imageinfo?: Array<{ url: string }> };
-    const imgUrl = page?.imageinfo?.[0]?.url;
-    if (!imgUrl) throw new Error('image not found');
-    return { src: imgUrl, label: (page.title ?? fileTitle).replace('File:', '') };
+    const hosts = ['commons.wikimedia.org', ...(language ? [`${language}.wikipedia.org`] : [])];
+    for (const host of hosts) {
+      const url = `https://${host}/w/api.php?action=query&prop=imageinfo&iiprop=url|extmetadata&iiurlwidth=1200&titles=${encoded}&format=json&origin=*`;
+      const res = await fetch(url);
+      if (!res.ok) continue;
+      const data = await res.json();
+      const pages = data.query?.pages ?? {};
+      const page = Object.values(pages)[0] as { title?: string; imageinfo?: Array<{ url: string }> };
+      const imgUrl = page?.imageinfo?.[0]?.url;
+      if (imgUrl) return { src: imgUrl, label: (page.title ?? fileTitle).replace('File:', '') };
+    }
+    throw new Error('image not found');
   }
 
   // Strip <script> tags from oEmbed HTML before injecting
@@ -216,7 +221,7 @@
   );
   let wikiImagePromise = $derived(
     resolved.kind === 'wikipediaimage'
-      ? fetchWikipediaImage(resolved.fileTitle)
+      ? fetchWikipediaImage(resolved.fileTitle, resolved.language)
       : null
   );
 </script>

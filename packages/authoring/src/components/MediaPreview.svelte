@@ -50,22 +50,27 @@
     return res.json();
   }
 
-  async function fetchWikimediaImageSrc(fileTitle: string): Promise<string> {
+  // Fair-use/non-free files (e.g. book covers) live only on the local
+  // language wiki, not on Commons, so fall back to it when given.
+  async function fetchWikimediaImageSrc(fileTitle: string, language?: string): Promise<string> {
     const encoded = encodeURIComponent(fileTitle);
-    const apiUrl = `https://commons.wikimedia.org/w/api.php?action=query&prop=imageinfo&iiprop=url&iiurlwidth=800&titles=${encoded}&format=json&origin=*`;
-    const res = await fetch(apiUrl);
-    if (!res.ok) throw new Error('wikimedia fetch failed');
-    const data = await res.json();
-    const pages = data.query?.pages ?? {};
-    const page = Object.values(pages)[0] as { imageinfo?: Array<{ thumburl?: string; url: string }> };
-    const info = page?.imageinfo?.[0];
-    const src = info?.thumburl ?? info?.url;
-    if (!src) throw new Error('image not found');
-    return src;
+    const hosts = ['commons.wikimedia.org', ...(language ? [`${language}.wikipedia.org`] : [])];
+    for (const host of hosts) {
+      const apiUrl = `https://${host}/w/api.php?action=query&prop=imageinfo&iiprop=url&iiurlwidth=800&titles=${encoded}&format=json&origin=*`;
+      const res = await fetch(apiUrl);
+      if (!res.ok) continue;
+      const data = await res.json();
+      const pages = data.query?.pages ?? {};
+      const page = Object.values(pages)[0] as { imageinfo?: Array<{ thumburl?: string; url: string }> };
+      const info = page?.imageinfo?.[0];
+      const src = info?.thumburl ?? info?.url;
+      if (src) return src;
+    }
+    throw new Error('image not found');
   }
 
   const wikiImagePromise = $derived(
-    resolved.kind === 'wikipediaimage' ? fetchWikimediaImageSrc(resolved.fileTitle) : null
+    resolved.kind === 'wikipediaimage' ? fetchWikimediaImageSrc(resolved.fileTitle, resolved.language) : null
   );
   const flickrPromise = $derived(
     resolved.kind === 'flickr' ? fetchFlickrOEmbed(resolved.photoUrl) : null

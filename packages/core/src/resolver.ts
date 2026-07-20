@@ -16,7 +16,7 @@ export type ResolvedMedia =
   | { kind: 'tiktok'; handle: string; videoId: string; cleanUrl: string; embedUrl: string }
   | { kind: 'twitter'; tweetUrl: string }
   | { kind: 'wikipedia'; language: string; articleTitle: string; articleUrl: string }
-  | { kind: 'wikipediaimage'; fileTitle: string }
+  | { kind: 'wikipediaimage'; fileTitle: string; language?: string }
   | { kind: 'flickr'; photoUrl: string }
   | { kind: 'googledoc'; embedUrl: string }
   | { kind: 'googlemaps'; embedUrl: string }
@@ -56,13 +56,18 @@ export function resolveMedia(media: TLMedia): ResolvedMedia {
     return { kind: 'embed-markup', html: url };
   }
 
-  // WikipediaImage — must come before Wikipedia (more specific)
-  if (/commons\.wikimedia\.org\/wiki\/File:|#\/media\/File:/.test(url)) {
+  // WikipediaImage — must come before Wikipedia (more specific).
+  // Covers Commons file pages, direct File: pages on a language wiki
+  // (used for non-free/fair-use images that only exist locally, not on
+  // Commons), and #/media/File: fragments from the image viewer.
+  if (/commons\.wikimedia\.org\/wiki\/File:|\.wikipedia\.org\/wiki\/File:|#\/media\/File:/.test(url)) {
     const commonsMatch = url.match(/commons\.wikimedia\.org\/wiki\/(File:[^?#]+)/);
+    const wikiFileMatch = url.match(/\.wikipedia\.org\/wiki\/(File:[^?#]+)/);
     const mediaMatch = url.match(/#\/media\/(File:[^?]+)/);
-    const fileTitle = commonsMatch?.[1] ?? mediaMatch?.[1];
+    const fileTitle = commonsMatch?.[1] ?? wikiFileMatch?.[1] ?? mediaMatch?.[1];
     if (!fileTitle) return { kind: 'unknown', url };
-    return { kind: 'wikipediaimage', fileTitle: decodeURIComponent(fileTitle) };
+    const langMatch = url.match(/([a-z-]+)\.wikipedia\.org/);
+    return { kind: 'wikipediaimage', fileTitle: decodeURIComponent(fileTitle), language: langMatch?.[1] };
   }
 
   // Wikipedia article

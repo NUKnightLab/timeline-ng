@@ -1137,7 +1137,7 @@
           <dd>A Wikipedia article URL shows the article's lead image and a brief summary pulled from the page.</dd>
 
           <dt>Wikipedia Images</dt>
-          <dd>A Wikipedia URL from a “lightbox view” of an image or from Wikimedia Commons will be shown as if you linked the image directly.</dd>
+          <dd>A Wikipedia URL pointing at a File: page, a “lightbox view” of an image, or a Wikimedia Commons file will be shown as if you linked the image directly.</dd>
 
           <dt>Maps</dt>
           <dd>Google Maps share URLs embed an interactive map at the location or route you've chosen.</dd>
