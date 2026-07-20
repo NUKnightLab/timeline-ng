@@ -724,7 +724,7 @@
                 {:else}
                   <div class="media-signin-notice">
                     <p>Sign in to upload media and save your timeline.</p>
-                    <button type="button" class="learn-more-link" onclick={() => (modal = 'sign-in')}>Learn more</button>
+                    <a href="#" class="learn-more-link" onclick={(e) => { e.preventDefault(); modal = 'sign-in'; }}>Learn more</a>
                   </div>
                 {/if}
               {:else}
@@ -751,7 +751,7 @@
                 {/if}
                 <p class="media-panel-hint">
                   Embed YouTube, SoundCloud, Wikipedia, and more.
-                  <button type="button" class="learn-more-link" onclick={() => (modal = 'media-types')}>Learn more</button>
+                  <a href="#" class="learn-more-link" onclick={(e) => { e.preventDefault(); modal = 'media-types'; }}>Learn more</a>
                 </p>
               {/if}
             </div>
@@ -759,6 +759,9 @@
           </div>
           {#if hasMedia}
             <div class="media-meta-inline">
+              <div class="media-meta-preview">
+                <MediaPreview url={mediaUrl} mimeType={mediaBlobRef?.mimeType} />
+              </div>
               <div class="field">
                 <label class="field-label" for="caption-rte">Caption</label>
                 <RichTextEditor id="caption-rte" value={mediaCaption} onchange={(v) => { mediaCaption = v; buildAndEmit(); }} minimal rows={2} />
@@ -769,7 +772,7 @@
               </div>
               <div class="field">
                 <label class="field-label" for="media-alt">Alt text</label>
-                <input id="media-alt" type="text" bind:value={mediaAlt} oninput={() => buildAndEmit()} />
+                <textarea id="media-alt" bind:value={mediaAlt} oninput={() => buildAndEmit()} rows="3"></textarea>
                 <p class="field-hint">Describes the media for screen readers.</p>
               </div>
             </div>
@@ -1594,6 +1597,17 @@
     gap: 0.75rem;
     background: #fafafa;
   }
+  .media-meta-preview {
+    align-self: center;
+    max-width: 11rem;
+  }
+  .media-meta-preview :global(.preview-img) {
+    max-height: 130px;
+  }
+  .media-meta-preview :global(.preview-card),
+  .media-meta-preview :global(.preview-label--fallback) {
+    min-height: 0;
+  }
 
   /* ── Media input card ──────────────────────────────────────── */
   .media-input-card {
@@ -1680,7 +1694,7 @@
   .media-url-input--error { border-color: #f87171; }
   .media-url-input--error:focus { border-color: #f87171; box-shadow: 0 0 0 2px rgba(248,113,113,0.2); }
   .media-url-error { margin: 0.3rem 0 0; font-size: 0.75rem; color: #b91c1c; }
-  .media-panel-hint { margin: 0.5rem 0 0; font-size: 0.75rem; color: #999; line-height: 1.4; }
+  .media-panel-hint { margin: 0; font-size: 0.75rem; color: #999; line-height: 1.4; }
   .media-error { margin: 0.4rem 0 0; font-size: 0.78rem; color: #c0392b; }
   .media-signin-notice { text-align: center; padding: 1.25rem 0.5rem; color: #666; font-size: 0.85rem; line-height: 1.5; }
 
@@ -1742,6 +1756,7 @@
 
   .field input[type="text"],
   .field input[type="url"],
+  .field textarea,
   .slide-options-body input[type="text"],
   .slide-options-body input[type="url"] {
     border: 1px solid #d4d4d4;
@@ -1754,7 +1769,12 @@
     background: #fff;
     transition: border-color 0.15s;
   }
+  .field textarea {
+    resize: vertical;
+    line-height: 1.4;
+  }
   .field input:focus,
+  .field textarea:focus,
   .slide-options-body input[type="text"]:focus,
   .slide-options-body input[type="url"]:focus {
     outline: none;
@@ -1824,10 +1844,9 @@
 
 
   .learn-more-link {
-    background: none; border: none; padding: 0;
-    color: #13a4df; font-size: inherit; font-family: inherit;
-    cursor: pointer; text-decoration: underline;
+    color: #13a4df; text-decoration: underline;
     margin-bottom: 0; font-weight: normal; text-transform: none;
+    box-shadow: none; text-shadow: none; border-radius: 0;
   }
   .learn-more-link:hover { color: #0a7cb8; }
 
