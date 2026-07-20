@@ -14,3 +14,13 @@ export function sanitizeHtml(html: string): string {
     ADD_ATTR: ['frameborder', 'allowfullscreen', 'target'],
   });
 }
+
+// Plain-text extraction for contexts (like nav labels) that can't render markup.
+// Sanitizing to a DOM fragment first (rather than serializing to a string and
+// re-parsing) neutralizes active content before textContent is read, and avoids
+// leftover HTML entities that a string round-trip would leave behind.
+export function stripHtml(html: string): string {
+  if (!html) return '';
+  const frag = DOMPurify.sanitize(html, { RETURN_DOM_FRAGMENT: true });
+  return (frag.textContent ?? '').replace(/\s+/g, ' ').trim();
+}

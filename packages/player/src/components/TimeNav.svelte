@@ -2,6 +2,7 @@
   import type { TLEvent, TLTimeline, TLParsedDate } from '@knight-lab/timeline-ng-core';
   import { parseTLDate, compareDates, formatDate, getLocale, getMessage } from '@knight-lab/timeline-ng-core';
   import { untrack } from 'svelte';
+  import { stripHtml } from '../lib/sanitize';
 
   interface Props {
     timeline: TLTimeline;
@@ -101,9 +102,10 @@
       const dataWidthPct = endPct !== null ? endPct - dataStartPct : null;
       const isDuration   = dataWidthPct !== null;
       const dateStr      = formatDate(start, language);
-      const headline     = event.text?.headline;
-      const label        = headline ?? dateStr;
-      const ariaLabel    = headline ? `${headline}: ${dateStr}` : dateStr;
+      const headline      = event.text?.headline;
+      const plainHeadline = headline ? stripHtml(headline) : '';
+      const label         = plainHeadline || dateStr;
+      const ariaLabel     = plainHeadline ? `${plainHeadline}: ${dateStr}` : dateStr;
       const dataPct      = isDuration ? dataStartPct + dataWidthPct! / 2 : dataStartPct;
       const group        = event.group ?? '';
       return { event, index, dataStartPct, dataWidthPct, isDuration, label, ariaLabel, dataPct, group };
@@ -208,8 +210,17 @@
             }
           }
         }
-        rowRight[visRows - 1] = naturalPct + halfPct;
-        labelMap.set(ev.index, { row: visRows - 1, centerPct: naturalPct });
+        // Fallback: no gap-respecting slot found within the shift budget. Pack the
+        // label into whichever row has the most room, directly after that row's
+        // last label, so it never renders with zero separation from a neighbor —
+        // it just gets pushed further from its natural position instead.
+        let bestRow = 0;
+        for (let row = 1; row < visRows; row++) {
+          if (rowRight[row] < rowRight[bestRow]) bestRow = row;
+        }
+        const packedPct = Math.min(100 - halfPct, rowRight[bestRow] + gapPct + halfPct);
+        rowRight[bestRow] = packedPct + halfPct;
+        labelMap.set(ev.index, { row: bestRow, centerPct: packedPct });
       }
     }
 
@@ -1014,6 +1025,8 @@
     transform: translate(-50%, -50%);
     background: var(--tl-color-nav-bg);
     border: none;
+    border-radius: 3px;
+    box-shadow: 0 0 0 1px var(--tl-color-border, rgba(0,0,0,0.12));
     padding: 1px 4px;
     cursor: pointer;
     color: var(--tl-color-nav-marker);
