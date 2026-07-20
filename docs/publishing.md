@@ -87,11 +87,14 @@ a deliberate tradeoff to make consciously, not part of routine publishing.
    `files` fields already set in `package.json`; `pnpm publish` also
    works and additionally validates the workspace dependency rewrite.)
 
-   **Must be run interactively, in a real terminal, by whoever owns the
-   npmjs.com account.** The registry requires a one-time-password/browser
-   approval per publish (`EOTP`), and npm deliberately redacts the
-   approval URL from all output and logs — there's no way to complete
-   this non-interactively or on someone else's behalf.
+   **The first publish in a while needs to be run interactively, in a
+   real terminal, by whoever owns the npmjs.com account.** The registry
+   requires a one-time-password/browser approval (`EOTP`), and npm
+   deliberately redacts the approval URL from all output and logs — an
+   agent can't complete it on your behalf. npm remembers a successful
+   approval for a few minutes afterward (configurable), so publishing
+   core and then player back-to-back in the same session usually only
+   prompts once.
 8. **Verify core is live:**
    ```sh
    npm view @knight-lab/timeline-ng-core version
