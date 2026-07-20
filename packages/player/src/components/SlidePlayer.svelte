@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import type { TLTimeline, TLEvent } from '@knight-lab/timeline-ng-core';
   import { getLocale, getMessage } from '@knight-lab/timeline-ng-core';
   import SlideContent from './SlideContent.svelte';
@@ -113,6 +113,44 @@
 
   let sectionEl: HTMLElement;
 
+  // Vendor-prefixed fallbacks are for Safari, which as of writing still ships
+  // only the `webkit`-prefixed Fullscreen API.
+  let fsSupported = $state(false);
+  let isFullscreen = $state(false);
+
+  onMount(() => {
+    const doc = document as Document & { webkitFullscreenEnabled?: boolean; webkitFullscreenElement?: Element };
+    // Reflects both browser support and the embedding iframe's `allow="fullscreen"`
+    // permission — false in either case, so an unsupported/blocked context just
+    // hides the button rather than showing one that silently fails.
+    fsSupported = !!(doc.fullscreenEnabled || doc.webkitFullscreenEnabled);
+
+    const handleChange = () => {
+      isFullscreen = !!(doc.fullscreenElement || doc.webkitFullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleChange);
+    document.addEventListener('webkitfullscreenchange', handleChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleChange);
+      document.removeEventListener('webkitfullscreenchange', handleChange);
+    };
+  });
+
+  function toggleFullscreen() {
+    const doc = document as Document & {
+      webkitFullscreenElement?: Element;
+      webkitExitFullscreen?: () => void;
+    };
+    const el = sectionEl as HTMLElement & { webkitRequestFullscreen?: () => void };
+    if (doc.fullscreenElement || doc.webkitFullscreenElement) {
+      if (document.exitFullscreen) void document.exitFullscreen();
+      else doc.webkitExitFullscreen?.();
+    } else {
+      if (el.requestFullscreen) void el.requestFullscreen();
+      else el.webkitRequestFullscreen?.();
+    }
+  }
+
   // Native `disabled` blurs a focused button with no fallback target, dropping
   // focus to <body>. Redirect it back to the player root when that's about to happen.
   function handlePrevClick(e: MouseEvent) {
@@ -166,6 +204,22 @@
       onclick={handleNextClick}
       disabled={isLast}
     ><span aria-hidden="true">&#8250;</span><span class="tl-sr-only">{getMessage(tl, 'slide.next')}</span></button>
+
+    {#if fsSupported}
+      <button
+        class="tl-player__btn tl-player__btn--fullscreen"
+        onclick={toggleFullscreen}
+        aria-pressed={isFullscreen}
+        title={getMessage(tl, isFullscreen ? 'fullscreen.exit' : 'fullscreen.enter')}
+      >
+        {#if isFullscreen}
+          <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 8 8 8 8 3" /><polyline points="21 8 16 8 16 3" /><polyline points="16 21 16 16 21 16" /><polyline points="8 21 8 16 3 16" /></svg>
+        {:else}
+          <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="8 3 3 3 3 8" /><polyline points="16 3 21 3 21 8" /><polyline points="21 16 21 21 16 21" /><polyline points="8 21 3 21 3 16" /></svg>
+        {/if}
+        <span class="tl-sr-only">{getMessage(tl, isFullscreen ? 'fullscreen.exit' : 'fullscreen.enter')}</span>
+      </button>
+    {/if}
   </div>
 
   <TimeNav
@@ -227,9 +281,34 @@
   .tl-player__btn--prev { left: 0; }
   .tl-player__btn--next { right: 0; }
 
+  .tl-player__btn--fullscreen {
+    top: 0;
+    right: 0;
+    bottom: auto;
+    left: auto;
+    width: var(--tl-btn-size, 2.5rem);
+    height: var(--tl-btn-size, 2.5rem);
+    font-size: 1rem;
+  }
+
   .tl-player__btn:hover:not(:disabled) { background: var(--tl-btn-bg-hover, rgba(0, 0, 0, 0.35)); }
   .tl-player__btn:disabled             { opacity: 0; pointer-events: none; }
   .tl-player__btn:focus-visible        { outline: 2px solid var(--tl-color-accent); outline-offset: -2px; }
+
+  /* The base .tl-player rule's `position: relative` is author CSS, which beats the
+     UA stylesheet's `:fullscreen { position: fixed }` regardless of specificity —
+     author-origin declarations always win over user-agent-origin ones. Without
+     re-declaring position/inset/margin here, the element gets promoted to the
+     fullscreen top layer but keeps its old in-flow box, so it renders blank. */
+  .tl-player:fullscreen,
+  .tl-player:-webkit-full-screen {
+    position: fixed;
+    inset: 0;
+    margin: 0;
+    width: 100vw;
+    height: 100vh;
+    background: var(--tl-color-bg);
+  }
 
   .tl-sr-only {
     position: absolute;

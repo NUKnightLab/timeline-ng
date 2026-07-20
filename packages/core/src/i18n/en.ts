@@ -18,6 +18,8 @@ const en: TLLocale = {
     'slide.next': 'Next slide',
     'slide.label': 'Slide {index} of {total}',
     'timeline.label': 'Timeline navigation',
+    'fullscreen.enter': 'Full screen',
+    'fullscreen.exit': 'Exit full screen',
   },
 };
 
