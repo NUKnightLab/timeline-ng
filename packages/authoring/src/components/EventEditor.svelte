@@ -572,6 +572,13 @@
     return true;
   }
 
+  function setMediaPosition(right: boolean) {
+    if (mediaOnRight === right) return;
+    const apply = () => { mediaOnRight = right; buildAndEmit(); };
+    if (document.startViewTransition) document.startViewTransition(apply);
+    else apply();
+  }
+
   // Only one content field editor open at a time
   function openField(f: 'date' | 'headline' | 'body' | 'media') {
     deletePending = false;
@@ -672,14 +679,14 @@
                 aria-selected={mediaMode === 'browse'} onclick={() => (mediaMode = 'browse')}>Atmosphere</button>
               <div class="media-input-actions" role="none">
                 <button type="button" class="icon-btn icon-btn--done"
-                  aria-label="Done"
+                  aria-label="Done" title="Done"
                   disabled={mediaMode === 'browse' || (mediaMode === 'url' ? (!mediaUrl.trim() || !mediaUrlValid) : !hasMedia)}
                   onclick={mediaMode === 'url' ? confirmUrl : () => (editingMedia = false)}>✓</button>
                 {#if _canRestoreSnap}
                   <button type="button" class="icon-btn"
-                    aria-label="Cancel" onclick={cancelEdit}>✕</button>
+                    aria-label="Cancel" title="Cancel" onclick={cancelEdit}>✕</button>
                   <button type="button" class="icon-btn icon-btn--remove"
-                    aria-label="Remove media" onclick={clearMedia}>🗑</button>
+                    aria-label="Remove media" title="Remove media" onclick={clearMedia}>🗑</button>
                 {/if}
               </div>
             </div>
@@ -841,11 +848,11 @@
           <div class="field-panel" onpointerdown={markPointerDownInsideOpenEditor} onfocusout={handleDateEditorFocusOut}>
             <div class="field-panel-actions">
               <button type="button" class="icon-btn icon-btn--done"
-                aria-label="Done" disabled={!endDateOrderValid} onclick={confirmDateEdit}>✓</button>
+                aria-label="Done" title="Done" disabled={!endDateOrderValid} onclick={confirmDateEdit}>✓</button>
               <button type="button" class="icon-btn"
-                aria-label="Cancel" onclick={cancelDateEdit}>✕</button>
+                aria-label="Cancel" title="Cancel" onclick={cancelDateEdit}>✕</button>
               <button type="button" class="icon-btn icon-btn--remove"
-                aria-label="Delete date" onclick={clearDate}>🗑</button>
+                aria-label="Delete date" title="Delete date" onclick={clearDate}>🗑</button>
             </div>
             <div class="field-panel-body field-panel-body--date">
               <div class="slide-date-row">
@@ -914,11 +921,11 @@
         <div class="field-panel" onpointerdown={markPointerDownInsideOpenEditor} onfocusout={handleHeadlineEditorFocusOut}>
           <div class="field-panel-actions">
             <button type="button" class="icon-btn icon-btn--done"
-              aria-label="Done" onclick={() => (editingHeadline = false)}>✓</button>
+              aria-label="Done" title="Done" onclick={() => (editingHeadline = false)}>✓</button>
             <button type="button" class="icon-btn"
-              aria-label="Cancel" onclick={cancelHeadlineEdit}>✕</button>
+              aria-label="Cancel" title="Cancel" onclick={cancelHeadlineEdit}>✕</button>
             <button type="button" class="icon-btn icon-btn--remove"
-              aria-label="Delete headline" onclick={clearHeadline}>🗑</button>
+              aria-label="Delete headline" title="Delete headline" onclick={clearHeadline}>🗑</button>
           </div>
           <div class="field-panel-body field-panel-body--headline">
             <RichTextEditor
@@ -955,11 +962,11 @@
         <div class="field-panel" onpointerdown={markPointerDownInsideOpenEditor} onfocusout={handleBodyEditorFocusOut}>
           <div class="field-panel-actions">
             <button type="button" class="icon-btn icon-btn--done"
-              aria-label="Done" onclick={() => (editingBody = false)}>✓</button>
+              aria-label="Done" title="Done" onclick={() => (editingBody = false)}>✓</button>
             <button type="button" class="icon-btn"
-              aria-label="Cancel" onclick={cancelBodyEdit}>✕</button>
+              aria-label="Cancel" title="Cancel" onclick={cancelBodyEdit}>✕</button>
             <button type="button" class="icon-btn icon-btn--remove"
-              aria-label="Delete body text" onclick={clearBody}>🗑</button>
+              aria-label="Delete body text" title="Delete body text" onclick={clearBody}>🗑</button>
           </div>
           <div class="field-panel-body field-panel-body--richtext">
             <RichTextEditor id="body-rte" value={body} onchange={(v) => { body = v; buildAndEmit(); }} rows={5} autofocus />
@@ -1047,8 +1054,8 @@
       <fieldset class="field field-group">
         <legend class="field-label">Media position</legend>
         <div class="bg-mode-tabs">
-          <button type="button" class="bg-mode-btn" class:active={!mediaOnRight} onclick={() => { mediaOnRight = false; buildAndEmit(); }}>Left</button>
-          <button type="button" class="bg-mode-btn" class:active={mediaOnRight} onclick={() => { mediaOnRight = true; buildAndEmit(); }}>Right</button>
+          <button type="button" class="bg-mode-btn" class:active={!mediaOnRight} onclick={() => setMediaPosition(false)}>Left</button>
+          <button type="button" class="bg-mode-btn" class:active={mediaOnRight} onclick={() => setMediaPosition(true)}>Right</button>
         </div>
         <p class="field-hint">Which side the media column appears on.</p>
       </fieldset>
@@ -1211,7 +1218,7 @@
   /* ── Slide canvas — content area ───────────────────────────── */
   .slide-canvas {
     display: grid;
-    grid-template-columns: minmax(0, 42%) minmax(0, 58%);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 1.5rem;
     align-items: start;
     font-family: system-ui, sans-serif;
@@ -1226,6 +1233,14 @@
 
   .slide-canvas--media-right .slide-media-col { order: 2; }
   .slide-canvas--media-right .slide-content-col { order: 1; }
+
+  .slide-media-col { view-transition-name: slide-media-col; }
+  .slide-content-col { view-transition-name: slide-content-col; }
+  ::view-transition-group(slide-media-col),
+  ::view-transition-group(slide-content-col) {
+    animation-duration: 0.18s;
+    animation-timing-function: ease-out;
+  }
 
   .editor-help {
     display: none;

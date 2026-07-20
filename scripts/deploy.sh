@@ -40,8 +40,18 @@ perl -pi -e "s|__TL_SHARE_BASE__|$SHARE_BASE_URL|g" packages/authoring/dist/inde
 
 cp "$CLIENT_METADATA_SRC" packages/authoring/dist/client-metadata.json
 
-aws s3 sync --only-show-errors --acl public-read packages/authoring/dist s3://$BUCKET/ng/ --exclude "client-metadata.*.json" \
-  && aws s3 sync --only-show-errors --acl public-read packages/embed/dist s3://$BUCKET/ng/embed/
+aws s3 sync --only-show-errors --acl public-read packages/authoring/dist s3://$BUCKET/ng/ \
+    --exclude "client-metadata.*.json" --exclude "client-metadata.json" --exclude "*.html" \
+    --cache-control "public, max-age=31536000, immutable" \
+  && aws s3 sync --only-show-errors --acl public-read packages/authoring/dist s3://$BUCKET/ng/ \
+    --exclude "*" --include "*.html" --include "client-metadata.json" \
+    --cache-control "no-cache" \
+  && aws s3 sync --only-show-errors --acl public-read packages/embed/dist s3://$BUCKET/ng/embed/ \
+    --exclude "*.html" \
+    --cache-control "public, max-age=31536000, immutable" \
+  && aws s3 sync --only-show-errors --acl public-read packages/embed/dist s3://$BUCKET/ng/embed/ \
+    --exclude "*" --include "*.html" \
+    --cache-control "no-cache"
 if [ $? -ne 0 ]; then
   echo "Deployment failed." >&2
   exit 1
