@@ -4,37 +4,70 @@
 
   interface Props {
     onsignout?: () => void;
+    restoreView?: 'home' | 'editor';
   }
 
-  let { onsignout }: Props = $props();
+  let { onsignout, restoreView = 'editor' }: Props = $props();
 
   let handle = $state('');
   let submitting = $state(false);
   let showPanel = $state(false);
   let showAccountPanel = $state(false);
   let panelTop = $state(50);
+  let panelLeft = $state(0);
 
   let triggerBtn = $state<HTMLButtonElement | null>(null);
   let handleInputEl = $state<HTMLInputElement | null>(null);
+  let panelEl = $state<HTMLDivElement | null>(null);
+
+  // Best-guess widths for the very first paint, before the panel has actually
+  // rendered and can be measured — the account panel sizes to its one button
+  // rather than sharing the sign-in form's fixed 280px width.
+  const SIGNIN_PANEL_WIDTH = 280;
+  const ACCOUNT_PANEL_WIDTH = 100;
+  const MARGIN = 8;
 
   $effect(() => { if (showPanel) handleInputEl?.focus(); });
 
+  function clampLeft(rectRight: number, width: number): number {
+    return Math.min(Math.max(rectRight - width, MARGIN), window.innerWidth - width - MARGIN);
+  }
+
+  // The panel hangs below the trigger, right edges aligned — but the trigger can sit
+  // anywhere on the page (Home vs the editor's navbar), so pull it back on-screen if
+  // that would push it past the viewport's edges.
+  function positionPanel(expectedWidth: number) {
+    if (!triggerBtn) return;
+    const rect = triggerBtn.getBoundingClientRect();
+    panelTop = rect.bottom + MARGIN;
+    panelLeft = clampLeft(rect.right, expectedWidth);
+  }
+
+  // Once the panel actually renders, re-anchor using its real width (the account
+  // panel's auto width can't be known ahead of time) and pull it up if content that
+  // loads after the initial calc (typeahead suggestions, error text) now overflows
+  // the bottom of the viewport.
+  $effect(() => {
+    if (!panelEl || !triggerBtn) return;
+    const panelRect = panelEl.getBoundingClientRect();
+    const btnRect = triggerBtn.getBoundingClientRect();
+
+    const overflow = panelRect.bottom - (window.innerHeight - MARGIN);
+    if (overflow > 0) panelTop = Math.max(MARGIN, panelTop - overflow);
+
+    panelLeft = clampLeft(btnRect.right, panelRect.width);
+  });
+
   function togglePanel() {
     if (!showPanel) {
-      if (!triggerBtn) return;
-      const rect = triggerBtn.getBoundingClientRect();
-      panelTop = rect.bottom + 8;
+      positionPanel(SIGNIN_PANEL_WIDTH);
       clearAuthError();
     }
     showPanel = !showPanel;
   }
 
   function toggleAccountPanel() {
-    if (!showAccountPanel) {
-      if (!triggerBtn) return;
-      const rect = triggerBtn.getBoundingClientRect();
-      panelTop = rect.bottom + 8;
-    }
+    if (!showAccountPanel) positionPanel(ACCOUNT_PANEL_WIDTH);
     showAccountPanel = !showAccountPanel;
   }
 
@@ -103,7 +136,7 @@
     clearSuggestions();
     clearAuthError();
     submitting = true;
-    await signIn(handle.trim());
+    await signIn(handle.trim(), restoreView);
     submitting = false;
   }
 
@@ -133,24 +166,23 @@
     if (!handle.trim()) return;
     clearSuggestions();
     submitting = true;
-    await signIn(handle.trim());
+    await signIn(handle.trim(), restoreView);
     submitting = false;
   }
 </script>
 
 {#if auth.status === 'signed-in'}
   <div class="auth-signed-in">
-    <button class="btn-avatar-toggle" bind:this={triggerBtn} onclick={toggleAccountPanel} aria-label="Account options">
+    <button class="btn-account-toggle" bind:this={triggerBtn} onclick={toggleAccountPanel} aria-label="Account options for {auth.handle}">
       {#if auth.avatar}
-        <img class="auth-avatar" src={auth.avatar} alt={auth.handle} />
+        <img class="auth-avatar" src={auth.avatar} alt="" />
       {:else}
         <span class="auth-initials">{auth.handle[0]?.toUpperCase() ?? '?'}</span>
       {/if}
+      <span class="auth-handle" title={auth.handle}>{auth.handle}</span>
     </button>
-    <span class="auth-handle" title={auth.handle}>{auth.handle}</span>
     {#if showAccountPanel}
-      <div class="auth-panel auth-account-panel" style="top: {panelTop}px">
-        <p class="auth-account-handle">{auth.handle}</p>
+      <div class="auth-panel auth-account-panel" style="top: {panelTop}px; left: {panelLeft}px" bind:this={panelEl}>
         <button class="btn-signout-panel" onclick={handleSignOut}>Sign out</button>
       </div>
     {/if}
@@ -163,7 +195,7 @@
       Sign in
     </button>
     {#if showPanel}
-      <div class="auth-panel" style="top: {panelTop}px">
+      <div class="auth-panel" style="top: {panelTop}px; left: {panelLeft}px" bind:this={panelEl}>
         <p class="auth-panel-label">Sign in with your <HelpLink doc="atmosphere">Atmosphere account</HelpLink>.</p>
         <div class="auth-input-wrap">
           <div class="auth-form-wrap">
@@ -234,38 +266,41 @@
   .auth-signed-in {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
     position: relative;
   }
 
-  .btn-avatar-toggle {
+  .btn-account-toggle {
     background: none;
     border: none;
+    border-radius: 0;
+    box-shadow: none;
     padding: 0;
     margin: 0;
-    width: 24px;
-    height: 24px;
+    gap: 0.5rem;
     line-height: 1;
     cursor: pointer;
-    border-radius: 50%;
     display: flex;
     align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
+    text-transform: none;
+    text-shadow: none;
+    font-weight: normal;
   }
-  .btn-avatar-toggle:hover { opacity: 0.85; }
+  .btn-account-toggle:hover { opacity: 0.85; }
 
   .auth-avatar {
     width: 24px;
     height: 24px;
+    margin: 0;
     border-radius: 50%;
     object-fit: cover;
     display: block;
+    flex-shrink: 0;
   }
 
   .auth-initials {
     width: 24px;
     height: 24px;
+    margin: 0;
     border-radius: 50%;
     background: #4b5563;
     color: #e5e7eb;
@@ -274,27 +309,22 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
   }
 
   .auth-handle {
     font-size: 0.8rem;
-    color: #b8b8b8;
+    color: #6b7280;
+    text-transform: none;
     max-width: 140px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
-  .auth-account-panel {
-    min-width: 180px;
-  }
-
-  .auth-account-handle {
-    font-size: 0.85rem;
-    color: #111;
-    font-weight: 500;
-    margin: 0 0 0.5rem;
-    word-break: break-all;
+  .auth-panel.auth-account-panel {
+    width: auto;
+    padding: 0.4rem;
   }
 
   .btn-signout-panel {
@@ -306,6 +336,8 @@
     font-family: inherit;
     font-weight: normal;
     text-transform: none;
+    text-shadow: none;
+    box-shadow: none;
     cursor: pointer;
     border-radius: 2px;
     margin: 0;
@@ -332,24 +364,26 @@
 
   .btn-signin-trigger {
     background: transparent;
-    border: 1px solid #555;
-    color: #b8b8b8;
+    border: 1px solid #d1d5db;
+    color: #374151;
     padding: 0.2rem 0.6rem;
     font-size: 0.75rem;
     font-family: inherit;
     font-weight: normal;
     text-transform: none;
+    text-shadow: none;
+    box-shadow: none;
     border-radius: 2px;
     cursor: pointer;
     white-space: nowrap;
-    margin-bottom: 0;
+    margin: 0;
   }
-  .btn-signin-trigger:hover { border-color: #b8b8b8; color: #fff; }
+  .btn-signin-trigger:hover { border-color: #9ca3af; background: #f9fafb; }
 
   .auth-panel {
     position: fixed;
     top: 50px;
-    right: 1rem;
+    left: 0;
     background: #fff;
     border: 1px solid #d1d5db;
     border-radius: 4px;
@@ -367,6 +401,13 @@
     color: #374151;
     margin: 0;
     font-weight: 500;
+  }
+
+  .note {
+    font-size: 0.75rem;
+    color: #6b7280;
+    margin: 0;
+    line-height: 1.4;
   }
 
   .auth-form-wrap {
@@ -420,6 +461,7 @@
   .suggestion-avatar {
     width: 24px;
     height: 24px;
+    margin: 0;
     border-radius: 50%;
     object-fit: cover;
     flex-shrink: 0;
@@ -473,10 +515,15 @@
     padding: 0.35rem 0.6rem;
     font-size: 0.85rem;
     font-family: inherit;
+    font-weight: normal;
+    text-transform: none;
+    text-shadow: none;
+    box-shadow: none;
     cursor: pointer;
     border-radius: 2px;
     white-space: nowrap;
     flex-shrink: 0;
+    margin: 0;
   }
   .btn-go:hover:not(:disabled) { background: #c44310; }
   .btn-go:disabled { opacity: 0.5; cursor: default; }

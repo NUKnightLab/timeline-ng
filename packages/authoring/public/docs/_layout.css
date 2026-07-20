@@ -1,7 +1,7 @@
 *, *::before, *::after { box-sizing: border-box; }
 
 body {
-  font-family: 'TT Norms Pro', system-ui, -apple-system, sans-serif;
+  font-family: 'Apres RE', system-ui, -apple-system, sans-serif;
   font-size: 1rem;
   line-height: 1.65;
   color: #1f2937;

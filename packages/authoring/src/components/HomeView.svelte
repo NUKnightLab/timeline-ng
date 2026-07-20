@@ -4,6 +4,7 @@
   import type { Draft } from '../lib/draft.ts';
   import { getAuthState, listTimelines, getTimeline, deleteTimeline } from '../lib/atproto.svelte.ts';
   import AppNavbar from './AppNavbar.svelte';
+  import AuthButton from './AuthButton.svelte';
   import { SlidePlayer, loadTimeline } from '@knight-lab/timeline-ng';
 
   const DEMO_URI = 'at://did:plc:xcinm6zyywmiymjyz67qgm72/com.knightlab.timeline/mr6t86qd66rf';
@@ -244,20 +245,12 @@
       </section>
 
       <!-- Saved timelines -->
-      {#if auth.status === 'signed-in'}
-        <section class="home-section">
-          <div class="section-header-row">
-            <h2 class="section-heading">Your timelines</h2>
-            <div class="account-status">
-              {#if auth.avatar}
-                <img class="account-avatar" src={auth.avatar} alt="" />
-              {:else}
-                <span class="account-avatar account-initials">{auth.handle[0]?.toUpperCase() ?? '?'}</span>
-              {/if}
-              <span class="account-handle" title={auth.handle}>{auth.handle}</span>
-              <button class="btn-signout-inline" onclick={onsignout}>Sign out</button>
-            </div>
-          </div>
+      <section class="home-section">
+        <div class="section-header-row">
+          <h2 class="section-heading">Your timelines</h2>
+          <AuthButton {onsignout} restoreView="home" />
+        </div>
+        {#if auth.status === 'signed-in'}
           {#if pendingDraft && (pendingDraft.events.length > 0 || pendingDraft.titleEvent)}
             {@render draftBar()}
           {/if}
@@ -303,8 +296,10 @@
               {/each}
             </ul>
           {/if}
-        </section>
-      {/if}
+        {:else}
+          <p class="list-empty">Sign in to save and revisit your timelines here.</p>
+        {/if}
+      </section>
 
       </div>
 
@@ -506,53 +501,6 @@
     padding-bottom: 0.5rem;
     border-bottom: 1px solid #e8e8e8;
   }
-
-  .account-status {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-  }
-
-  .account-avatar {
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    object-fit: cover;
-    display: block;
-    flex-shrink: 0;
-  }
-
-  .account-initials {
-    background: #4b5563;
-    color: #e5e7eb;
-    font-size: 0.6rem;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .account-handle {
-    font-size: 0.78rem;
-    color: #6b7280;
-    max-width: 160px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .btn-signout-inline {
-    background: none;
-    border: none;
-    padding: 0.2rem 0.5rem;
-    margin: 0;
-    font-size: 0.78rem;
-    font-family: inherit;
-    color: #df4e13;
-    text-decoration: underline;
-    cursor: pointer;
-  }
-  .btn-signout-inline:hover { color: #b93e0d; }
 
   /* ── Start ───────────────────────────────────────────────────── */
   .start-actions { display: flex; align-items: stretch; gap: 0.75rem; flex-wrap: wrap; }

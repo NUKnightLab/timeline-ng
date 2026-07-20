@@ -58,16 +58,6 @@ i18n infrastructure (flat JSON + `Intl.DateTimeFormat`) should already support t
 (slide direction, TimeNav direction) is untested and likely needs CSS logical-property
 work. — TL3 #828
 
-### Sign-in entry point on Home screen — Medium value, Small complexity
-
-`AuthButton.svelte` (fully built: sign-in panel, handle typeahead, sign-out) is only
-rendered inside `EditorView.svelte`. `HomeView.svelte`'s "Your timelines" section is
-wrapped in `{#if auth.status === 'signed-in'}`, so a signed-out visitor on the home screen
-has no way to sign in without first creating/importing a timeline. Leaning towards: make
-"Your timelines" always visible and drop `AuthButton` into its header row (signed-out state
-shows "Sign in to save and revisit your timelines here"), reusing the component wholesale
-instead of adding a second bespoke sign-in affordance next to New/From File/From URL.
-
 ### Deep link to event by ID — Medium value, Small-Medium complexity
 
 `start_at_slide_id`-equivalent + URL-based navigation (#473, #676). Natural companion to

@@ -124,13 +124,14 @@ export async function initAuth(): Promise<void> {
   }
 }
 
-export async function signIn(handle: string): Promise<void> {
+export async function signIn(handle: string, restoreView: 'home' | 'editor' = 'editor'): Promise<void> {
   _state = { status: 'loading' };
   try {
     const c = await client();
-    // Sign-in is only ever triggered from the editor's AuthButton today.
+    // OAuth navigates away and back; remember which screen to land on so
+    // signing in from Home doesn't drop the user into the editor.
     sessionStorage.setItem('tl-post-auth-restore', '1');
-    sessionStorage.setItem('tl-post-auth-view', 'editor');
+    sessionStorage.setItem('tl-post-auth-view', restoreView);
     await c.signIn(handle);
     // Browser navigates away; nothing more to do here.
   } catch (err) {
