@@ -64,13 +64,21 @@
       await tick();
       rawEl?.focus();
     } else {
-      const clean = DOMPurify.sanitize(rawSource, { USE_PROFILES: { html: true } });
-      showRaw = false;
+      commit();
       await tick();
-      editor.commands.setContent(clean);
-      editor.commands.focus();
-      onchange(clean === '<p></p>' ? '' : clean);
+      editor?.commands.focus();
     }
+  }
+
+  // Applies pending raw-HTML-mode edits back into the editor. Callers that close this
+  // component (Done buttons, focus-out, switching fields) must call this first, or edits
+  // made while showRaw is still open never reach `onchange` and get lost when unmounted.
+  export function commit() {
+    if (!editor || !showRaw) return;
+    const clean = DOMPurify.sanitize(rawSource, { USE_PROFILES: { html: true } });
+    showRaw = false;
+    editor.commands.setContent(clean);
+    onchange(clean === '<p></p>' ? '' : clean);
   }
 
   function syncMarks() {

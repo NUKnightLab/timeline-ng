@@ -387,6 +387,10 @@
   let deletePending   = $state(false);
   let startDatePicker = $state<{ commit: () => void } | null>(null);
   let endDatePicker = $state<{ commit: () => void } | null>(null);
+  let headlineRte = $state<{ commit: () => void } | null>(null);
+  let bodyRte = $state<{ commit: () => void } | null>(null);
+  let captionRte = $state<{ commit: () => void } | null>(null);
+  let creditRte = $state<{ commit: () => void } | null>(null);
   let pointerDownInsideOpenEditor = false;
   let pointerDownInsideOpenEditorReset: ReturnType<typeof setTimeout> | null = null;
   let filePickerActive = false;
@@ -419,6 +423,11 @@
     editingHeadline = true;
   }
 
+  function confirmHeadlineEdit() {
+    headlineRte?.commit();
+    editingHeadline = false;
+  }
+
   function cancelHeadlineEdit() {
     headline = _snapHeadline;
     buildAndEmit();
@@ -434,6 +443,11 @@
   function startBodyEdit() {
     _snapBody = body;
     editingBody = true;
+  }
+
+  function confirmBodyEdit() {
+    bodyRte?.commit();
+    editingBody = false;
   }
 
   function cancelBodyEdit() {
@@ -541,10 +555,14 @@
         return;
       }
       if (!mediaUrl.trim() && !mediaBlobRef) {
+        captionRte?.commit();
+        creditRte?.commit();
         editingMedia = false;
       }
       return;
     }
+    captionRte?.commit();
+    creditRte?.commit();
     editingMedia = false;
   }
 
@@ -555,12 +573,12 @@
 
   function handleHeadlineEditorFocusOut(event: FocusEvent) {
     if (!focusLeftEditor(event)) return;
-    editingHeadline = false;
+    confirmHeadlineEdit();
   }
 
   function handleBodyEditorFocusOut(event: FocusEvent) {
     if (!focusLeftEditor(event)) return;
-    editingBody = false;
+    confirmBodyEdit();
   }
 
   function confirmDateEdit(): boolean {
@@ -584,10 +602,13 @@
     deletePending = false;
     if (editingDate && f !== 'date' && !confirmDateEdit()) return;
     editingDate     = false;
+    if (editingHeadline) headlineRte?.commit();
     editingHeadline = false;
+    if (editingBody) bodyRte?.commit();
     editingBody     = false;
     if (f === 'media') startEditing();
     else {
+      if (editingMedia) { captionRte?.commit(); creditRte?.commit(); }
       editingMedia = false;
       if (f === 'date') startDateEdit();
       if (f === 'headline') startHeadlineEdit();
@@ -681,7 +702,7 @@
                 <button type="button" class="icon-btn icon-btn--done"
                   aria-label="Done" title="Done"
                   disabled={mediaMode === 'browse' || (mediaMode === 'url' ? (!mediaUrl.trim() || !mediaUrlValid) : !hasMedia)}
-                  onclick={mediaMode === 'url' ? confirmUrl : () => (editingMedia = false)}>✓</button>
+                  onclick={mediaMode === 'url' ? confirmUrl : () => { captionRte?.commit(); creditRte?.commit(); editingMedia = false; }}>✓</button>
                 {#if _canRestoreSnap}
                   <button type="button" class="icon-btn"
                     aria-label="Cancel" title="Cancel" onclick={cancelEdit}>✕</button>
@@ -771,11 +792,11 @@
               </div>
               <div class="field">
                 <label class="field-label" for="caption-rte">Caption</label>
-                <RichTextEditor id="caption-rte" value={mediaCaption} onchange={(v) => { mediaCaption = v; buildAndEmit(); }} minimal rows={2} />
+                <RichTextEditor bind:this={captionRte} id="caption-rte" value={mediaCaption} onchange={(v) => { mediaCaption = v; buildAndEmit(); }} minimal rows={2} />
               </div>
               <div class="field">
                 <label class="field-label" for="credit-rte">Credit</label>
-                <RichTextEditor id="credit-rte" value={mediaCredit} onchange={(v) => { mediaCredit = v; buildAndEmit(); }} minimal rows={2} />
+                <RichTextEditor bind:this={creditRte} id="credit-rte" value={mediaCredit} onchange={(v) => { mediaCredit = v; buildAndEmit(); }} minimal rows={2} />
               </div>
               <div class="field">
                 <label class="field-label" for="media-alt">Alt text</label>
@@ -790,7 +811,7 @@
         <!-- Media thumbnail -->
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div class="media-thumb-wrap" onclick={() => openField('media')}
-          role="button" tabindex="0" aria-label="Edit media"
+          role="button" tabindex="0" aria-label="Edit media" title="Edit media"
           onkeydown={(e) => e.key === 'Enter' && openField('media')}>
           <div class="media-thumb-visual" class:media-thumb-visual--audio={isAudioMedia}>
             <MediaPreview url={mediaUrl} mimeType={mediaBlobRef?.mimeType} />
@@ -823,7 +844,7 @@
         <!-- Empty media slot -->
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div class="media-thumb-wrap media-thumb-wrap--empty" onclick={() => openField('media')}
-          role="button" tabindex="0" aria-label="Add media"
+          role="button" tabindex="0" aria-label="Add media" title="Add media"
           onkeydown={(e) => e.key === 'Enter' && openField('media')}>
           <div class="media-thumb-visual media-thumb-visual--empty">
             <div class="media-empty-preview">
@@ -904,7 +925,7 @@
           <div class="slide-field slide-date-display"
             onclick={() => openField('date')}
             onkeydown={(e) => e.key === 'Enter' && openField('date')}
-            role="button" tabindex="0" aria-label="Edit date">
+            role="button" tabindex="0" aria-label="Edit date" title="Edit date">
             <span class="slide-field-edit-icon" aria-hidden="true">✎</span>
             {#if formattedDateRange}
               <p class="slide-date-summary">{formattedDateRange}</p>
@@ -921,7 +942,7 @@
         <div class="field-panel" onpointerdown={markPointerDownInsideOpenEditor} onfocusout={handleHeadlineEditorFocusOut}>
           <div class="field-panel-actions">
             <button type="button" class="icon-btn icon-btn--done"
-              aria-label="Done" title="Done" onclick={() => (editingHeadline = false)}>✓</button>
+              aria-label="Done" title="Done" onclick={confirmHeadlineEdit}>✓</button>
             <button type="button" class="icon-btn"
               aria-label="Cancel" title="Cancel" onclick={cancelHeadlineEdit}>✕</button>
             <button type="button" class="icon-btn icon-btn--remove"
@@ -929,6 +950,7 @@
           </div>
           <div class="field-panel-body field-panel-body--headline">
             <RichTextEditor
+              bind:this={headlineRte}
               id="headline-rte"
               value={headline}
               onchange={(v) => { headline = v; buildAndEmit(); }}
@@ -937,7 +959,7 @@
               singleLine
               rows={1}
               autofocus
-              onconfirm={() => (editingHeadline = false)}
+              onconfirm={confirmHeadlineEdit}
             />
           </div>
         </div>
@@ -946,7 +968,7 @@
         <div class="slide-field slide-headline-display"
           onclick={() => openField('headline')}
           onkeydown={(e) => e.key === 'Enter' && openField('headline')}
-          role="button" tabindex="0" aria-label="Edit headline">
+          role="button" tabindex="0" aria-label="Edit headline" title="Edit headline">
           <span class="slide-field-edit-icon" aria-hidden="true">✎</span>
           {#if headline}
             <h2 class="slide-h">{@html headline}</h2>
@@ -962,14 +984,14 @@
         <div class="field-panel" onpointerdown={markPointerDownInsideOpenEditor} onfocusout={handleBodyEditorFocusOut}>
           <div class="field-panel-actions">
             <button type="button" class="icon-btn icon-btn--done"
-              aria-label="Done" title="Done" onclick={() => (editingBody = false)}>✓</button>
+              aria-label="Done" title="Done" onclick={confirmBodyEdit}>✓</button>
             <button type="button" class="icon-btn"
               aria-label="Cancel" title="Cancel" onclick={cancelBodyEdit}>✕</button>
             <button type="button" class="icon-btn icon-btn--remove"
               aria-label="Delete body text" title="Delete body text" onclick={clearBody}>🗑</button>
           </div>
           <div class="field-panel-body field-panel-body--richtext">
-            <RichTextEditor id="body-rte" value={body} onchange={(v) => { body = v; buildAndEmit(); }} rows={5} autofocus />
+            <RichTextEditor bind:this={bodyRte} id="body-rte" value={body} onchange={(v) => { body = v; buildAndEmit(); }} rows={5} autofocus />
           </div>
         </div>
       {:else}
@@ -977,7 +999,7 @@
         <div class="slide-field slide-body-display"
           onclick={() => openField('body')}
           onkeydown={(e) => e.key === 'Enter' && openField('body')}
-          role="button" tabindex="0" aria-label="Edit body text">
+          role="button" tabindex="0" aria-label="Edit body text" title="Edit body text">
           <span class="slide-field-edit-icon" aria-hidden="true">✎</span>
           {#if body}
             <div class="slide-body-text">{@html body}</div>
