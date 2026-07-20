@@ -14,28 +14,29 @@ below.
 
 ## Order of operations
 
-**Core must be published before player, every time both have changes.**
+**Publishing is automated by CI ([`.github/workflows/publish.yml`](../.github/workflows/publish.yml)).
+Pushing a `v*.*.*` tag is what triggers it — don't run `npm publish` by hand.**
+The workflow checks out the tagged commit, `pnpm install`s, runs `pnpm build`
+and `pnpm test:run` across the whole monorepo as a gate, then runs
+`pnpm --filter @knight-lab/timeline-ng-core publish --no-git-checks` followed
+by `pnpm --filter @knight-lab/timeline-ng publish --no-git-checks` — core
+before player, in that order, in a single job run. It authenticates via npm
+Trusted Publishing (OIDC), so there's no local token or OTP prompt involved.
+`pnpm publish` also does the `workspace:*` → exact-version rewrite described
+below, and running both publishes in one job means core is guaranteed to
+already exist on the registry (from the same run, moments earlier) by the
+time player's manifest is rewritten and pushed — no manual "wait and verify"
+step needed.
 
-Player's `package.json` depends on core via `"workspace:*"`. When you run
-`pnpm publish` inside `packages/player`, pnpm rewrites that to the *exact*
-version string from core's local `package.json` at that moment (not a
-range — `workspace:*` becomes e.g. `"0.2.0"`, not `"^0.2.0"`). If core 0.2.0
-isn't live on the npm registry yet, anyone who `npm install`s the newly
-published player will get a dependency resolution failure, because nothing
-satisfies an exact pin to a version that doesn't exist.
-
-So the sequence is:
-
-1. Finish and commit all changes for the release (see [Release checklist](#release-checklist)).
-2. Bump and publish **core** first.
-3. Verify core's new version is live on the registry (`npm view @knight-lab/timeline-ng-core version`
-   should show the new version — allow a minute or two for propagation).
-4. Bump and publish **player**.
-5. Tag the release in git and push.
-
-If only core changed (no player-visible changes), you can publish core alone
-and skip player — but if you bump player's version to a new release for any
-reason while core also has unpublished changes, core must go out first.
+Why core-before-player matters at all: player's `package.json` depends on
+core via `"workspace:*"`. `pnpm publish` rewrites that to the *exact* version
+string from core's local `package.json` at publish time (not a range —
+`workspace:*` becomes e.g. `"0.2.0"`, not `"^0.2.0"`). If core 0.2.0 weren't
+live on the registry yet, anyone who `npm install`s the newly published
+player would get a dependency resolution failure, since nothing satisfies an
+exact pin to a version that doesn't exist. The workflow's fixed step order
+(core's publish step runs to completion before player's starts) is what
+guarantees this.
 
 Because the pin is exact, a future *patch* release of core alone (say
 0.2.1) does **not** automatically reach anyone who installed player 0.2.0 —
@@ -44,11 +45,18 @@ patches without a player republish, change player's dependency to
 `"workspace:^"` (→ published as `"^0.2.0"`) instead of `"workspace:*"`. That's
 a deliberate tradeoff to make consciously, not part of routine publishing.
 
+If only core changed (no player-visible changes), you can still tag a
+release — `pnpm publish` for a package whose current version is already on
+the registry is a safe no-op ("There are no new packages that should be
+published"), so re-running the workflow only actually publishes what
+changed. There's no need to hand-bump player's version just to keep the two
+in sync.
+
 ## Release checklist
 
 1. **Make sure everything intended for the release is committed.** Check
-   `git status` and `git diff` — don't publish with unrelated uncommitted
-   work sitting in the tree.
+   `git status` and `git diff` — don't tag a release with unrelated
+   uncommitted work sitting in the tree.
 2. **Update CHANGELOG.md in each changed package** (`packages/core/CHANGELOG.md`,
    `packages/player/CHANGELOG.md`). Move the `[Unreleased]` entries under a
    new `## [x.y.z] - YYYY-MM-DD` heading, and update the link references at
@@ -66,7 +74,8 @@ a deliberate tradeoff to make consciously, not part of routine publishing.
      happened to both start at 0.1.0 and may drift apart over time; that's
      fine.)
 4. **Bump `version` in `package.json`** for each package being released.
-5. **Run the full check before publishing anything:**
+5. **Sanity-check locally before pushing** (CI re-runs this, but catch
+   failures early):
    ```sh
    pnpm --filter @knight-lab/timeline-ng-core test:run
    pnpm --filter @knight-lab/timeline-ng-core typecheck
@@ -75,42 +84,39 @@ a deliberate tradeoff to make consciously, not part of routine publishing.
    pnpm --filter @knight-lab/timeline-ng typecheck
    pnpm --filter @knight-lab/timeline-ng build
    ```
-6. **Commit** the changelog + version bumps (and any remaining feature work)
-   with a normal commit — this repo doesn't use a separate "release commit"
-   convention beyond that.
-7. **Publish core:**
+6. **Commit and push** the changelog + version bumps (and any remaining
+   feature work) to `main` — this repo doesn't use a separate "release
+   commit" convention beyond that.
+7. **Tag and push the tag** — this is what actually triggers publishing:
    ```sh
-   cd packages/core
-   npm publish
+   git tag v<version>   # repo convention so far: one tag shared across
+                         # a release even though packages version
+                         # independently — see existing v0.1.0, v0.2.0 tags
+   git push origin main --tags
    ```
-   (`npm publish` respects the `publishConfig.access: "public"` and
-   `files` fields already set in `package.json`; `pnpm publish` also
-   works and additionally validates the workspace dependency rewrite.)
-
-   **The first publish in a while needs to be run interactively, in a
-   real terminal, by whoever owns the npmjs.com account.** The registry
-   requires a one-time-password/browser approval (`EOTP`), and npm
-   deliberately redacts the approval URL from all output and logs — an
-   agent can't complete it on your behalf. npm remembers a successful
-   approval for a few minutes afterward (configurable), so publishing
-   core and then player back-to-back in the same session usually only
-   prompts once.
-8. **Verify core is live:**
+8. **Watch the workflow run:**
+   ```sh
+   gh run list --workflow=publish.yml --limit 1
+   gh run watch          # or: gh run view <run-id> --log
+   ```
+9. **Verify the new versions are live:**
    ```sh
    npm view @knight-lab/timeline-ng-core version
+   npm view @knight-lab/timeline-ng version
    ```
-9. **Publish player:**
-   ```sh
-   cd packages/player
-   npm publish
-   ```
-10. **Tag and push:**
-    ```sh
-    git tag v<version>   # repo convention so far: one tag shared across
-                          # a release even though packages version
-                          # independently — see existing v0.1.0 tag
-    git push origin main --tags
-    ```
+
+### Manual/emergency fallback
+
+If CI is broken and you must publish by hand, `cd packages/core && npm
+publish`, verify with `npm view`, then `cd packages/player && npm publish`.
+This requires local npm auth (`npm whoami`) and the **first** publish in a
+while needs to happen interactively, in a real terminal, by whoever owns the
+npmjs.com account — the registry requires a one-time-password/browser
+approval (`EOTP`), and npm deliberately redacts the approval URL from all
+output and logs, so an agent can't complete it on your behalf. npm remembers
+a successful approval for a few minutes afterward, so publishing core and
+then player back-to-back usually only prompts once. Prefer the tag-push path
+above whenever CI is available.
 
 ## Why authoring/embed order doesn't matter
 
@@ -133,6 +139,6 @@ registry.** So:
   from" bookkeeping question, not a build failure — the embed bundles its
   own JS either way.
 - Practical implication: deploy authoring/embed from the same commit you
-  tag for the npm release (step 10 above), so "what's live on
+  tag for the npm release (step 7 above), so "what's live on
   timeline.knightlab.com" and "what's on npm" refer to the same code even
   though they reach users through different distribution channels.
