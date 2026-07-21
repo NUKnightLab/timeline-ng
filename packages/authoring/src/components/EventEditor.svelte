@@ -810,7 +810,7 @@
       {:else if hasMedia}
         <!-- Media thumbnail -->
         <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <div class="media-thumb-wrap" onclick={() => openField('media')}
+        <div class="media-thumb-wrap" onclick={(e) => { e.preventDefault(); openField('media'); }}
           role="button" tabindex="0" aria-label="Edit media" title="Edit media"
           onkeydown={(e) => e.key === 'Enter' && openField('media')}>
           <div class="media-thumb-visual" class:media-thumb-visual--audio={isAudioMedia}>

@@ -330,6 +330,7 @@
     font-weight: 700;
     padding: 2px 6px;
     border-radius: 3px;
+    text-shadow: none;
   }
   .preview-badge--yt { background: #ff0000; color: #fff; }
   .preview-badge--dark { background: rgba(17, 17, 17, 0.78); color: #fff; }
