@@ -9,6 +9,8 @@ export interface Draft {
   atUri?: string;
   pdsClean?: boolean;
   settings?: TLSettings;
+  /** ISO timestamp of the last saveDraft() call; stamped automatically, callers don't set it. */
+  savedAt?: string;
 }
 
 function stripBlobUrl(ev: TLEvent): TLEvent {
@@ -23,6 +25,7 @@ export function saveDraft(draft: Draft): void {
       ...draft,
       events: draft.events.map(stripBlobUrl),
       titleEvent: draft.titleEvent ? stripBlobUrl(draft.titleEvent) : null,
+      savedAt: new Date().toISOString(),
     };
     localStorage.setItem(KEY, JSON.stringify(clean));
   } catch { /* storage full */ }

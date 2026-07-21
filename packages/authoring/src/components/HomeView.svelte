@@ -151,6 +151,39 @@
       return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
     } catch { return ''; }
   }
+
+  const RELATIVE_UNITS: [Intl.RelativeTimeFormatUnit, number][] = [
+    ['year', 60 * 60 * 24 * 365],
+    ['month', 60 * 60 * 24 * 30],
+    ['day', 60 * 60 * 24],
+    ['hour', 60 * 60],
+    ['minute', 60],
+  ];
+
+  function formatRelativeTime(iso: string): string {
+    if (!iso) return '';
+    const then = new Date(iso).getTime();
+    if (Number.isNaN(then)) return '';
+    const diffSec = Math.round((then - Date.now()) / 1000);
+    if (Math.abs(diffSec) < 60) return 'just now';
+    const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' });
+    for (const [unit, secondsInUnit] of RELATIVE_UNITS) {
+      if (Math.abs(diffSec) >= secondsInUnit) {
+        return rtf.format(Math.round(diffSec / secondsInUnit), unit);
+      }
+    }
+    return formatDate(iso);
+  }
+
+  function draftBarText(draft: Draft | null): string {
+    if (!draft) return '';
+    const title = draft.title?.trim() || 'Untitled draft';
+    const bits = [title];
+    if (draft.savedAt) bits.push(`edited ${formatRelativeTime(draft.savedAt)}`);
+    // not sure this is helpful
+    // bits.push(draft.atUri ? 'editing a saved timeline' : 'never saved');
+    return `Draft — ${bits.join(' · ')}`;
+  }
 </script>
 
 <div class="home-shell">
@@ -160,16 +193,11 @@
 
   {#snippet draftBar()}
     <div class="draft-bar">
-      <span class="draft-bar-label">Unsaved draft</span>
+      <span class="draft-bar-label">{draftBarText(pendingDraft)}</span>
       <button class="draft-bar-continue" onclick={onrestore}>Continue editing</button>
       <button class="draft-bar-discard" onclick={ondiscard}>Discard</button>
     </div>
   {/snippet}
-
-  <!-- ── Draft bar ─────────────────────────────────────────────────────────── -->
-  {#if pendingDraft && (pendingDraft.events.length > 0 || pendingDraft.titleEvent)}
-    {@render draftBar()}
-  {/if}
 
   <!-- ── Main ──────────────────────────────────────────────────────────────── -->
   <main class="home-main">
@@ -250,10 +278,10 @@
           <h2 class="section-heading">Your timelines</h2>
           <AuthButton {onsignout} restoreView="home" />
         </div>
+        {#if pendingDraft && (pendingDraft.events.length > 0 || pendingDraft.titleEvent)}
+          {@render draftBar()}
+        {/if}
         {#if auth.status === 'signed-in'}
-          {#if pendingDraft && (pendingDraft.events.length > 0 || pendingDraft.titleEvent)}
-            {@render draftBar()}
-          {/if}
           {#if listLoading}
             <p class="list-loading">Loading…</p>
           {:else if savedTimelines.length === 0}

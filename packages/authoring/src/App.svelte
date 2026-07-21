@@ -79,6 +79,7 @@
 
   $effect(() => {
     if (view !== 'editor') return;
+    const t = timelineTitle;
     const te = titleEvent;
     const ev = events;
     const uri = atUri;
@@ -96,7 +97,7 @@
 
     _draftTimer = setTimeout(() => {
       _draftTimer = null;
-      saveDraft({ titleEvent: te, events: ev, atUri: uri ?? undefined, settings: st });
+      saveDraft({ title: t || undefined, titleEvent: te, events: ev, atUri: uri ?? undefined, settings: st });
     }, 600);
 
     return () => {
@@ -124,7 +125,7 @@
 
     const flush = () => {
       if (view === 'editor' && !pdsClean) {
-        saveDraft({ titleEvent, events, atUri: atUri ?? undefined, settings });
+        saveDraft({ title: timelineTitle || undefined, titleEvent, events, atUri: atUri ?? undefined, settings });
       }
     };
     window.addEventListener('beforeunload', flush);
