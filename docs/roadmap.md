@@ -70,8 +70,8 @@ Kiosk/presentation use case (#882, #280). Needs a pause-on-interaction story and
 
 ### Uncertainty / fuzzy dates — Medium value (scholarly/journalism niche), Small-Medium complexity
 
-May be substantially covered by exposing `display_date` (see Authoring gap below) rather
-than a distinct "uncertainty marker" UI. — TL3 #499
+Substantially covered now that the `display_date` field is authorable (see Decided/Resolved
+below) rather than needing a distinct "uncertainty marker" UI. — TL3 #499
 
 ### Quick search / locate headline from TimeNav — Medium value, Medium complexity
 
@@ -107,13 +107,6 @@ they're not forgotten, not because they're near-term.
 Bucket of TL3 config options (#674, #542, #448, #300, #662, #394) with no strong signal yet.
 Revisit if a specific request materializes rather than building speculatively.
 
-### Authoring: `display_date` field — Medium value, Small-Medium complexity
-
-`TLDateInput.display_date` (override rendered date text, e.g. "circa 1900") already exists
-in the core type and docs, but `DateFields.svelte` has no field for it — only reachable by
-hand-editing JSON/CSV. Flagged as a future authoring pass; also unlocks part of the
-uncertainty-markers use case above.
-
 ### Undated / interstitial slides — Low priority, Medium complexity, deferred
 
 Slides with no date, placeable anywhere (not just as the title slide). Problem: TimeNav is a
@@ -131,6 +124,12 @@ embed page.
 
 ## 3. Decided / Resolved (reference only)
 
+- **`display_date` authoring field — shipped.** The date-editing panel in `EventEditor.svelte`
+  now has a "Display date" text input that sets `TLDateInput.display_date` on the start date,
+  overriding the rendered date text (e.g. "around 1500", "the Roaring Twenties"). A real start
+  year is still required — Timeline still needs it to place the slide. Also fixed a latent bug
+  in `SlideContent.svelte` where an event with both `display_date` and an `end_date` would show
+  the override concatenated with a formatted end date instead of just the override text.
 - **No published Lexicon** for `com.knightlab.timeline` — interop outside the tool isn't
   expected for v1.
 - **npm org:** `@knight-lab`, packages are `@knight-lab/timeline-ng-core` and

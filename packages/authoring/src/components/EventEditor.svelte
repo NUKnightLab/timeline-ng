@@ -39,6 +39,8 @@
   let startMinute = $state<number | ''>(ev.start_date?.minute ?? '');
   let startSecond = $state<number | ''>(ev.start_date?.second ?? '');
 
+  let displayDate = $state(ev.start_date?.display_date ?? '');
+
   let hasEndDate  = $state(!!ev.end_date);
   let endYear     = $state<number | ''>(ev.end_date?.year ?? '');
   let endMonth    = $state<number | ''>(ev.end_date?.month ?? '');
@@ -67,6 +69,7 @@
 
   const formattedDateRange = $derived.by((): string | null => {
     if (isTitle || startYear === '') return null;
+    if (displayDate.trim()) return displayDate.trim();
     try {
       const sd = date(startYear, startMonth, startDay, startHour, startMinute, startSecond);
       if (!sd) return null;
@@ -233,7 +236,7 @@
   });
   let group      = $state(ev.group ?? '');
 
-  function date(year: number|'', month: number|'', day: number|'', hour: number|'', minute: number|'', second: number|''): TLDateInput | undefined {
+  function date(year: number|'', month: number|'', day: number|'', hour: number|'', minute: number|'', second: number|'', displayDateOverride?: string): TLDateInput | undefined {
     if (year === '') return undefined;
     return {
       year: Number(year),
@@ -242,6 +245,7 @@
       ...(hour   !== '' ? { hour:   Number(hour)   } : {}),
       ...(minute !== '' ? { minute: Number(minute) } : {}),
       ...(second !== '' ? { second: Number(second) } : {}),
+      ...(displayDateOverride ? { display_date: displayDateOverride } : {}),
     };
   }
 
@@ -251,7 +255,7 @@
   // focus out of whichever field the user is in. It commits on blur instead (see
   // commitSlideId), same as it would need a dedicated "confirm" gesture anywhere else.
   function buildAndEmit(idOverride?: string) {
-    const startDate = isTitle ? undefined : date(startYear, startMonth, startDay, startHour, startMinute, startSecond);
+    const startDate = isTitle ? undefined : date(startYear, startMonth, startDay, startHour, startMinute, startSecond, displayDate.trim() || undefined);
     const endDate   = (!isTitle && hasEndDate) ? date(endYear, endMonth, endDay, endHour, endMinute, endSecond) : undefined;
 
     const updated: TLEvent = {
@@ -409,6 +413,7 @@
     startHour: number | '';
     startMinute: number | '';
     startSecond: number | '';
+    displayDate: string;
     hasEndDate: boolean;
     endYear: number | '';
     endMonth: number | '';
@@ -466,6 +471,7 @@
     syncDateDraftsFromCommitted();
     _snapDate = {
       startYear, startMonth, startDay, startHour, startMinute, startSecond,
+      displayDate,
       hasEndDate,
       endYear, endMonth, endDay, endHour, endMinute, endSecond,
     };
@@ -480,6 +486,7 @@
       startHour = _snapDate.startHour;
       startMinute = _snapDate.startMinute;
       startSecond = _snapDate.startSecond;
+      displayDate = _snapDate.displayDate;
       hasEndDate = _snapDate.hasEndDate;
       endYear = _snapDate.endYear;
       endMonth = _snapDate.endMonth;
@@ -499,6 +506,7 @@
     startHour = '';
     startMinute = '';
     startSecond = '';
+    displayDate = '';
     hasEndDate = false;
     endYear = '';
     endMonth = '';
@@ -634,6 +642,7 @@
           'Every event needs a start date to appear on the timeline.',
           'Add an end date only when the event should occupy a span rather than a single moment.',
           'If precision is not important, leaving month, day, or time blank keeps the date appropriately broad.',
+          'Display date lets you replace the text shown on the slide — e.g. "around 1500" or "the Roaring Twenties" — for uncertain or stylized dates. Timeline still needs the real year above to place the event correctly; only the displayed text changes.',
         ],
       };
     }
@@ -917,6 +926,17 @@
                 {#if hasEndDate && !endDateOrderValid}
                   <p class="date-error" role="alert">End date must be after start date.</p>
                 {/if}
+                <div class="display-date-field">
+                  <label class="field-label" for="display-date-input">Display date</label>
+                  <input
+                    id="display-date-input"
+                    type="text"
+                    bind:value={displayDate}
+                    oninput={() => buildAndEmit()}
+                    placeholder={'e.g. "around 1500" or "the 60s"'}
+                  />
+                  <p class="field-hint">Optional. Overrides the date text shown on the slide. The date info above is still required (at least a year) so that Timeline can position the event.</p>
+                </div>
               </div>
             </div>
           </div>
@@ -1512,6 +1532,27 @@
     border: 1px solid #f5c0b8;
     border-radius: 4px;
     padding: 0.25rem 0.5rem;
+  }
+
+  .display-date-field {
+    margin-top: 0.4rem;
+    max-width: 320px;
+  }
+  .display-date-field input[type="text"] {
+    border: 1px solid #d4d4d4;
+    border-radius: 4px;
+    padding: 0.4rem 0.6rem;
+    font-size: 0.9rem;
+    font-family: inherit;
+    width: 100%;
+    box-sizing: border-box;
+    background: #fff;
+    transition: border-color 0.15s;
+  }
+  .display-date-field input[type="text"]:focus {
+    outline: none;
+    border-color: #13a4df;
+    box-shadow: 0 0 0 2px rgba(19,164,223,0.2);
   }
 
   /* ── Slide fields (headline, body) ─────────────────────────── */

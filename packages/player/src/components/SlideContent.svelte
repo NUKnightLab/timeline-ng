@@ -35,6 +35,7 @@
 
   const displayDate: string = $derived.by(() => {
     if (!event.start_date) return '';
+    if (event.start_date.display_date) return event.start_date.display_date;
     const start = formatDate(parseTLDate(event.start_date), locale);
     if (!event.end_date) return start;
     const end = formatDate(parseTLDate(event.end_date), locale);
