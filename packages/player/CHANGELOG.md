@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- `SlideContent`'s scrollable area now reserves space for `TimeNav`'s
+  current height, so content at the bottom of a long slide is never
+  hidden behind the nav, no matter how tall it renders.
+- An event's `display_date` (set on `start_date`) now overrides the
+  entire displayed date range, instead of only replacing the start
+  portion when an `end_date` is also present.
+
 ## [0.2.0] - 2026-07-20
 
 ### Added
