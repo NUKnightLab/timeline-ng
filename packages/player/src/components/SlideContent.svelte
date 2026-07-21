@@ -133,12 +133,17 @@
     display: flex;
     flex-direction: column;
     padding: var(--tl-slide-padding);
+    /* The nav overlays the bottom of the stage, and its height varies as the
+       user expands/collapses it — reserve at least that much space so
+       scrolling to the end of the content always clears it. */
+    padding-bottom: max(var(--tl-slide-padding), var(--tl-nav-overlap, 0px));
     overflow-y: auto;
     opacity: 0;
     translate: 60px 0;
     transition:
       opacity var(--tl-transition-speed) ease,
-      translate var(--tl-transition-speed) ease;
+      translate var(--tl-transition-speed) ease,
+      padding-bottom 0.2s ease;
     pointer-events: none;
   }
 

@@ -35,6 +35,7 @@
   let direction = $state<'forward' | 'backward' | 'none'>('none');
   let stage: HTMLElement;
   let playerWidth = $state(800);
+  let navHeight = $state(0);
 
   const compact = $derived(playerWidth < 480);
   const minimal = $derived(playerWidth < 320);
@@ -181,7 +182,7 @@
 >
   <div aria-live="polite" aria-atomic="true" class="tl-sr-only">{liveLabel}</div>
 
-  <div class="tl-player__stage" bind:this={stage}>
+  <div class="tl-player__stage" bind:this={stage} style="--tl-nav-overlap: {navHeight}px;">
     {#each slides as event, i}
       <SlideContent
         {event}
@@ -231,6 +232,7 @@
     onnavigate={handleNavigation}
     onstart={() => goTo(0)}
     onend={() => goTo(slides.length - 1)}
+    bind:height={navHeight}
   />
 </section>
 

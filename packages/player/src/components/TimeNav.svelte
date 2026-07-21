@@ -13,9 +13,10 @@
     onnavigate: (index: number) => void;
     onstart?: () => void;
     onend?: () => void;
+    height?: number;
   }
 
-  let { timeline, activeIndex, language = 'en', compact = false, minimal = false, onnavigate, onstart, onend }: Props = $props();
+  let { timeline, activeIndex, language = 'en', compact = false, minimal = false, onnavigate, onstart, onend, height = $bindable(0) }: Props = $props();
 
   const tl = $derived(getLocale(language));
 
@@ -424,6 +425,9 @@
   );
 
   const navHeight = $derived(HANDLE_H + contentHeight + AXIS_H);
+  $effect(() => {
+    height = navHeight;
+  });
 
   // ── Grip drag ─────────────────────────────────────────────────────────────
   let _gripDragging  = false;
