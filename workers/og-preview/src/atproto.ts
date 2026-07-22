@@ -1,4 +1,4 @@
-import { fromTL3 } from '@knight-lab/timeline-ng-core';
+import { normalizeTimelineSourceUrl, parseTimelineText } from '@knight-lab/timeline-ng-core';
 import type { TLTimeline } from '@knight-lab/timeline-ng-core';
 
 // Mirrors packages/player/src/lib/loader.ts, reimplemented here to avoid
@@ -88,10 +88,9 @@ async function fetchAtRecord(
 }
 
 async function fetchHttpTimeline(url: string): Promise<TLTimeline> {
-  const resp = await fetch(url);
+  const resp = await fetch(normalizeTimelineSourceUrl(url));
   if (!resp.ok) throw new Error(`Fetch failed (${resp.status})`);
-  const json: unknown = await resp.json();
-  return fromTL3(json);
+  return parseTimelineText(await resp.text());
 }
 
 export async function loadTimeline(source: string, config: LoaderConfig = {}): Promise<LoadResult> {

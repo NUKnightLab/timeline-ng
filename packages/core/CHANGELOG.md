@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `normalizeTimelineSourceUrl` and `parseTimelineText`, shared helpers that
+  rewrite a Google Sheets "publish to the web" link to its CSV export
+  endpoint and sniff/parse fetched timeline text as CSV or JSON. Used by
+  `@knight-lab/timeline-ng`'s `loadTimeline` and the authoring app's URL
+  import so a plain `pubhtml` link works as a timeline source without any
+  manual URL editing.
+
 ## [0.2.0] - 2026-07-20
 
 ### Added

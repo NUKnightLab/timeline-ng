@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `loadTimeline` (and thus the `@timeline-ng/embed` app's `?src=` param)
+  now accepts a Google Sheets "publish to the web" link directly, in
+  addition to hosted JSON — no account or PDS save required to embed a
+  Sheets-backed timeline.
+
 ### Fixed
 
 - `SlideContent`'s scrollable area now reserves space for `TimeNav`'s

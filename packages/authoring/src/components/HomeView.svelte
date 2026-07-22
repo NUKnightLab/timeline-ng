@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { fromTL3, fromTL3CSV } from '@knight-lab/timeline-ng-core';
+  import { fromTL3, fromTL3CSV, normalizeTimelineSourceUrl, parseTimelineText } from '@knight-lab/timeline-ng-core';
   import type { TLTimeline } from '@knight-lab/timeline-ng-core';
   import type { Draft } from '../lib/draft.ts';
   import { getAuthState, listTimelines, getTimeline, deleteTimeline } from '../lib/atproto.svelte.ts';
@@ -69,25 +69,15 @@
     urlError = null;
     corsDownloadUrl = null;
 
-    let fetchUrl = urlInput.trim();
-    let isSheets = false;
-
-    const sheetsMatch = fetchUrl.match(/docs\.google\.com\/spreadsheets\/d\/e\/([^/]+)\/pubhtml/);
-    if (sheetsMatch) {
-      isSheets = true;
-      fetchUrl = `https://docs.google.com/spreadsheets/d/e/${sheetsMatch[1]}/pub?output=csv`;
-    }
+    const rawUrl = urlInput.trim();
+    const fetchUrl = normalizeTimelineSourceUrl(rawUrl);
+    const isSheets = fetchUrl !== rawUrl;
 
     try {
       const resp = await fetch(fetchUrl);
       if (!resp.ok) throw new Error(`Server returned ${resp.status}`);
       const text = await resp.text();
-      const trimmed = text.trimStart();
-      // CSV if it starts with a quote, or definitely not JSON object/array
-      const tl = (trimmed.startsWith('"') || (!trimmed.startsWith('{') && !trimmed.startsWith('[')))
-        ? fromTL3CSV(text)
-        : fromTL3(JSON.parse(text));
-      onimport(tl);
+      onimport(parseTimelineText(text));
     } catch (err) {
       if (err instanceof TypeError) {
         corsDownloadUrl = fetchUrl;
