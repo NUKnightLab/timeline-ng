@@ -1,0 +1,53 @@
+{
+  "title": {
+    "text": {
+      "headline": "Ink &amp; Type",
+      "text": "<p>Five centuries of printing, from Gutenberg's workshop to the World Wide Web.</p>"
+    }
+  },
+  "events": [
+    {
+      "start_date": { "year": 1440 },
+      "text": {
+        "headline": "Gutenberg's Movable Type",
+        "text": "<p>Johannes Gutenberg introduces a practical movable-type printing press in Mainz, making the mass production of books possible for the first time in Europe.</p>"
+      }
+    },
+    {
+      "start_date": { "year": 1605 },
+      "text": {
+        "headline": "The First Newspaper",
+        "text": "<p><em>Relation aller Fürnemmen und gedenckwürdigen Historien</em>, published in Strasbourg, is widely regarded as the world's first newspaper.</p>"
+      }
+    },
+    {
+      "start_date": { "year": 1814 },
+      "text": {
+        "headline": "The Steam Press",
+        "text": "<p>The <em>Times</em> of London adopts a steam-powered printing press, quadrupling the speed at which a newspaper can be printed.</p>"
+      }
+    },
+    {
+      "start_date": { "year": 1833 },
+      "text": {
+        "headline": "The Penny Press",
+        "text": "<p>The <em>New York Sun</em> launches at one cent a copy, pioneering a mass-circulation model aimed at ordinary readers rather than the elite.</p>"
+      }
+    },
+    {
+      "start_date": { "year": 1886 },
+      "text": {
+        "headline": "The Linotype Machine",
+        "text": "<p>Ottmar Mergenthaler's Linotype mechanizes typesetting, casting an entire line of type at once and transforming newspaper production.</p>"
+      }
+    },
+    {
+      "start_date": { "year": 1993 },
+      "text": {
+        "headline": "The Web Goes Public",
+        "text": "<p>CERN places the World Wide Web into the public domain, opening the door to a new era of digital publishing.</p>"
+      },
+      "background": { "color": "#0b3d3a" }
+    }
+  ]
+}

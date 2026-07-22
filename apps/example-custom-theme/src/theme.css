@@ -1,0 +1,57 @@
+/*
+ * "Ink & Type" — a fully custom skin built entirely from the player's
+ * --tl-* design tokens (see packages/player/src/styles/base.css for the
+ * full list). No component overrides, no !important — every value here is
+ * a token the default theme also sets.
+ *
+ * Scope everything under .zine-theme so it never leaks onto other players
+ * that might share a page.
+ */
+
+.zine-theme {
+  --tl-font-heading: Georgia, 'Iowan Old Style', 'Palatino Linotype', serif;
+  --tl-font-body: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  --tl-radius: 0px;
+  --tl-gap: 1.5rem;
+  --tl-slide-padding: 3rem;
+  --tl-nav-height: 72px;
+}
+
+/*
+ * SlidePlayer sets data-tl-theme on its own root element, and the default
+ * theme's [data-tl-theme] rules in base.css target that same element — so a
+ * plain ancestor override here would lose to those (a declaration on an
+ * element itself always beats an inherited one). Each pair below covers
+ * both cases: the compound selector wins if data-tl-theme ever ends up on
+ * this wrapper too, the descendant selector wins against the player's own
+ * root, which is where it actually lives today.
+ */
+.zine-theme[data-tl-theme='light'],
+.zine-theme [data-tl-theme='light'] {
+  --tl-color-bg: #faf6ef;
+  --tl-color-surface: #f0e9da;
+  --tl-color-text: #1c1a17;
+  --tl-color-text-muted: #6b6255;
+  --tl-color-accent: #a3241f;
+  --tl-color-accent-hover: #7d1b17;
+  --tl-color-border: #d8cdb8;
+  --tl-color-nav-bg: #efe6d2;
+  --tl-color-nav-marker: #8a7f6a;
+  --tl-color-nav-marker-active: #a3241f;
+  --tl-color-nav-marker-hover: #1c1a17;
+}
+
+.zine-theme[data-tl-theme='dark'],
+.zine-theme [data-tl-theme='dark'] {
+  --tl-color-bg: #17140f;
+  --tl-color-surface: #211d16;
+  --tl-color-text: #ece6d8;
+  --tl-color-text-muted: #a89e8b;
+  --tl-color-accent: #e2574c;
+  --tl-color-accent-hover: #ef7a70;
+  --tl-color-border: #3a3327;
+  --tl-color-nav-bg: #100e0a;
+  --tl-color-nav-marker: #7d7362;
+  --tl-color-nav-marker-active: #ece6d8;
+  --tl-color-nav-marker-hover: #cfc6b3;
+}

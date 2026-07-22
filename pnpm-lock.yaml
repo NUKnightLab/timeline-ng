@@ -17,6 +17,28 @@ importers:
         specifier: ^5.7.0
         version: 5.9.3
 
+  apps/example-custom-theme:
+    dependencies:
+      '@knight-lab/timeline-ng':
+        specifier: 0.1.0-beta.1
+        version: 0.1.0-beta.1(svelte@5.55.4)
+      '@knight-lab/timeline-ng-core':
+        specifier: 0.1.0-beta.1
+        version: 0.1.0-beta.1
+    devDependencies:
+      '@sveltejs/vite-plugin-svelte':
+        specifier: ^5.0.0
+        version: 5.1.1(svelte@5.55.4)(vite@6.4.2(@types/node@26.1.0))
+      svelte:
+        specifier: ^5.0.0
+        version: 5.55.4
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+      vite:
+        specifier: ^6.0.0
+        version: 6.4.2(@types/node@26.1.0)
+
   apps/example-svelte5:
     dependencies:
       '@knight-lab/timeline-ng':
