@@ -166,10 +166,10 @@
   }
 
   function handleSignOut() {
-    const hasContent = view === 'editor'
-      ? (!!titleEvent || events.length > 0)
-      : !!(pendingDraft && (pendingDraft.events.length > 0 || pendingDraft.titleEvent));
-    if (hasContent && !window.confirm('Your timeline is only saved in this browser. Sign out anyway?')) return;
+    const hasUnsavedContent = view === 'editor'
+      ? (!pdsClean && (!!titleEvent || events.length > 0))
+      : !!(pendingDraft && !pendingDraft.pdsClean && (pendingDraft.events.length > 0 || pendingDraft.titleEvent));
+    if (hasUnsavedContent && !window.confirm('Your timeline is only saved in this browser. Sign out anyway?')) return;
     if (view === 'editor') {
       // atUri belongs to the signed-in account — clear it so the drawer
       // doesn't show stale "saved" state after logout.

@@ -242,6 +242,8 @@
       </button>
       {#if saveStatus}
         <span class="save-status">{saveStatus}</span>
+      {:else if pdsClean && atUri && auth.status === 'signed-in'}
+        <span class="save-status">Saved ✓</span>
       {:else}
         <button class="btn-save" onclick={onsave} disabled={!canSave}
           title={canSave ? 'Save to PDS' : 'Sign in to save'}>
