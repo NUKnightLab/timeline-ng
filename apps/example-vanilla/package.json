@@ -9,8 +9,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@knight-lab/timeline-ng": "0.1.0-beta.1",
-    "@knight-lab/timeline-ng-core": "0.1.0-beta.1",
+    "@knight-lab/timeline-ng": "workspace:*",
+    "@knight-lab/timeline-ng-core": "workspace:*",
     "svelte": "^5.0.0"
   },
   "devDependencies": {
