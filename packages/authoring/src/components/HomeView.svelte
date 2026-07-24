@@ -72,6 +72,7 @@
     urlLoading = true;
     urlError = null;
     corsDownloadUrl = null;
+    embedLinks = null;
 
     const rawUrl = urlInput.trim();
     const fetchUrl = normalizeTimelineSourceUrl(rawUrl);
@@ -94,6 +95,51 @@
     } finally {
       urlLoading = false;
     }
+  }
+
+  // ── URL → embed/share (no import needed) ────────────────────────────────────
+  // Mirrors the Publish drawer in EditorView.svelte: the embed page and share
+  // worker already resolve a plain http(s) URL at view time (see
+  // packages/embed/src/App.svelte and packages/player/src/lib/loader.ts), so a
+  // pasted source URL can become a share/embed link directly — no fetch, parse,
+  // or PDS save required on this end.
+
+  const _embedMeta = document.querySelector('meta[name="tl-embed-base"]')?.getAttribute('content');
+  const EMBED_BASE = (_embedMeta && !_embedMeta.startsWith('__')) ? _embedMeta : 'http://127.0.0.1:5200/';
+  const _shareMeta = document.querySelector('meta[name="tl-share-base"]')?.getAttribute('content');
+  const SHARE_BASE = (_shareMeta && !_shareMeta.startsWith('__')) ? _shareMeta : 'http://localhost:8787/ng/share';
+
+  let embedLinks = $state<{ embedUrl: string; shareUrl: string; iframeCode: string } | null>(null);
+  let copiedEmbed = $state<'iframe' | 'link' | null>(null);
+
+  function handleGetEmbed(e: Event) {
+    e.preventDefault();
+    urlError = null;
+    corsDownloadUrl = null;
+
+    const rawUrl = urlInput.trim();
+    try {
+      new URL(rawUrl);
+    } catch {
+      urlError = 'Enter a valid URL first.';
+      embedLinks = null;
+      return;
+    }
+
+    const p = new URLSearchParams({ src: rawUrl });
+    const embedUrl = `${EMBED_BASE}?${p}`;
+    embedLinks = {
+      embedUrl,
+      shareUrl: `${SHARE_BASE}?${p}`,
+      iframeCode: `<iframe src="${embedUrl}" width="100%" height="650" frameborder="0" allowfullscreen></iframe>`,
+    };
+  }
+
+  function copyEmbed(text: string, which: 'iframe' | 'link') {
+    void navigator.clipboard.writeText(text).then(() => {
+      copiedEmbed = which;
+      setTimeout(() => { copiedEmbed = null; }, 2000);
+    });
   }
 
   // ── Timeline list ────────────────────────────────────────────────────────────
@@ -249,10 +295,14 @@
               type="url"
               placeholder="Paste a URL (JSON, CSV, or Google Sheets pubhtml link)"
               bind:value={urlInput}
+              oninput={() => { embedLinks = null; }}
               disabled={urlLoading}
             />
             <button class="btn-url-import" type="submit" disabled={urlLoading || !urlInput.trim()}>
-              {urlLoading ? 'Loading…' : 'Import'}
+              {urlLoading ? 'Loading…' : 'Import to edit'}
+            </button>
+            <button class="btn-url-embed" type="button" onclick={handleGetEmbed} disabled={urlLoading || !urlInput.trim()}>
+              Just get embed code
             </button>
           </form>
         {/if}
@@ -269,6 +319,25 @@
               and import it as a file instead.
             {/if}
           </p>
+        {/if}
+        {#if embedLinks}
+          <div class="embed-result">
+            <p class="embed-result__intro">No import needed — paste this anywhere:</p>
+            <div class="embed-code-row">
+              <span class="embed-code-label">Embed</span>
+              <code class="embed-code">{embedLinks.iframeCode}</code>
+              <button class="btn-copy-embed" onclick={() => copyEmbed(embedLinks!.iframeCode, 'iframe')}>
+                {copiedEmbed === 'iframe' ? 'Copied!' : 'Copy'}
+              </button>
+            </div>
+            <div class="embed-code-row">
+              <span class="embed-code-label">Direct link</span>
+              <code class="embed-code">{embedLinks.shareUrl}</code>
+              <button class="btn-copy-embed" onclick={() => copyEmbed(embedLinks!.shareUrl, 'link')}>
+                {copiedEmbed === 'link' ? 'Copied!' : 'Copy'}
+              </button>
+            </div>
+          </div>
         {/if}
         <p class="clone-hint">You can upload TimelineJS3 CSV or JSON configurations or provide a URL to a Google Sheets configuration, JSON, or CSV file.</p>
         <p class="clone-hint">
@@ -606,7 +675,7 @@
   }
   .btn-import-file:hover, .btn-paste-url:hover { border-color: #9ca3af; background: #f9fafb; }
 
-  .url-form { display: flex; gap: 0.5rem; }
+  .url-form { display: flex; gap: 0.5rem; flex-wrap: wrap; }
 
   .url-input {
     flex: 1;
@@ -634,6 +703,77 @@
   }
   .btn-url-import:hover:not(:disabled) { background: #df4e13; color: #fff; }
   .btn-url-import:disabled { opacity: 0.5; cursor: default; }
+
+  .btn-url-embed {
+    background: transparent;
+    border: 1px solid #d1d5db;
+    color: #374151;
+    padding: 0.4rem 0.75rem;
+    font-size: 0.85rem;
+    font-family: inherit;
+    cursor: pointer;
+    border-radius: 2px;
+    white-space: nowrap;
+  }
+  .btn-url-embed:hover:not(:disabled) { border-color: #9ca3af; background: #f9fafb; }
+  .btn-url-embed:disabled { opacity: 0.5; cursor: default; }
+
+  .embed-result {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    border: 1px solid #e8e8e8;
+    border-radius: 4px;
+    background: #fafafa;
+  }
+
+  .embed-result__intro {
+    font-size: 0.8rem;
+    color: #6b7280;
+    margin: 0;
+  }
+
+  .embed-code-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .embed-code-label {
+    font-size: 0.75rem;
+    color: #9ca3af;
+    width: 4.5rem;
+    flex-shrink: 0;
+  }
+
+  .embed-code {
+    flex: 1;
+    min-width: 0;
+    font-family: ui-monospace, monospace;
+    font-size: 0.75rem;
+    color: #111;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 2px;
+    padding: 0.3rem 0.5rem;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  .btn-copy-embed {
+    background: transparent;
+    border: 1px solid #df4e13;
+    color: #df4e13;
+    padding: 0.3rem 0.6rem;
+    font-size: 0.78rem;
+    font-family: inherit;
+    cursor: pointer;
+    border-radius: 2px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .btn-copy-embed:hover { background: #df4e13; color: #fff; }
 
   .import-error {
     font-size: 0.8rem;
