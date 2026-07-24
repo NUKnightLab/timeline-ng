@@ -12,7 +12,7 @@ describe('toTL3CSV', () => {
           start_date: { year: 2020, month: 1, day: 2, hour: 14, minute: 30, display_date: 'Early 2020' },
           end_date: { year: 2020, month: 3, day: 4 },
           text: { headline: 'Event, with a comma', text: 'Body text with a "quote"' },
-          media: { url: 'https://example.com/img.jpg', credit: 'Credit', caption: 'Caption', thumbnail: 'https://example.com/thumb.jpg' },
+          media: { url: 'https://example.com/img.jpg', credit: 'Credit', caption: 'Caption', thumbnail: 'https://example.com/thumb.jpg', alt: 'A description' },
           group: 'Group A',
           background: { color: '#fff' },
         },
@@ -40,6 +40,7 @@ describe('toTL3CSV', () => {
     expect(e1.media?.credit).toBe('Credit');
     expect(e1.media?.caption).toBe('Caption');
     expect(e1.media?.thumbnail).toBe('https://example.com/thumb.jpg');
+    expect(e1.media?.alt).toBe('A description');
     expect(e1.group).toBe('Group A');
     expect(e1.background?.color).toBe('#fff');
 

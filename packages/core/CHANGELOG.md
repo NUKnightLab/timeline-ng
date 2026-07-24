@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `toTL3CSV`, the reverse of `fromTL3CSV`: serializes a `TLTimeline` back to
+  a TimelineJS3 CSV export. Used by the authoring app's "Download as CSV"
+  option for people who can't self-host JSON — the CSV can be imported into
+  a Google Sheet and published from there instead.
+- `fromTL3CSV` and `toTL3CSV` both read/write the TL3 `Alt Text` column
+  (between `Media Thumbnail` and `Type`) into `media.alt`.
+
 ## [0.2.1] - 2026-07-22
 
 ### Added

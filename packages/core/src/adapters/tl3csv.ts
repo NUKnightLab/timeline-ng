@@ -118,6 +118,7 @@ export function fromTL3CSV(csvText: string): TLTimeline {
   const iCredit  = col('media credit');
   const iCaption = col('media caption');
   const iThumb   = col('media thumbnail');
+  const iAlt     = col('alt text');
   const iType    = col('type');
   const iGroup   = col('group');
   const iBg      = col('background');
@@ -154,6 +155,7 @@ export function fromTL3CSV(csvText: string): TLTimeline {
         ...(get(row, iCredit)  ? { credit:    get(row, iCredit)  } : {}),
         ...(get(row, iCaption) ? { caption:   get(row, iCaption) } : {}),
         ...(get(row, iThumb)   ? { thumbnail: get(row, iThumb)   } : {}),
+        ...(get(row, iAlt)     ? { alt:       get(row, iAlt)     } : {}),
       }} : {}),
       ...(get(row, iGroup) ? { group: get(row, iGroup) } : {}),
       ...(bg ? {
@@ -176,7 +178,7 @@ const CSV_HEADERS = [
   'Year', 'Month', 'Day', 'Time',
   'End Year', 'End Month', 'End Day', 'End Time',
   'Display Date', 'Headline', 'Text',
-  'Media', 'Media Credit', 'Media Caption', 'Media Thumbnail',
+  'Media', 'Media Credit', 'Media Caption', 'Media Thumbnail', 'Alt Text',
   'Type', 'Group', 'Background',
 ];
 
@@ -212,6 +214,7 @@ function eventToRow(event: TLEvent, type: string): string[] {
     event.media?.credit ?? '',
     event.media?.caption ?? '',
     event.media?.thumbnail ?? '',
+    event.media?.alt ?? '',
     type,
     event.group ?? '',
     bg?.color ?? bg?.url ?? '',
