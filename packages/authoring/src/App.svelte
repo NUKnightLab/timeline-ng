@@ -170,13 +170,11 @@
       ? (!pdsClean && (!!titleEvent || events.length > 0))
       : !!(pendingDraft && !pendingDraft.pdsClean && (pendingDraft.events.length > 0 || pendingDraft.titleEvent));
     if (hasUnsavedContent && !window.confirm('Your timeline is only saved in this browser. Sign out anyway?')) return;
-    if (view === 'editor') {
-      // atUri belongs to the signed-in account — clear it so the drawer
-      // doesn't show stale "saved" state after logout.
-      atUri = null;
-      pdsClean = false;
-      goHome();
-    }
+    // atUri is the only link back to the PDS record this draft should overwrite
+    // on next save; leave it (and pdsClean) untouched so goHome() persists it
+    // correctly. EditorView already hides "Saved ✓"/publish UI once signed out,
+    // since those are gated on auth.status too, so there's no stale-UI risk.
+    if (view === 'editor') goHome();
     void signOut();
   }
 
@@ -312,6 +310,22 @@
   }
 
   async function handleSave() {
+    // A cached draft's atUri can point at a record owned by a different
+    // account than the one currently signed in (e.g. sign out, then sign
+    // back in as someone else and restore the draft). Reusing that rkey
+    // wouldn't overwrite the original record — it would silently write a
+    // new one under the current account — so ask instead of guessing.
+    if (atUri && auth.status === 'signed-in') {
+      const ownerDid = atUri.split('/')[2];
+      if (ownerDid && ownerDid !== auth.session.sub) {
+        const saveAsNew = window.confirm(
+          'This timeline was saved under a different account. Save it as a new timeline in your current account?'
+        );
+        if (!saveAsNew) return;
+        atUri = null;
+      }
+    }
+
     saveStatus = 'Saving…';
 
     // Auto-generate a share-preview poster from the current title slide.

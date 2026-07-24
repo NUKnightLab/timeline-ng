@@ -7,6 +7,10 @@
   import AuthButton from './AuthButton.svelte';
   import { SlidePlayer, loadTimeline } from '@knight-lab/timeline-ng';
 
+  // If this record is ever lost (e.g. accidentally deleted), restore its
+  // content from packages/authoring/demo-timeline-backup.json via "FROM FILE".
+  // Settings won't come back that way (the TL3 import path only restores
+  // title/events) and ogImage isn't backed up — it regenerates on next save.
   const DEMO_URI = 'at://did:plc:xcinm6zyywmiymjyz67qgm72/com.knightlab.timeline/mr6t86qd66rf';
 
   let demoTimeline = $state<TLTimeline | null>(null);
@@ -100,6 +104,21 @@
   let openingUri = $state<string | null>(null);
   let confirmDeleteUri = $state<string | null>(null);
   let deletingUri = $state<string | null>(null);
+  let demoDeleteConfirmText = $state('');
+
+  function isDemoTimeline(uri: string): boolean {
+    return uri === DEMO_URI;
+  }
+
+  function startDelete(uri: string) {
+    confirmDeleteUri = uri;
+    demoDeleteConfirmText = '';
+  }
+
+  function cancelDelete() {
+    confirmDeleteUri = null;
+    demoDeleteConfirmText = '';
+  }
 
   $effect(() => {
     if (auth.status === 'signed-in') {
@@ -281,17 +300,40 @@
               {#each savedTimelines as item (item.uri)}
                 <li class="timeline-item">
                   {#if confirmDeleteUri === item.uri}
-                    <div class="timeline-item-confirm">
-                      <span class="confirm-label">Delete "{item.title}"?</span>
-                      <button class="btn-confirm-delete"
-                        onclick={() => handleDelete(item.uri)}
-                        disabled={deletingUri === item.uri}>
-                        {deletingUri === item.uri ? 'Deleting…' : 'Delete'}
-                      </button>
-                      <button class="btn-cancel-delete" onclick={() => (confirmDeleteUri = null)}>
-                        Cancel
-                      </button>
-                    </div>
+                    {#if isDemoTimeline(item.uri)}
+                      <div class="timeline-item-confirm timeline-item-confirm-demo">
+                        <span class="confirm-label confirm-label-demo">
+                          ⚠️ This is the public example timeline linked from the homepage ("Clone our example timeline"). Deleting it will break that link for every visitor. Type DELETE to confirm.
+                        </span>
+                        <input
+                          class="confirm-demo-input"
+                          type="text"
+                          placeholder="DELETE"
+                          bind:value={demoDeleteConfirmText}
+                          disabled={deletingUri === item.uri}
+                        />
+                        <button class="btn-confirm-delete"
+                          onclick={() => handleDelete(item.uri)}
+                          disabled={deletingUri === item.uri || demoDeleteConfirmText !== 'DELETE'}>
+                          {deletingUri === item.uri ? 'Deleting…' : 'Delete'}
+                        </button>
+                        <button class="btn-cancel-delete" onclick={cancelDelete} disabled={deletingUri === item.uri}>
+                          Cancel
+                        </button>
+                      </div>
+                    {:else}
+                      <div class="timeline-item-confirm">
+                        <span class="confirm-label">Delete "{item.title}"?</span>
+                        <button class="btn-confirm-delete"
+                          onclick={() => handleDelete(item.uri)}
+                          disabled={deletingUri === item.uri}>
+                          {deletingUri === item.uri ? 'Deleting…' : 'Delete'}
+                        </button>
+                        <button class="btn-cancel-delete" onclick={cancelDelete}>
+                          Cancel
+                        </button>
+                      </div>
+                    {/if}
                   {:else}
                     <button
                       class="timeline-item-btn"
@@ -305,7 +347,7 @@
                     </button>
                     <button
                       class="btn-delete-timeline"
-                      onclick={() => (confirmDeleteUri = item.uri)}
+                      onclick={() => startDelete(item.uri)}
                       disabled={!!openingUri || !!deletingUri}
                       aria-label="Delete {item.title}"
                     >✕</button>
@@ -703,6 +745,30 @@
     flex-shrink: 0;
   }
   .btn-cancel-delete:hover { border-color: #9ca3af; color: #374151; }
+  .btn-cancel-delete:disabled { opacity: 0.6; cursor: wait; }
+
+  .timeline-item-confirm-demo {
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .confirm-label-demo {
+    flex-basis: 100%;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    margin-bottom: 0.4rem;
+  }
+
+  .confirm-demo-input {
+    font-family: inherit;
+    font-size: 0.78rem;
+    padding: 0.2rem 0.4rem;
+    border: 1px solid #d1d5db;
+    border-radius: 2px;
+    width: 6rem;
+    flex-shrink: 0;
+  }
 
   .item-title { font-size: 0.9rem; color: #111; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 

@@ -1,0 +1,193 @@
+{
+  "_meta": {
+    "purpose": "Disaster-recovery backup of the canonical example timeline shown on the authoring homepage (\"Clone our example timeline\") and hardcoded as DEMO_URI in HomeView.svelte.",
+    "sourceUri": "at://did:plc:xcinm6zyywmiymjyz67qgm72/com.knightlab.timeline/mr6t86qd66rf",
+    "sourceCid": "bafyreigvm4sozueq3hmfdlbjd3xxu2h2talg2tijvo3fhr7vsywoaqlhta",
+    "recordTitle": "Women in Computing (official example timeline)",
+    "fetchedAt": "2026-07-24",
+    "restoreNotes": "Import via the authoring app's \"FROM FILE\" button (title/events restore; settings like theme/language are not preserved by the TL3 import path and would need to be reset manually). ogImage is intentionally omitted — it regenerates automatically on next save."
+  },
+  "title": {
+    "text": {
+      "text": "<p>In this sample timeline, we'll walk you through what TimelineJS can do by looking at some of the more important contributions women have made to computer science.</p>",
+      "headline": "Women in Computing"
+    },
+    "unique_id": "title",
+    "background": {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/1/17/World%27s_First_Computer%2C_the_Electronic_Numerical_Integrator_and_Calculator_%28ENIAC%29.gif"
+    }
+  },
+  "events": [
+    {
+      "text": {
+        "text": "<p>Women have been programming since before it was a thing. Take <a target=\"_blank\" rel=\"noopener noreferrer nofollow\" href=\"https://en.wikipedia.org/wiki/Ada_Lovelace\">Ada Lovelace</a>: Daughter of Lord Byron, she's often credited as the first computer programmer. Her work on <a target=\"_blank\" rel=\"noopener noreferrer nofollow\" href=\"https://en.wikipedia.org/wiki/Analytical_Engine\">Charles Babbage's Analytical Engine</a> contains notes of the first machine-implemented algorithm.</p><p><em>This slide demonstrates a simple \"image\" media type.</em></p>",
+        "headline": "Ada Lovelace"
+      },
+      "media": {
+        "alt": "A painting of a woman from her left side, although her face is turned fully to the viewer. She wears a purple-tinged dress and white gloves which reach halfway up her forearms. She holds a foldable fan, collapsed. She wears an elaborate decorative piece on her head, which appears to be dark flowers or leaves with a long train down her back and also over her shoulders. There is also a golden headband with a flower or similar decoration, probably holding the rest of the headpiece on.",
+        "url": "https://en.wikipedia.org/wiki/Ada_Lovelace#/media/File:Ada_Lovelace_portrait.jpg",
+        "credit": "Wikimedia Commons",
+        "caption": "<a href=\"https://en.wikipedia.org/wiki/Ada_Lovelace#/media/File:Ada_Lovelace_portrait.jpg\" title=\"\">Portrait by Alfred Edward Chalon</a>"
+      },
+      "end_date": {
+        "day": 27,
+        "year": 1852,
+        "month": 11
+      },
+      "unique_id": "ada-lovelace",
+      "start_date": {
+        "day": 10,
+        "year": 1815,
+        "month": 12
+      }
+    },
+    {
+      "text": {
+        "text": "<p>Code named \"Project PX\" and funded by the United States Army, the first general-purpose computer was the Electronic Numerical Integrator And Computer (ENIAC). It was developed at the University of Pennsylvania's Moore School of Electrical Engineering.</p><p></p><p><em>Timeline can easily embed Google Maps</em></p>",
+        "headline": "The First Computer"
+      },
+      "media": {
+        "url": "https://www.google.com/maps/place/University+of+Pennsylvania/@39.9522188,-75.1932137,17z/data=!3m1!4b1!4m2!3m1!1s0x89c6c65a7f3bccc1:0x9eaa6a2b2d6fe94"
+      },
+      "unique_id": "first-computer",
+      "start_date": {
+        "day": 5,
+        "year": 1943,
+        "month": 6
+      }
+    },
+    {
+      "text": {
+        "text": "<p>The ENIAC programmers included a number of women: Jean Bartik, Marlyn Wescoff Meltzer, Ruth Lichterman Teitelbaum, Kay McNulty Mauchly Antonelli, Frances Spence, and Frances Elizabeth \"Betty\" Holberton. Despite their groundbreaking work, the Army never released the names of the women who worked on the ENIAC, and they were largely forgotten until Kathy Kleiman discovered their story in 1985.</p><p></p><p><em>You can add a YouTube URL like this video on the ENIAC Women. .</em></p>",
+        "headline": "...And the women who made it work"
+      },
+      "media": {
+        "url": "https://www.youtube.com/watch?v=aPweFhhXFvY",
+        "credit": "<a href=\"https://www.youtube.com/channel/UCHDr4RtxwA1KqKGwxgdK4Vg\">Computer History Museum</a>",
+        "caption": "Jean Bartik talks about the ENIAC women"
+      },
+      "end_date": {
+        "year": 1946
+      },
+      "unique_id": "women-of-eniac",
+      "background": {
+        "url": "https://upload.wikimedia.org/wikipedia/commons/c/cd/ARL_ENIAC_02.png"
+      },
+      "start_date": {
+        "year": 1943,
+        "month": 7
+      }
+    },
+    {
+      "text": {
+        "headline": "Edith Clarke: Bucking the Trend"
+      },
+      "media": {
+        "url": "<blockquote>There is no demand for women engineers, as such, as there are for women doctors; but there's always a demand for anyone who can do a good piece of work. <cite>Edith Clarke, first female professor of electrical engineering in the United States</cite></blockquote>"
+      },
+      "unique_id": "edith-clarke",
+      "start_date": {
+        "day": 14,
+        "year": 1948,
+        "month": 3
+      }
+    },
+    {
+      "text": {
+        "text": "<p>Hungarian-born Rózsa Péter studied number theory and poetry before becoming interested in the idea that would become recursion theory. She published her paper \"Recursive Functions\" in 1951, but it wasn't until the mid-50's that she began to apply her work to the realm of computers.</p><p><em>This excerpt is embedded from Wikipedia. Just include the URL to the Wikipedia article.</em></p>",
+        "headline": "Rózsa Péter writes recursion"
+      },
+      "media": {
+        "url": "https://en.wikipedia.org/wiki/Reduction_(recursion_theory)",
+        "credit": "Wikipedia"
+      },
+      "unique_id": "rosza-peter",
+      "start_date": {
+        "year": 1951
+      }
+    },
+    {
+      "text": {
+        "text": "<p>In her career with the Navy, Rear Admiral Grace Hopper worked on the first commercial computer (UNIVAC) and laid the groundwork for the programming language COBOL. But her most notable invention was the compiler, which can transform a source language into binary code. (In other words, it can translate the code you and I write into 0s and 1s.) She developed it in 1952, but she said \"Nobody would touch it. They told me computers could only do arithmetic.\"</p><p><em>Embed sound clips from Soundcloud.</em></p>",
+        "headline": "Grace Hopper invents the compiler"
+      },
+      "media": {
+        "url": "https://soundcloud.com/girls_talk_math/grace-hopper",
+        "credit": "<p><a target=\"_blank\" rel=\"noopener noreferrer nofollow\" href=\"https://girlstalkmath.com/\">Girls Talk Math</a></p>",
+        "caption": "<p>Learn about the life and work of Grace Hopper as described by a group of high school girls attending the camp Girls Talk Math at UNC Chapel Hill.</p>"
+      },
+      "unique_id": "grace-hopper",
+      "start_date": {
+        "year": 1952
+      }
+    },
+    {
+      "text": {
+        "text": "<p>One of the first African-American women to earn a Ph.D in mathematics, Evelyn Boyd Granville focused on aeronautics and space during her career. In 1956, she worked with NASA and IBM on Project Mercury, the first manned space flight. She worked with NASA again a few years later on the Apollo Project.</p><p><em>Videos from Vimeo are also easy to embed.</em></p>",
+        "headline": "Contributions to space exploration"
+      },
+      "media": {
+        "url": "https://vimeo.com/304869290",
+        "credit": "National Archives (posted by Ira Gallen)",
+        "caption": "Project Mercury training footage"
+      },
+      "end_date": {
+        "year": 1962
+      },
+      "unique_id": "evelyn-boyde-granville",
+      "start_date": {
+        "year": 1956
+      }
+    },
+    {
+      "text": {
+        "text": "One of the first women (if not the first woman) to earn a Ph.D in computer science, Sister Mary Kenneth Keller also contributed to the development of the BASIC language during her time at Dartmouth College. She then founded the computer science department at Clarke College and directed it for the next 20 years.",
+        "headline": "The First PhD in Computer Science"
+      },
+      "media": {
+        "url": "https://web.archive.org/web/20210702214213if_/https://www.women.cs.cmu.edu/ada/Resources/Women/pictures/mary_keller.png",
+        "credit": "The Ada Project"
+      },
+      "unique_id": "mary-kenneth-keller",
+      "start_date": {
+        "year": 1958
+      }
+    },
+    {
+      "text": {
+        "text": "A professor at Cambridge Computer Laboratory, Spärck Jones was interested in natural language processing and information retrieval. In 1972, she introduced the concept of inverse document frequency, which most search engines still rely on.",
+        "headline": "Karen Spärck Jones makes search possible"
+      },
+      "media": {
+        "url": "https://www.youtube.com/watch?v=4-DyVzj-f3c",
+        "credit": "BCS Karen Sparck Jones Lecture",
+        "caption": "\"How to enjoy a career in computing: the power of networks,\" Professor Dame Wendy Hall"
+      },
+      "unique_id": "karen-sparck-jones",
+      "start_date": {
+        "year": 1972
+      }
+    },
+    {
+      "text": {
+        "text": "Often called \"the Mother of the Internet,\" Radia Perlman's work on spanning tree protocol enabled the development of modern networking. She holds more than 100 patents, which is what mothers do best.",
+        "headline": "\"The Mother of the Internet\""
+      },
+      "media": {
+        "url": "https://www.youtube.com/watch?v=I7FYG-XVgk4",
+        "credit": "Imagining the Internet",
+        "caption": "Radia Perlman's acceptance speech at being inducted into the Internet Hall of Fame."
+      },
+      "unique_id": "radia-perlman",
+      "start_date": {
+        "year": 1985
+      }
+    }
+  ],
+  "settings": {
+    "theme": "auto",
+    "language": "en",
+    "initialIndex": 0,
+    "reverseOrder": false
+  }
+}
