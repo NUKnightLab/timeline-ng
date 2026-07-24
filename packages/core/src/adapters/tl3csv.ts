@@ -169,3 +169,66 @@ export function fromTL3CSV(csvText: string): TLTimeline {
 
   return { ...(titleEvent ? { title: titleEvent } : {}), events };
 }
+
+// ── Serializer (reverse of fromTL3CSV) ──────────────────────────────────────────
+
+const CSV_HEADERS = [
+  'Year', 'Month', 'Day', 'Time',
+  'End Year', 'End Month', 'End Day', 'End Time',
+  'Display Date', 'Headline', 'Text',
+  'Media', 'Media Credit', 'Media Caption', 'Media Thumbnail',
+  'Type', 'Group', 'Background',
+];
+
+function csvField(value: string): string {
+  return /[",\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+}
+
+function formatTime(d: TLDateInput): string {
+  const parts: string[] = [];
+  if (d.hour !== undefined)   parts.push(String(d.hour).padStart(2, '0'));
+  if (d.minute !== undefined) parts.push(String(d.minute).padStart(2, '0'));
+  if (d.second !== undefined) parts.push(String(d.second).padStart(2, '0'));
+  return parts.join(':');
+}
+
+function eventToRow(event: TLEvent, type: string): string[] {
+  const sd = event.start_date;
+  const ed = event.end_date;
+  const bg = event.background;
+  return [
+    sd?.year  !== undefined ? String(sd.year)  : '',
+    sd?.month !== undefined ? String(sd.month) : '',
+    sd?.day   !== undefined ? String(sd.day)   : '',
+    sd ? formatTime(sd) : '',
+    ed?.year  !== undefined ? String(ed.year)  : '',
+    ed?.month !== undefined ? String(ed.month) : '',
+    ed?.day   !== undefined ? String(ed.day)   : '',
+    ed ? formatTime(ed) : '',
+    sd?.display_date ?? '',
+    event.text?.headline ?? '',
+    event.text?.text ?? '',
+    event.media?.url ?? '',
+    event.media?.credit ?? '',
+    event.media?.caption ?? '',
+    event.media?.thumbnail ?? '',
+    type,
+    event.group ?? '',
+    bg?.color ?? bg?.url ?? '',
+  ];
+}
+
+/**
+ * Serialize a TLTimeline to a TimelineJS3 CSV export — the same column
+ * layout fromTL3CSV reads, so the round trip holds. Meant as an escape
+ * hatch for people who can't self-host JSON: import this into a blank
+ * Google Sheet, then "Publish to the web" to get a URL usable as a
+ * timeline source. blobRef-backed media/background must already be
+ * resolved to a plain `url` by the caller — this only serializes URLs.
+ */
+export function toTL3CSV(timeline: TLTimeline): string {
+  const rows: string[][] = [CSV_HEADERS];
+  if (timeline.title) rows.push(eventToRow(timeline.title, 'title'));
+  for (const event of timeline.events) rows.push(eventToRow(event, ''));
+  return rows.map(row => row.map(csvField).join(',')).join('\r\n') + '\r\n';
+}

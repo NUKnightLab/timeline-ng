@@ -1,8 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import type { TLEvent, TLTimeline, TLSettings } from '@knight-lab/timeline-ng-core';
-  import { parseTLDate, compareDates } from '@knight-lab/timeline-ng-core';
-  import { getAuthState, saveTimeline, signOut, uploadBlob } from './lib/atproto.svelte.ts';
+  import { parseTLDate, compareDates, toTL3CSV } from '@knight-lab/timeline-ng-core';
+  import { getAuthState, saveTimeline, signOut, uploadBlob, blobUrl, extractCid } from './lib/atproto.svelte.ts';
   import { initAuth } from './lib/atproto.svelte.ts';
   import { generatePoster } from './lib/poster.ts';
   import { saveDraft, loadDraft, clearDraft } from './lib/draft.ts';
@@ -372,6 +372,35 @@
     a.click();
     URL.revokeObjectURL(url);
   }
+
+  // CSV can only carry plain URLs — swap any blobRef-backed media/background
+  // for its durable PDS blob URL (not the local preview blob: URL some
+  // in-progress uploads carry) so uploaded images survive the round trip.
+  function resolveBlobRefsForExport(ev: TLEvent): TLEvent {
+    const mediaCid = ev.media?.blobRef ? extractCid(ev.media.blobRef.ref) : '';
+    const bgCid = ev.background?.blobRef ? extractCid(ev.background.blobRef.ref) : '';
+    return {
+      ...ev,
+      ...(mediaCid ? { media: { ...ev.media, url: blobUrl(mediaCid) } } : {}),
+      ...(bgCid ? { background: { ...ev.background, url: blobUrl(bgCid) } } : {}),
+    };
+  }
+
+  function handleExportCSV() {
+    const csvTimeline: TLTimeline = {
+      ...(titleEvent ? { title: resolveBlobRefsForExport(titleEvent) } : {}),
+      events: sortedEvents.map(resolveBlobRefsForExport),
+    };
+    const blob = new Blob([toTL3CSV(csvTimeline)], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const slug = slugify(timelineTitle) || 'timeline';
+    const date = new Date().toISOString().split('T')[0];
+    a.download = `${slug}-${date}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 </script>
 
 {#if view === 'home'}
@@ -410,6 +439,7 @@
     onupdate={updateEvent}
     onsave={handleSave}
     onexport={handleExport}
+    onexportcsv={handleExportCSV}
     onundo={undoDelete}
     onsettingschange={updateSettings}
   />

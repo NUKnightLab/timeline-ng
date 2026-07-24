@@ -35,6 +35,7 @@
     onupdate: (event: TLEvent) => void;
     onsave: () => void;
     onexport: () => void;
+    onexportcsv: () => void;
     onundo: () => void;
     onsettingschange: (patch: Partial<TLSettings>) => void;
   }
@@ -42,7 +43,7 @@
   let {
     timelineTitle, titleEvent, sortedEvents, selectedId, selectedEvent, isEditingTitle,
     timeline, atUri, pdsClean, saveStatus, canSave, deletedItem, deletedItemLeaving, settings,
-    onback, onsignout, ontitlechange, onselect, onadd, onaddtitle, ondelete, onupdate, onsave, onexport, onundo,
+    onback, onsignout, ontitlechange, onselect, onadd, onaddtitle, ondelete, onupdate, onsave, onexport, onexportcsv, onundo,
     onsettingschange,
   }: Props = $props();
 
@@ -301,11 +302,19 @@
         {/if}
       </div>
 
-      <!-- Section 3: JSON / self-host -->
-      <div class="publish-section">
-        <h3 class="publish-section__title">Download as JSON</h3>
-        <p class="publish-section__body">Download a portable copy of your timeline data. You can self-host the player on your own site without needing ATmosphere — see the <HelpLink doc="self-hosting">self-hosting guide</HelpLink> for setup instructions.</p>
-        <button class="btn-download" onclick={onexport}>Download JSON</button>
+      <!-- Sections 3 & 4: download tiles, side by side at reasonably wide views -->
+      <div class="publish-section-row">
+        <div class="publish-section">
+          <h3 class="publish-section__title">Download as JSON</h3>
+          <p class="publish-section__body">Download a portable copy of your timeline data. You can self-host the player on your own site without needing a atmosphere account — see the <HelpLink doc="self-hosting">self-hosting guide</HelpLink> for setup instructions.</p>
+          <button class="btn-download" onclick={onexport}>Download JSON</button>
+        </div>
+
+        <div class="publish-section">
+          <h3 class="publish-section__title">Download as CSV</h3>
+          <p class="publish-section__body">Don't have a server, don't want an atmosphere account? Import this download into a blank Google Sheet, then use File → Share → "Publish to the web" to get a link — paste that into <strong>From URL</strong> on the home page to get an embed code or direct link.</p>
+          <button class="btn-download" onclick={onexportcsv}>Download CSV</button>
+        </div>
       </div>
 
     </div>
@@ -653,6 +662,16 @@
     background: #222426;
     border-radius: 4px;
     border: 1px solid #2e3033;
+  }
+
+  .publish-section-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .publish-section-row > .publish-section {
+    flex: 1 1 280px;
   }
 
   .publish-section--locked {

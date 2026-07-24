@@ -20,7 +20,7 @@ export type { DateFormatPrecision } from './date/index.ts';
 export { validateTimeline } from './validate.ts';
 
 export { fromTL3 } from './adapters/tl3.ts';
-export { fromTL3CSV } from './adapters/tl3csv.ts';
+export { fromTL3CSV, toTL3CSV } from './adapters/tl3csv.ts';
 export { normalizeTimelineSourceUrl, parseTimelineText } from './adapters/url-import.ts';
 
 export { getMessage, getLocale, en, es } from './i18n/index.ts';
