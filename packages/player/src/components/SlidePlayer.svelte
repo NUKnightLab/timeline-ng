@@ -12,6 +12,7 @@
     reverseOrder?: boolean;
     theme?: 'light' | 'dark' | 'auto';
     initialIndex?: number;
+    autofocus?: boolean;
   }
 
   let {
@@ -20,6 +21,7 @@
     reverseOrder = false,
     theme = 'auto',
     initialIndex = 0,
+    autofocus = false,
   }: Props = $props();
 
   const slides: TLEvent[] = $derived.by(() => {
@@ -105,11 +107,15 @@
   });
 
   function handleKeydown(e: KeyboardEvent) {
-    // A focused slide (tabindex=0 when active, for keyboard scrolling of long
-    // content) should scroll natively on arrow keys, not trigger navigation.
-    if ((e.target as HTMLElement | null)?.closest('.tl-slide')) return;
-    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); goTo(activeIndex + 1); }
-    if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   { e.preventDefault(); goTo(activeIndex - 1); }
+    // A focused slide (tabindex=0 when active and its content overflows, for keyboard
+    // scrolling of long content) should scroll natively on arrow keys, not trigger
+    // navigation. Only bail when there's actually something to scroll — otherwise a
+    // link or other focusable element inside a short slide would silently swallow
+    // the player's arrow-key navigation for no reason.
+    const slideEl = (e.target as HTMLElement | null)?.closest<HTMLElement>('.tl-slide');
+    if (slideEl && slideEl.scrollHeight > slideEl.clientHeight) return;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); goTo(activeIndex + 1); sectionEl?.focus(); }
+    if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   { e.preventDefault(); goTo(activeIndex - 1); sectionEl?.focus(); }
   }
 
   let sectionEl: HTMLElement;
@@ -118,6 +124,10 @@
   // only the `webkit`-prefixed Fullscreen API.
   let fsSupported = $state(false);
   let isFullscreen = $state(false);
+
+  onMount(() => {
+    if (autofocus) sectionEl?.focus();
+  });
 
   onMount(() => {
     const doc = document as Document & { webkitFullscreenEnabled?: boolean; webkitFullscreenElement?: Element };
@@ -152,20 +162,19 @@
     }
   }
 
-  // Native `disabled` blurs a focused button with no fallback target, dropping
-  // focus to <body>. Redirect it back to the player root when that's about to happen.
-  function handlePrevClick(e: MouseEvent) {
-    const hadFocus = document.activeElement === e.currentTarget;
-    const targetIndex = activeIndex - 1;
-    goTo(targetIndex);
-    if (hadFocus && targetIndex <= 0) requestAnimationFrame(() => sectionEl?.focus());
+  // Always land focus back on the player root after a prev/next step — not just
+  // when the button is about to become disabled (which would otherwise blur to
+  // <body> with no fallback target). Keeps the container as the one predictable
+  // focus anchor for step navigation, so it can't be left stranded on a link that
+  // doesn't exist on the new slide.
+  function handlePrevClick() {
+    goTo(activeIndex - 1);
+    sectionEl?.focus();
   }
 
-  function handleNextClick(e: MouseEvent) {
-    const hadFocus = document.activeElement === e.currentTarget;
-    const targetIndex = activeIndex + 1;
-    goTo(targetIndex);
-    if (hadFocus && targetIndex >= slides.length - 1) requestAnimationFrame(() => sectionEl?.focus());
+  function handleNextClick() {
+    goTo(activeIndex + 1);
+    sectionEl?.focus();
   }
 </script>
 

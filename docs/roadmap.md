@@ -12,6 +12,21 @@ Where TL3 issues are cited, the number links back to the original for detail.
    platform's own CC UI. Needs a schema field + authoring UI + passthrough — **medium**
    complexity, candidate for a fast-follow rather than blocking launch. — TL3 #624
 
+**TimeNav has no roving tabindex.** Every marker (`tl-nav__label` button in
+   `TimeNav.svelte`) is its own native tab stop, and its keydown handler only handles
+   Enter/Space — no arrow/Home/End marker-to-marker navigation. For a timeline with many
+   events this is a lot of individual Tab presses just to get through the nav. TL3 solved
+   this with a single tab stop for the whole nav region plus arrow/Home/End hopping
+   between markers (with focus-restoration if the active marker changes underneath) —
+   **medium-large** complexity, deferred. — TL3 #763/#766
+
+**Tab order: slide content before prev/next arrows.** Our DOM currently renders the
+   active slide (and any links inside it) before the prev/next buttons inside
+   `.tl-player__stage`, so Tab reaches in-slide links before the nav arrows. TL3 reordered
+   theirs so the arrows come first (container → left arrow → right arrow → in-slide
+   links → other controls). Small complexity, deferred alongside the TimeNav work above.
+   — TL3 #763
+
 ---
 ## 2. Feature Roadmap (Post-Launch / Someday-Maybe)
 

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import type { TLEvent } from '@knight-lab/timeline-ng-core';
   import { parseTLDate, formatDate, getLocale, getMessage, resolveBackgroundImageUrl } from '@knight-lab/timeline-ng-core';
   import { sanitizeHtml } from '../lib/sanitize.js';
@@ -83,6 +84,23 @@
 
   const tl = $derived(getLocale(locale));
   const slideLabel = $derived(getMessage(tl, 'slide.label', { index, total }));
+
+  // Only a scrollable slide needs to be a tab stop at all — WCAG SCR29 makes it
+  // focusable so keyboard users can reach the overflowed content, but a short slide
+  // has nothing to scroll and should fall through to the player's own arrow-key nav.
+  let articleEl: HTMLElement;
+  let scrollable = $state(false);
+
+  function measureScrollable() {
+    if (articleEl) scrollable = articleEl.scrollHeight > articleEl.clientHeight;
+  }
+
+  onMount(() => {
+    const ro = new ResizeObserver(measureScrollable);
+    ro.observe(articleEl);
+    measureScrollable();
+    return () => ro.disconnect();
+  });
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
@@ -97,7 +115,9 @@
   aria-hidden={!active}
   aria-label={slideLabel}
   role="region"
-  tabindex={active ? 0 : -1}
+  tabindex={active && scrollable ? 0 : -1}
+  inert={!active}
+  bind:this={articleEl}
 >
   <div class="tl-slide__inner" class:tl-slide__inner--has-media={hasMedia} class:tl-slide__inner--media-right={hasMedia && event.media_position === 'right'}>
     {#if event.media}

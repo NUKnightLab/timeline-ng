@@ -4,6 +4,12 @@
   import '@knight-lab/timeline-ng/styles.css';
   import type { TLTimeline } from '@knight-lab/timeline-ng-core';
 
+  // Auto-focus is only appropriate when this page IS the destination the user
+  // navigated to (a direct share link) — not when it's framed inside a host
+  // page's iframe embed, where focus belongs to the host until the visitor
+  // interacts with the embed themselves.
+  const isTopLevel = window.self === window.top;
+
   const params = new URLSearchParams(window.location.search);
   const src = params.get('src');
   const isPreview = params.has('preview');
@@ -66,9 +72,10 @@
     language={settings.language}
     theme={settings.theme}
     reverseOrder={settings.reverseOrder}
+    autofocus={isTopLevel}
   />
 {:else if loadErrorMessage}
-  <SlidePlayer timeline={loadErrorTimeline} />
+  <SlidePlayer timeline={loadErrorTimeline} autofocus={isTopLevel} />
 {:else if noSrc}
   <div class="embed-instructions">
     <h1>Timeline NG embed</h1>

@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `SlidePlayer` accepts an `autofocus` prop, so a consumer can focus the
+  player root on mount (used by the embed app when it's the top-level
+  document — i.e. a direct share link — but not when framed in an iframe,
+  where focus should stay with the host page until the visitor interacts).
+
+### Fixed
+
+- Inactive slides are now `inert`, so keyboard/screen-reader focus can no
+  longer land on off-screen slide content (e.g. a media credit link) while
+  a different slide is displayed.
+- A slide is only a tab stop — and only claims arrow keys for scrolling —
+  when its content actually overflows. Previously every active slide was
+  focusable regardless, so arrow keys could silently do nothing once focus
+  landed there via Tab or a click on non-interactive slide text.
+- Stepping to the next/previous slide (keyboard arrows or the prev/next
+  buttons) now always refocuses the player root, instead of only when a
+  boundary button was about to become disabled — so focus can't be left
+  stranded on a control or link that doesn't apply to the new slide.
+
 ## [0.2.1] - 2026-07-22
 
 ### Added
