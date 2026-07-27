@@ -98,6 +98,10 @@ Useful once timelines get long. — TL3 #631
   worth a regression test.
 - Flickr: prefill caption/credit (and link back to the source) the way TL3 forced a caption
   to display, but leave it editable (#827).
+- Wikipedia images: same idea — when an image is fetched from Wikipedia/Wikimedia Commons,
+  prefill `caption` and (where reasonable) `credit` from the fetched data, including a link
+  back to the source page in the credit. Only fill in fields that are still blank; never
+  overwrite an author's existing text.
 - Add explicit `width`/`height` to `<img>` tags to reduce layout shift (#673).
 - OpenStreetMap embed — not in TL3 either; reasonable new addition, low complexity.
 - Google Slides / Facebook public video / MathJax — niche, evaluate on request. MathJax
