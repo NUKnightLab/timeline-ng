@@ -11,7 +11,7 @@ export interface LoaderConfig {
 }
 
 export type LoadResult =
-  | { ok: true; timeline: TLTimeline }
+  | { ok: true; timeline: TLTimeline; atUri?: string; authorDid?: string }
   | { ok: false; error: string };
 
 const DEFAULT_PLC = 'https://plc.directory';
@@ -54,7 +54,7 @@ async function resolvePds(did: string, plcDir: string): Promise<string> {
 async function fetchAtRecord(
   authority: string, collection: string, rkey: string,
   cfg: Required<LoaderConfig>,
-): Promise<TLTimeline> {
+): Promise<{ timeline: TLTimeline; did: string }> {
   const did = authority.startsWith('did:')
     ? authority
     : await resolveHandle(authority, cfg.handleResolver);
@@ -84,7 +84,7 @@ async function fetchAtRecord(
       },
     };
   }
-  return record.value.timeline;
+  return { timeline, did };
 }
 
 async function fetchHttpTimeline(url: string): Promise<TLTimeline> {
@@ -102,8 +102,8 @@ export async function loadTimeline(source: string, config: LoaderConfig = {}): P
     if (source.startsWith('at://')) {
       const parts = parseAtUri(source);
       if (!parts) return { ok: false, error: `Invalid AT URI: ${source}` };
-      const timeline = await fetchAtRecord(parts.authority, parts.collection, parts.rkey, cfg);
-      return { ok: true, timeline };
+      const { timeline, did } = await fetchAtRecord(parts.authority, parts.collection, parts.rkey, cfg);
+      return { ok: true, timeline, atUri: `at://${did}/${parts.collection}/${parts.rkey}`, authorDid: did };
     }
     if (source.startsWith('https://')) {
       const timeline = await fetchHttpTimeline(source);

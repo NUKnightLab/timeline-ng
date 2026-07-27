@@ -12,8 +12,14 @@ function escapeAttr(s: string): string {
   return escapeHtml(s);
 }
 
+export interface AtLinkData {
+  atUri?: string;
+  authorDid?: string;
+}
+
 export function renderPreviewPage(
-  og: OgData, pageUrl: string, embedUrl: string, options: { debug?: boolean } = {},
+  og: OgData, pageUrl: string, embedUrl: string,
+  options: { debug?: boolean } = {}, atLinks: AtLinkData = {},
 ): string {
   const title = escapeHtml(og.title);
   const description = escapeHtml(og.description);
@@ -22,6 +28,11 @@ export function renderPreviewPage(
     <meta name="twitter:image" content="${escapeAttr(og.image)}" />
     <meta name="twitter:card" content="summary_large_image" />`
     : `<meta name="twitter:card" content="summary" />`;
+
+  const atTags = [
+    atLinks.atUri ? `<meta name="at:canonical" content="${escapeAttr(atLinks.atUri)}" />` : '',
+    atLinks.authorDid ? `<meta name="at:author" content="${escapeAttr(`at://${atLinks.authorDid}`)}" />` : '',
+  ].filter(Boolean).join('\n    ');
 
   // In debug mode, skip the redirect entirely so a human can inspect the
   // <head> in a normal browser tab instead of it firing before they can look.
@@ -53,6 +64,7 @@ export function renderPreviewPage(
     <meta name="twitter:description" content="${description}" />
     ${imageTag}
     <link rel="canonical" href="${escapeAttr(embedUrl)}" />
+    ${atTags}
     ${redirectTags}
   </head>
   <body>

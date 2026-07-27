@@ -41,7 +41,10 @@ export default {
 
     const debug = url.searchParams.has('debug');
     const og = extractOgData(result.timeline);
-    const html = renderPreviewPage(og, url.toString(), embedUrl.toString(), { debug });
+    const html = renderPreviewPage(og, url.toString(), embedUrl.toString(), { debug }, {
+      atUri: result.atUri,
+      authorDid: result.authorDid,
+    });
 
     return new Response(html, {
       headers: {

@@ -21,6 +21,13 @@
   let noSrc = $state(false);
   let loadErrorMessage = $state<string | null>(null);
 
+  function addMetaTag(name: string, content: string): void {
+    const tag = document.createElement('meta');
+    tag.name = name;
+    tag.content = content;
+    document.head.appendChild(tag);
+  }
+
   const loadErrorTimeline: TLTimeline = $derived({
     title: { text: { headline: loadErrorMessage ?? '' } },
     events: [],
@@ -55,6 +62,10 @@
       if (result.ok) {
         timeline = result.timeline;
         initialIndex = result.timeline.settings?.initialIndex ?? 0;
+        if (result.authorDid) {
+          addMetaTag('at:canonical', result.uri);
+          addMetaTag('at:author', `at://${result.authorDid}`);
+        }
       } else {
         const notFound = result.error.includes('404') || result.error.includes('RecordNotFound') || result.error.toLowerCase().includes('not found');
         loadErrorMessage = notFound
