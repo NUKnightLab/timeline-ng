@@ -29,6 +29,33 @@ describe('resolveMedia bluesky clients', () => {
   });
 });
 
+describe('resolveMedia youtube start/end params', () => {
+  it('reads a plain-seconds `start` param', () => {
+    const resolved = resolveMedia({ url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ&start=90' });
+    expect(resolved.kind).toBe('youtube');
+    if (resolved.kind !== 'youtube') return;
+    expect(resolved.videoId).toBe('dQw4w9WgXcQ');
+    expect(resolved.start).toBe(90);
+  });
+
+  it('reads the `t` alias and an `end` param, including 1h2m3s-style durations', () => {
+    const resolved = resolveMedia({ url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=1m30s&end=2h1m' });
+    expect(resolved.kind).toBe('youtube');
+    if (resolved.kind !== 'youtube') return;
+    expect(resolved.start).toBe(90);
+    expect(resolved.end).toBe(2 * 3600 + 60);
+  });
+
+  it('extracts the video ID and leaves start/end undefined for a youtu.be short link with no time params', () => {
+    const resolved = resolveMedia({ url: 'https://youtu.be/dQw4w9WgXcQ' });
+    expect(resolved.kind).toBe('youtube');
+    if (resolved.kind !== 'youtube') return;
+    expect(resolved.videoId).toBe('dQw4w9WgXcQ');
+    expect(resolved.start).toBeUndefined();
+    expect(resolved.end).toBeUndefined();
+  });
+});
+
 describe('resolveMedia wikipedia images', () => {
   it('recognizes #/media/File: lightbox URLs and captures the source language', () => {
     const resolved = resolveMedia({
@@ -63,5 +90,15 @@ describe('resolveMedia wikipedia images', () => {
   it('still treats a plain article URL as a wikipedia article', () => {
     const resolved = resolveMedia({ url: 'https://en.wikipedia.org/wiki/Ada_Lovelace' });
     expect(resolved.kind).toBe('wikipedia');
+  });
+
+  it('recognizes localized "File" namespace names (e.g. German "Datei") in #/media/ fragments', () => {
+    const resolved = resolveMedia({
+      url: 'https://de.wikipedia.org/wiki/Relation_aller_F%C3%BCrnemmen_und_gedenckw%C3%BCrdigen_Historien#/media/Datei:Relation_Aller_Fuernemmen_und_gedenckwuerdigen_Historien_(1609)_(cropped).jpg',
+    });
+    expect(resolved.kind).toBe('wikipediaimage');
+    if (resolved.kind !== 'wikipediaimage') return;
+    expect(resolved.fileTitle).toBe('Datei:Relation_Aller_Fuernemmen_und_gedenckwuerdigen_Historien_(1609)_(cropped).jpg');
+    expect(resolved.language).toBe('de');
   });
 });

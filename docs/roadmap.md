@@ -20,12 +20,14 @@ Where TL3 issues are cited, the number links back to the original for detail.
    between markers (with focus-restoration if the active marker changes underneath) —
    **medium-large** complexity, deferred. — TL3 #763/#766
 
-**Tab order: slide content before prev/next arrows.** Our DOM currently renders the
-   active slide (and any links inside it) before the prev/next buttons inside
-   `.tl-player__stage`, so Tab reaches in-slide links before the nav arrows. TL3 reordered
-   theirs so the arrows come first (container → left arrow → right arrow → in-slide
-   links → other controls). Small complexity, deferred alongside the TimeNav work above.
-   — TL3 #763
+**Tab order: slide content before prev/next arrows — done.** `SlidePlayer.svelte` now
+   renders the prev/next/fullscreen buttons before the slide loop inside
+   `.tl-player__stage`, so Tab reaches the nav controls before any in-slide links (arrows
+   → fullscreen → in-slide links), matching TL3's ordering. (Absolute positioning means
+   the DOM reorder doesn't affect visual layout.) `pauseSlide`'s lookup of the active
+   slide element was switched from `stage.children[index]` to
+   `stage.querySelectorAll(':scope > .tl-slide')[index]` since it can no longer assume
+   slides are the stage's first children. — TL3 #763
 
 ---
 ## 2. Feature Roadmap (Post-Launch / Someday-Maybe)
@@ -94,18 +96,58 @@ Useful once timelines get long. — TL3 #631
 
 ### Media: fixes and small adds — Low-Medium complexity each, do opportunistically
 
-- Verify YouTube start/end params actually work end-to-end (#779) — should already work,
-  worth a regression test.
-- Flickr: prefill caption/credit (and link back to the source) the way TL3 forced a caption
-  to display, but leave it editable (#827).
-- Wikipedia images: same idea — when an image is fetched from Wikipedia/Wikimedia Commons,
-  prefill `caption` and (where reasonable) `credit` from the fetched data, including a link
-  back to the source page in the credit. Only fill in fields that are still blank; never
-  overwrite an author's existing text.
-- Add explicit `width`/`height` to `<img>` tags to reduce layout shift (#673).
+- **YouTube start/end params — done.** `resolveMedia` parses `t`/`start`/`end`, including
+  `1h2m3s`-style durations; regression tests added in `resolver.test.ts` (#779).
+- **Wikipedia image caption/credit prefill — done.** Confirming a `wikipediaimage` URL in
+  `EventEditor.svelte` (`confirmUrl` → `maybePrefillFromWikipedia`) now fetches
+  `extmetadata` from the Commons/Wikipedia `imageinfo` API and, only for fields still
+  blank, fills `caption` from `ImageDescription` and `credit` with a link back to the
+  file's description page, labeled `"<Artist> via Wikimedia Commons"` (or `"...via
+  Wikipedia"`) when an `Artist` field is present, else just the site name. The `Artist`
+  field reliably reflects the actual creator rather than whoever technically uploaded the
+  file — confirmed against a file whose `Permission` metadata shows it was uploaded by a
+  bot/reviewer distinct from the Flickr photographer named in `Artist`. New helper:
+  `packages/authoring/src/lib/wikipediaPrefill.ts`. Also fixed two related timing bugs:
+  (1) `confirmUrl()` used to set `editingMedia = false` synchronously, closing the whole
+  media editor (and unmounting the caption/credit rich-text fields) before the prefill
+  fetch resolved, so filled-in values only became visible after reopening the editor —
+  `confirmUrl` no longer closes the panel itself; a new `confirmUrlAndClose` (Done button,
+  blur-outside-the-editor) does the confirm-then-close. (2) The prefill lookup was gated
+  behind an explicit confirm (Enter/Tab/Done) while `MediaPreview.svelte`'s own image-src
+  fetch (`wikiImagePromise`) fires reactively off `resolved.kind` the instant the URL
+  parses as recognizable — two redundant calls to nearly the same MediaWiki API on two
+  different triggers, which is why the image would appear well before the caption/credit
+  did. `maybePrefillMediaText` is now driven by the same reactive signal (an `$effect` on
+  `mediaInput.resolved.kind`) instead of being called from `confirmUrl`, so caption/credit
+  land alongside the image preview with no confirm step needed at all. Verified live: typing
+  the URL and never pressing Enter/Tab/Done still fills Caption and Credit in place a
+  couple seconds after the preview image appears, and re-editing the same URL after
+  hand-editing the caption left the author's text alone.
+- **Flickr caption/credit prefill — done.** Confirming a `flickr` URL now also runs through
+  `maybePrefillMediaText`, calling the new `fetchFlickrPrefill`
+  (`packages/authoring/src/lib/flickrPrefill.ts`, JSONP-based like the player's own
+  `fetchFlickrOEmbed` since Flickr's oEmbed endpoint has no CORS headers). Fills blank
+  `caption` from the oEmbed `title` and blank `credit` with a link labeled by
+  `author_name` back to the photo page. Verified live (#827).
+- **`width`/`height` on `<img>` tags — done where the source API provides real dimensions**
+  (#673). Wikipedia article thumbnails, Wikipedia file lookups (needed `iiprop=size` added
+  to the MediaWiki query — `url` alone doesn't return dimensions), Flickr oEmbed, and
+  Bluesky embedded images/video now set explicit `width`/`height` from the fetched
+  metadata. The plain author-supplied `image` kind (a bare URL with no metadata fetch)
+  still has no intrinsic size available and is unchanged — closing that gap needs either a
+  schema field populated at authoring/upload time or a dimension-probing fetch, which is
+  more than "small complexity."
 - OpenStreetMap embed — not in TL3 either; reasonable new addition, low complexity.
 - Google Slides / Facebook public video / MathJax — niche, evaluate on request. MathJax
   may already be reachable through the existing HTML/blockquote embed path.
+- **Media editor: split into independently toggleable sub-fields — Medium complexity,
+  not started.** `EventEditor.svelte`'s media editing is currently one monolithic
+  `editingMedia` flag covering URL, caption, credit, and alt text together — closing any
+  one of them (e.g. confirming the URL) collapses the whole panel, unlike headline/body
+  which already have independent `editingHeadline`/`editingBody` open state. Worth
+  revisiting once there's a second reason to touch this (e.g. another prefill source, or
+  a caption-only quick-edit request) so the caption/credit fields can stay open and
+  editable independent of the URL field's own confirm/close cycle, and vice versa.
 - **Decided against: autoplay on YouTube/video links** (#625) — user-hostile, not adding.
 - **`at://` URIs directly in `media.url`** (Currents/Grain/Plyr and similar ATProto apps) —
   maybe. `resolveMedia` has no `at://` branch today; the in-progress repo browser

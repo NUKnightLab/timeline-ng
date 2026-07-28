@@ -30,8 +30,19 @@
   });
 
   let activeIndex = $state(untrack(() => initialIndex));
+  let prevInitialIndex = untrack(() => initialIndex);
   $effect(() => {
-    activeIndex = Math.max(0, Math.min(initialIndex, slides.length - 1));
+    // Only jump to initialIndex when it actually changes (e.g. the authoring
+    // preview retargeting to a different event). If slides.length changes for
+    // some other reason — like switching language to a differently-sized
+    // timeline — stay on the current slide and just clamp it into bounds.
+    if (initialIndex !== prevInitialIndex) {
+      prevInitialIndex = initialIndex;
+      activeIndex = Math.max(0, Math.min(initialIndex, slides.length - 1));
+      return;
+    }
+    const clamped = Math.max(0, Math.min(activeIndex, slides.length - 1));
+    if (clamped !== activeIndex) activeIndex = clamped;
   });
   let prevIndex = $state<number | null>(null);
   let direction = $state<'forward' | 'backward' | 'none'>('none');
@@ -43,7 +54,7 @@
   const minimal = $derived(playerWidth < 320);
 
   function pauseSlide(index: number) {
-    const slideEl = stage?.children[index];
+    const slideEl = stage?.querySelectorAll(':scope > .tl-slide')[index];
     if (!slideEl) return;
     slideEl.querySelectorAll<HTMLMediaElement>('audio, video').forEach(m => m.pause());
     slideEl.querySelectorAll<HTMLIFrameElement>('iframe').forEach(iframe => {
@@ -192,17 +203,6 @@
   <div aria-live="polite" aria-atomic="true" class="tl-sr-only">{liveLabel}</div>
 
   <div class="tl-player__stage" bind:this={stage} style="--tl-nav-overlap: {navHeight}px;">
-    {#each slides as event, i}
-      <SlideContent
-        {event}
-        active={i === activeIndex}
-        direction={i === activeIndex ? direction : i === prevIndex ? (direction === 'forward' ? 'backward' : 'forward') : 'none'}
-        index={i + 1}
-        total={slides.length}
-        locale={language}
-      />
-    {/each}
-
     <button
       class="tl-player__btn tl-player__btn--prev"
       onclick={handlePrevClick}
@@ -230,6 +230,17 @@
         <span class="tl-sr-only">{getMessage(tl, isFullscreen ? 'fullscreen.exit' : 'fullscreen.enter')}</span>
       </button>
     {/if}
+
+    {#each slides as event, i}
+      <SlideContent
+        {event}
+        active={i === activeIndex}
+        direction={i === activeIndex ? direction : i === prevIndex ? (direction === 'forward' ? 'backward' : 'forward') : 'none'}
+        index={i + 1}
+        total={slides.length}
+        locale={language}
+      />
+    {/each}
   </div>
 
   <TimeNav

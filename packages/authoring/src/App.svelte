@@ -7,6 +7,7 @@
   import { generatePoster } from './lib/poster.ts';
   import { saveDraft, loadDraft, clearDraft } from './lib/draft.ts';
   import type { Draft } from './lib/draft.ts';
+  import { stripHtml } from './lib/text.ts';
   import HomeView from './components/HomeView.svelte';
   import EditorView from './components/EditorView.svelte';
 
@@ -109,7 +110,7 @@
   // Auto-sync title from title slide headline when user hasn't set one explicitly
   $effect(() => {
     if (!titleSetByUser) {
-      timelineTitle = titleEvent?.text?.headline?.replace(/<[^>]*>/g, '').trim() ?? '';
+      timelineTitle = stripHtml(titleEvent?.text?.headline);
     }
   });
 

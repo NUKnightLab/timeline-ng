@@ -11,6 +11,11 @@
       "text": {
         "headline": "Los tipos móviles de Gutenberg",
         "text": "<p>Johannes Gutenberg presenta una imprenta práctica de tipos móviles en Maguncia, haciendo posible por primera vez en Europa la producción masiva de libros.</p>"
+      },
+      "media": {
+        "url": "https://en.wikipedia.org/wiki/Printing_press#/media/File:PrintMus_038.jpg",
+        "caption": "<p>Peter Small haciendo una demostración del uso de la imprenta de Gutenberg en el Museo Internacional de la Imprenta.</p>",
+        "credit": "<p><a target=\"_blank\" rel=\"noopener noreferrer\" href=\"https://commons.wikimedia.org/wiki/File:PrintMus_038.jpg\">vlasta2 via Wikimedia Commons</a></p>"
       }
     },
     {
@@ -18,6 +23,9 @@
       "text": {
         "headline": "El primer periódico",
         "text": "<p><em>Relation aller Fürnemmen und gedenckwürdigen Historien</em>, publicado en Estrasburgo, es considerado ampliamente el primer periódico del mundo.</p>"
+      },
+      "background": {
+        "url": "https://de.wikipedia.org/wiki/Relation_aller_F%C3%BCrnemmen_und_gedenckw%C3%BCrdigen_Historien#/media/Datei:Relation_Aller_Fuernemmen_und_gedenckwuerdigen_Historien_(1609)_(cropped).jpg"
       }
     },
     {

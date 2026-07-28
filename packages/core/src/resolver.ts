@@ -57,13 +57,15 @@ export function resolveMedia(media: TLMedia): ResolvedMedia {
   }
 
   // WikipediaImage — must come before Wikipedia (more specific).
-  // Covers Commons file pages, direct File: pages on a language wiki
-  // (used for non-free/fair-use images that only exist locally, not on
-  // Commons), and #/media/File: fragments from the image viewer.
-  if (/commons\.wikimedia\.org\/wiki\/File:|\.wikipedia\.org\/wiki\/File:|#\/media\/File:/.test(url)) {
-    const commonsMatch = url.match(/commons\.wikimedia\.org\/wiki\/(File:[^?#]+)/);
-    const wikiFileMatch = url.match(/\.wikipedia\.org\/wiki\/(File:[^?#]+)/);
-    const mediaMatch = url.match(/#\/media\/(File:[^?]+)/);
+  // Covers Commons file pages, direct file pages on a language wiki (used
+  // for non-free/fair-use images that only exist locally, not on Commons),
+  // and #/media/ fragments from the image viewer. The "File" namespace name
+  // is localized per-wiki (Datei, Fichier, Archivo, …), so match on the
+  // image extension rather than a hardcoded namespace prefix.
+  const commonsMatch = url.match(/commons\.wikimedia\.org\/wiki\/([^/?#]+:[^?#]+\.(?:jpe?g|gif|png|svg|webp|tiff?))/i);
+  const wikiFileMatch = url.match(/\.wikipedia\.org\/wiki\/([^/?#]+:[^?#]+\.(?:jpe?g|gif|png|svg|webp|tiff?))/i);
+  const mediaMatch = url.match(/#\/media\/([^/?]+:[^?]+\.(?:jpe?g|gif|png|svg|webp|tiff?))/i);
+  if (commonsMatch || wikiFileMatch || mediaMatch) {
     const fileTitle = commonsMatch?.[1] ?? wikiFileMatch?.[1] ?? mediaMatch?.[1];
     if (!fileTitle) return { kind: 'unknown', url };
     const langMatch = url.match(/([a-z-]+)\.wikipedia\.org/);

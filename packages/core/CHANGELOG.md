@@ -16,6 +16,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - `fromTL3CSV` and `toTL3CSV` both read/write the TL3 `Alt Text` column
   (between `Media Thumbnail` and `Type`) into `media.alt`.
 
+### Fixed
+
+- `resolveMedia` now recognizes Wikipedia file-page and `#/media/` lightbox
+  URLs whose "File" namespace is localized (e.g. German `Datei:`, French
+  `Fichier:`), not just the English `File:` prefix. Detection now keys off
+  the image file extension instead of a hardcoded namespace name, so it
+  works for any language wiki — this also fixes such URLs being unusable as
+  slide background images, since `resolveBackgroundImageUrl` relies on the
+  same `wikipediaimage` classification.
+
 ## [0.2.1] - 2026-07-22
 
 ### Added

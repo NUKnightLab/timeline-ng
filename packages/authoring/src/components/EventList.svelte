@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { TLEvent } from '@knight-lab/timeline-ng-core';
   import { resolveBackgroundImageUrl } from '@knight-lab/timeline-ng-core';
+  import { stripHtml } from '../lib/text.ts';
 
   interface DeletedItem {
     event: TLEvent;
@@ -39,9 +40,7 @@
   });
 
   function label(event: TLEvent): string {
-    const raw = event.text?.headline ?? '';
-    const stripped = raw.replace(/<[^>]+>/g, '').trim();
-    return stripped || '';
+    return stripHtml(event.text?.headline);
   }
 
   function dateStr(event: TLEvent): string {

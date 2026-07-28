@@ -4,6 +4,7 @@ import { Agent } from '@atproto/api';
 import type { ATProtoBlobRef, TLEvent, TLMedia, TLSettings, TLTimeline } from '@knight-lab/timeline-ng-core';
 import { collections } from './collections.ts';
 import type { CollectionDef } from './collections.ts';
+import { stripHtml } from './text.ts';
 
 // ── Config ──────────────────────────────────────────────────────────────────
 
@@ -162,10 +163,6 @@ function generateRkey(): string {
 
 function rkeyFromUri(uri: string): string {
   return uri.split('/').at(-1) ?? generateRkey();
-}
-
-function stripHtml(s: string): string {
-  return s.replace(/<[^>]*>/g, '').trim();
 }
 
 export type SaveResult =

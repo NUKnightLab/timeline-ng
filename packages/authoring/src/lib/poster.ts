@@ -1,17 +1,11 @@
 import { pickSlideImageUrl } from '@knight-lab/timeline-ng-core';
 import type { TLEvent, TLTimeline } from '@knight-lab/timeline-ng-core';
+import { stripHtml } from './text.ts';
 
 // Standard Open Graph image dimensions.
 const WIDTH = 1200;
 const HEIGHT = 630;
 const PADDING = 64;
-
-function stripHtml(input?: string): string {
-  if (!input) return '';
-  const el = document.createElement('div');
-  el.innerHTML = input;
-  return (el.textContent ?? '').replace(/\s+/g, ' ').trim();
-}
 
 // crossOrigin='anonymous' means a non-CORS-enabled image source fails to
 // load at all (onerror) rather than loading-but-tainting the canvas — there's

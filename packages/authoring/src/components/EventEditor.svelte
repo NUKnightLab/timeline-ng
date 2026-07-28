@@ -9,6 +9,8 @@
   import { getAuthState, getAvailableCollections, uploadBlob, blobUrl, cacheLocalBlobUrl, extractCid, localOrPdsBlobUrl } from '../lib/atproto.svelte.ts';
   import RepoBrowser from './RepoBrowser.svelte';
   import { describeMediaInput } from '../lib/mediaInput.js';
+  import { fetchWikipediaImagePrefill } from '../lib/wikipediaPrefill.ts';
+  import { fetchFlickrPrefill } from '../lib/flickrPrefill.ts';
 
   interface Props {
     event: TLEvent;
@@ -320,12 +322,58 @@
     if (file) void processFile(file);
   }
 
+  // Bumped whenever a prefill lookup starts, so a slow metadata lookup that resolves
+  // after the author has already moved on (edited the URL again, typed their own
+  // caption/credit) can recognize it's stale and discard itself.
+  let mediaPrefillToken = 0;
+
+  // Runs off the same signal MediaPreview uses to fetch its own image src (see
+  // MediaPreview.svelte's wikiImagePromise), so caption/credit fill in alongside the
+  // preview instead of waiting for the URL field to be explicitly confirmed.
+  $effect(() => {
+    const kind = mediaInput.resolved.kind;
+    if (kind === 'wikipediaimage' || kind === 'flickr') maybePrefillMediaText();
+  });
+
+  // Leaves the media editor open so a prefill lookup (see maybePrefillMediaText)
+  // can land in the still-visible caption/credit fields instead of resolving
+  // after they've already been unmounted.
   function confirmUrl() {
     if (mediaUrl.trim() && mediaUrlValid) {
       mediaBlobRef = undefined;
       buildAndEmit();
-      editingMedia = false;
     }
+  }
+
+  function confirmUrlAndClose() {
+    confirmUrl();
+    captionRte?.commit();
+    creditRte?.commit();
+    editingMedia = false;
+  }
+
+  // Only fills fields the author has left blank — never overwrites their own text.
+  function maybePrefillMediaText() {
+    const resolved = mediaInput.resolved;
+    if (mediaCaption && mediaCredit) return;
+
+    let lookup: Promise<{ caption?: string; credit?: string } | null>;
+    if (resolved.kind === 'wikipediaimage') {
+      lookup = fetchWikipediaImagePrefill(resolved.fileTitle, resolved.language);
+    } else if (resolved.kind === 'flickr') {
+      lookup = fetchFlickrPrefill(resolved.photoUrl);
+    } else {
+      return;
+    }
+
+    const token = ++mediaPrefillToken;
+    void lookup.then((prefill) => {
+      if (!prefill || token !== mediaPrefillToken) return;
+      let changed = false;
+      if (!mediaCaption && prefill.caption) { mediaCaption = prefill.caption; changed = true; }
+      if (!mediaCredit && prefill.credit)   { mediaCredit  = prefill.credit;  changed = true; }
+      if (changed) buildAndEmit();
+    });
   }
 
   async function handleBgFileUpload(e: Event) {
@@ -559,7 +607,7 @@
     if (!focusLeftEditor(event)) return;
     if (mediaMode === 'url') {
       if (mediaUrl.trim() && mediaUrlValid) {
-        confirmUrl();
+        confirmUrlAndClose();
         return;
       }
       if (!mediaUrl.trim() && !mediaBlobRef) {
@@ -711,7 +759,7 @@
                 <button type="button" class="icon-btn icon-btn--done"
                   aria-label="Done" title="Done"
                   disabled={mediaMode === 'browse' || (mediaMode === 'url' ? (!mediaUrl.trim() || !mediaUrlValid) : !hasMedia)}
-                  onclick={mediaMode === 'url' ? confirmUrl : () => { captionRte?.commit(); creditRte?.commit(); editingMedia = false; }}>✓</button>
+                  onclick={mediaMode === 'url' ? confirmUrlAndClose : () => { captionRte?.commit(); creditRte?.commit(); editingMedia = false; }}>✓</button>
                 {#if _canRestoreSnap}
                   <button type="button" class="icon-btn"
                     aria-label="Cancel" title="Cancel" onclick={cancelEdit}>✕</button>
@@ -780,7 +828,8 @@
                       class:media-url-input--error={!mediaUrlValid}
                       bind:value={mediaUrl}
                       oninput={() => { mediaBlobRef = undefined; }}
-                      onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); confirmUrl(); } }} />
+                      onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); confirmUrl(); } }}
+                      onblur={confirmUrl} />
                   {/if}
                 </div>
                 {#if !mediaUrlValid}
@@ -835,8 +884,8 @@
           <div class="media-thumb-meta">
             {#if mediaCaption || mediaCredit}
               <div class="slide-media-caption">
-                {#if mediaCaption}<span class="slide-caption-text">{@html mediaCaption}</span>{/if}
                 {#if mediaCredit}<cite class="slide-credit-text">{@html mediaCredit}</cite>{/if}
+                {#if mediaCaption}<span class="slide-caption-text">{@html mediaCaption}</span>{/if}
               </div>
             {/if}
             <p class="media-alt-summary" class:media-alt-summary--empty={!mediaAlt.trim()}>
@@ -1460,7 +1509,7 @@
   }
   .media-source-link:hover { opacity: 0.8; }
   .media-thumb-meta {
-    padding: 0.6rem 0.75rem 0.7rem;
+    padding: 0.15rem 0.75rem 0.7rem;
     display: flex;
     flex-direction: column;
     gap: 0.45rem;
@@ -1486,9 +1535,9 @@
     line-height: 1.4;
     display: flex;
     flex-direction: column;
-    gap: 0.15rem;
+    gap: 0.25rem;
   }
-  .slide-credit-text { font-style: italic; }
+  .slide-credit-text { display: block; text-align: right; font-style: italic; font-size: 0.68rem; }
   .media-alt-summary {
     margin: 0;
     font-size: 0.72rem;

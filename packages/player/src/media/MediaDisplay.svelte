@@ -17,7 +17,7 @@
   // ── Async fetch helpers ────────────────────────────────────────────────────
 
   interface BlueskyAuthor { handle: string; displayName?: string; avatar?: string }
-  interface BlueskyImage { thumb: string; fullsize: string; alt?: string }
+  interface BlueskyImage { thumb: string; fullsize: string; alt?: string; aspectRatio?: { width: number; height: number } }
   interface BlueskyExternal {
     uri: string;
     title?: string;
@@ -38,6 +38,7 @@
     thumbnail?: string;
     alt?: string;
     playlist?: string;
+    aspectRatio?: { width: number; height: number };
   }
   interface BlueskyPostData {
     author: BlueskyAuthor;
@@ -60,7 +61,7 @@
     return res.json();
   }
 
-  interface FlickrOEmbed { url: string; title?: string; author_name?: string; author_url?: string }
+  interface FlickrOEmbed { url: string; width?: number; height?: number; title?: string; author_name?: string; author_url?: string }
   function windowRecord(): Record<string, unknown> {
     return window as unknown as Record<string, unknown>;
   }
@@ -93,7 +94,7 @@
   interface WikipediaSummary {
     title: string;
     extract: string;
-    thumbnail?: { source: string };
+    thumbnail?: { source: string; width?: number; height?: number };
     content_urls: { desktop: { page: string } };
   }
   async function fetchWikipediaSummary(language: string, articleTitle: string): Promise<WikipediaSummary> {
@@ -103,21 +104,26 @@
     return res.json();
   }
 
-  interface WikipediaImageResult { src: string; label: string }
+  interface WikipediaImageResult { src: string; label: string; width?: number; height?: number }
   // Fair-use/non-free files (e.g. book covers) live only on the local
   // language wiki, not on Commons, so fall back to it when given.
   async function fetchWikipediaImage(fileTitle: string, language?: string): Promise<WikipediaImageResult> {
     const encoded = encodeURIComponent(fileTitle);
     const hosts = ['commons.wikimedia.org', ...(language ? [`${language}.wikipedia.org`] : [])];
     for (const host of hosts) {
-      const url = `https://${host}/w/api.php?action=query&prop=imageinfo&iiprop=url|extmetadata&iiurlwidth=1200&titles=${encoded}&format=json&origin=*`;
+      const url = `https://${host}/w/api.php?action=query&prop=imageinfo&iiprop=url|size|extmetadata&iiurlwidth=1200&titles=${encoded}&format=json&origin=*`;
       const res = await fetch(url);
       if (!res.ok) continue;
       const data = await res.json();
       const pages = data.query?.pages ?? {};
-      const page = Object.values(pages)[0] as { title?: string; imageinfo?: Array<{ url: string }> };
-      const imgUrl = page?.imageinfo?.[0]?.url;
-      if (imgUrl) return { src: imgUrl, label: (page.title ?? fileTitle).replace('File:', '') };
+      const page = Object.values(pages)[0] as {
+        title?: string;
+        imageinfo?: Array<{ url: string; width?: number; height?: number }>;
+      };
+      const info = page?.imageinfo?.[0];
+      if (info?.url) {
+        return { src: info.url, label: (page.title ?? fileTitle).replace('File:', ''), width: info.width, height: info.height };
+      }
     }
     throw new Error('image not found');
   }
@@ -162,9 +168,11 @@
     return embed.record.record ?? null;
   }
 
-  function blueskyVideoThumbnail(embed: BlueskyEmbedView | undefined): { thumbnail: string; alt?: string; playlist?: string } | null {
+  function blueskyVideoThumbnail(
+    embed: BlueskyEmbedView | undefined
+  ): { thumbnail: string; alt?: string; playlist?: string; aspectRatio?: { width: number; height: number } } | null {
     if (!embed) return null;
-    if (embed.thumbnail) return { thumbnail: embed.thumbnail, alt: embed.alt, playlist: embed.playlist };
+    if (embed.thumbnail) return { thumbnail: embed.thumbnail, alt: embed.alt, playlist: embed.playlist, aspectRatio: embed.aspectRatio };
     if (embed.media) return blueskyVideoThumbnail(embed.media);
     return null;
   }
@@ -362,7 +370,7 @@
     </div>
   {:then photo}
     <a class="tl-media tl-media--flickr" href={resolved.photoUrl} target="_blank" rel="noopener noreferrer">
-      <img src={photo.url} alt={media.alt ?? media.caption ?? photo.title ?? ''} loading="lazy" />
+      <img src={photo.url} alt={media.alt ?? media.caption ?? photo.title ?? ''} width={photo.width} height={photo.height} loading="lazy" />
       {#if photo.author_name}
         <span class="tl-flickr__credit">{photo.author_name}</span>
       {/if}
@@ -400,13 +408,13 @@
       {#if images.length}
         <div class="tl-bsky__images">
           {#each images as img}
-            <img src={img.thumb} alt={img.alt ?? ''} loading="lazy" class="tl-bsky__image" />
+            <img src={img.thumb} alt={img.alt ?? ''} width={img.aspectRatio?.width} height={img.aspectRatio?.height} loading="lazy" class="tl-bsky__image" />
           {/each}
         </div>
       {/if}
       {#if video}
         <a class="tl-bsky__video-card" href={resolved.originalUrl} target="_blank" rel="noopener noreferrer">
-          <img class="tl-bsky__video-thumb" src={video.thumbnail} alt={video.alt ?? 'Bluesky video preview'} loading="lazy" />
+          <img class="tl-bsky__video-thumb" src={video.thumbnail} alt={video.alt ?? 'Bluesky video preview'} width={video.aspectRatio?.width} height={video.aspectRatio?.height} loading="lazy" />
           <span class="tl-bsky__video-badge">Video</span>
         </a>
       {/if}
@@ -487,7 +495,14 @@
   {:then article}
     <div class="tl-media tl-media--wikipedia">
       {#if article.thumbnail}
-        <img class="tl-wiki__thumbnail" src={article.thumbnail.source} alt={article.title} loading="lazy" />
+        <img
+          class="tl-wiki__thumbnail"
+          src={article.thumbnail.source}
+          alt={article.title}
+          width={article.thumbnail.width}
+          height={article.thumbnail.height}
+          loading="lazy"
+        />
       {/if}
       <div class="tl-wiki__body">
         <strong class="tl-wiki__title">{article.title}</strong>
@@ -515,6 +530,8 @@
       class="tl-media tl-media--image"
       src={img.src}
       alt={media.alt ?? media.caption ?? img.label}
+      width={img.width}
+      height={img.height}
       loading="lazy"
     />
   {:catch}

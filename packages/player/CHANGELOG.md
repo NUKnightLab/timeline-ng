@@ -13,8 +13,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   player root on mount (used by the embed app when it's the top-level
   document — i.e. a direct share link — but not when framed in an iframe,
   where focus should stay with the host page until the visitor interacts).
+- Media images now carry explicit `width`/`height` attributes when the
+  source API provides them (Wikipedia article thumbnails and file lookups,
+  Flickr oEmbed, Bluesky embedded images/video), reducing layout shift
+  while they load.
+
+### Changed
+
+- Media credit now displays above the caption, right-aligned under the
+  media and bound tightly to it, in a slightly smaller size than the
+  caption text.
 
 ### Fixed
+
+- Switching `language` (or otherwise swapping in a differently-sized
+  `timeline`) no longer resets `SlidePlayer` back to `initialIndex` —
+  it stays on the current slide and only clamps into bounds if the new
+  timeline has fewer slides. The reset-to-`initialIndex` behavior is
+  preserved for when `initialIndex` itself actually changes (e.g. the
+  authoring app's live preview retargeting to a different event).
+- A rich-text `<p>` inside the media credit no longer picks up the
+  browser's default 1em block margins — the override selector needed
+  `:global()` since the `<p>` comes from `{@html}` and Svelte can't scope
+  to markup it didn't render itself.
 
 - Inactive slides are now `inert`, so keyboard/screen-reader focus can no
   longer land on off-screen slide content (e.g. a media credit link) while
@@ -27,6 +48,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   buttons) now always refocuses the player root, instead of only when a
   boundary button was about to become disabled — so focus can't be left
   stranded on a control or link that doesn't apply to the new slide.
+- Tab order within the player now reaches the prev/next/fullscreen controls
+  before any in-slide content (links, etc.), instead of after — matching
+  TL3's ordering and cutting the number of Tab presses needed to get from a
+  slide's content to the navigation controls.
 
 ## [0.2.1] - 2026-07-22
 
