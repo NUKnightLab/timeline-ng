@@ -1,4 +1,4 @@
-# [](https://)****timeline-ng Roadmap
+# timeline-ng Roadmap
 
 Based partly on an AI review of 200 open TimelineJS3 GitHub issues (harvested 2026-06-26) plus launch-planning notes.
 Where TL3 issues are cited, the number links back to the original for detail.
@@ -191,23 +191,3 @@ demonstrated demand.
 TL3-legacy consumption pattern. Modern consumers should use npm or the iframe embed. If
 demand shows up, it's a second ~20-line Vite config that doesn't touch the npm packages or
 embed page.
-
----
-
-## 3. Decided / Resolved (reference only)
-
-- **`display_date` authoring field — shipped.** The date-editing panel in `EventEditor.svelte`
-  now has a "Display date" text input that sets `TLDateInput.display_date` on the start date,
-  overriding the rendered date text (e.g. "around 1500", "the Roaring Twenties"). A real start
-  year is still required — Timeline still needs it to place the slide. Also fixed a latent bug
-  in `SlideContent.svelte` where an event with both `display_date` and an `end_date` would show
-  the override concatenated with a formatted end date instead of just the override text.
-- **No published Lexicon** for `com.knightlab.timeline` — interop outside the tool isn't
-  expected for v1.
-- **npm org:** `@knight-lab`, packages are `@knight-lab/timeline-ng-core` and
-  `@knight-lab/timeline-ng`.
-- **Embed URL:** unversioned at `https://timeline.knightlab.com/ng/embed/`; add `/v1/` only
-  if a breaking change actually forces it.
-- **Vite base path:** left as relative `'./'`.
-- **Autoplay on video/YouTube links:** rejected as user-hostile.
-- **Legacy-browser issues (IE11, old Edge):** not applicable, ignored.
