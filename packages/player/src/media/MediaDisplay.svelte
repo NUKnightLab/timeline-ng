@@ -371,9 +371,6 @@
   {:then photo}
     <a class="tl-media tl-media--flickr" href={resolved.photoUrl} target="_blank" rel="noopener noreferrer">
       <img src={photo.url} alt={media.alt ?? media.caption ?? photo.title ?? ''} width={photo.width} height={photo.height} loading="lazy" />
-      {#if photo.author_name}
-        <span class="tl-flickr__credit">{photo.author_name}</span>
-      {/if}
     </a>
   {:catch}
     <div class="tl-media tl-media--error">
