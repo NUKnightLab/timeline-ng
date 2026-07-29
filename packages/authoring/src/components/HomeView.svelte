@@ -259,8 +259,10 @@
     <div class="home-layout">
 
       <div class="home-content">
-        <h1 class="home-title">TimelineJS Reimagined</h1>
-
+        <div class="home-header">
+          <h1 class="home-title">TimelineJS Reimagined</h1>
+          <h2 class="product-tagline">Even easier-to-make, beautiful timelines.</h2>
+        </div>
       <!-- Demo timeline -->
       <section class="home-section demo-section">
         {#if demoTimeline}
@@ -551,12 +553,25 @@
     align-items: flex-start;
   }
 
+  .home-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
   .home-title {
     font-size: 1.75rem;
     font-weight: 700;
     color: #1a1a1a;
     margin: 0;
     letter-spacing: -0.01em;
+  }
+
+  .product-tagline {
+    font-size: 1rem;
+    font-weight: 400;
+    color: #df4e13;
+    margin: 0;
   }
 
   .home-content {
@@ -924,11 +939,14 @@
   .clone-link:hover { color: #1d4ed8; }
 
   /* ── Responsive ──────────────────────────────────────────────── */
-  @media (max-width: 700px) {
+  /* 820px covers iPad mini portrait (744-768px CSS width) while leaving
+     landscape (1024px) as two-column. */
+  @media (max-width: 820px) {
     .home-shell { height: 100dvh; }
 
     .home-layout {
       flex-direction: column;
+      align-items: stretch;
       padding: 0.75rem 1rem 1.5rem;
       gap: 1.5rem;
     }
@@ -946,7 +964,7 @@
 
     .demo-player,
     .demo-loading {
-      height: 320px;
+      height: 480px;
     }
 
     .start-actions {
@@ -960,6 +978,13 @@
     .btn-import-file,
     .btn-paste-url {
       flex: 1;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .demo-player,
+    .demo-loading {
+      height: 600px;
     }
   }
 </style>

@@ -94,6 +94,17 @@ below) rather than needing a distinct "uncertainty marker" UI. — TL3 #499
 
 Useful once timelines get long. — TL3 #631
 
+### Swipe left/right to navigate on touch devices — Medium-High value, Small-Medium complexity
+
+`SlidePlayer.svelte`'s stage has no touch/swipe handling today — only the prev/next
+arrow buttons and keyboard arrows advance slides. On a phone or tablet, swiping the
+slide itself feels like the natural gesture and is what TL3 lacked too. `TimeNav.svelte`
+already uses pointer events for its own drag-to-scrub interaction, so there's a working
+pattern in the codebase to follow; the main design question is distinguishing a
+horizontal swipe from vertical scroll and from taps on in-slide links/media (e.g. a
+horizontal-distance/velocity threshold before treating it as navigation, rather than
+capturing every touch).
+
 ### Media: fixes and small adds — Low-Medium complexity each, do opportunistically
 
 - **YouTube start/end params — done.** `resolveMedia` parses `t`/`start`/`end`, including

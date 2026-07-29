@@ -71,6 +71,32 @@
     showAccountPanel = !showAccountPanel;
   }
 
+  function closePanels() {
+    showPanel = false;
+    showAccountPanel = false;
+  }
+
+  // Dismiss on Escape or a click/tap outside the panel, same as any popover.
+  $effect(() => {
+    if (!showPanel && !showAccountPanel) return;
+
+    function handleKeydown(e: KeyboardEvent) {
+      if (e.key === 'Escape') closePanels();
+    }
+    function handlePointerDown(e: PointerEvent) {
+      const target = e.target as Node;
+      if (panelEl?.contains(target) || triggerBtn?.contains(target)) return;
+      closePanels();
+    }
+
+    window.addEventListener('keydown', handleKeydown);
+    window.addEventListener('pointerdown', handlePointerDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeydown);
+      window.removeEventListener('pointerdown', handlePointerDown);
+    };
+  });
+
   function handleSignOut() {
     showAccountPanel = false;
     (onsignout ?? signOut)();
@@ -152,6 +178,10 @@
       e.preventDefault();
       selectSuggestion(suggestions[suggestionIndex]);
     } else if (e.key === 'Escape') {
+      // Let this Escape just close the suggestion list; a second press
+      // (with no suggestions open) will fall through to the window handler
+      // that dismisses the whole panel.
+      e.stopPropagation();
       clearSuggestions();
     }
   }
@@ -183,6 +213,7 @@
     </button>
     {#if showAccountPanel}
       <div class="auth-panel auth-account-panel" style="top: {panelTop}px; left: {panelLeft}px" bind:this={panelEl}>
+        <button class="btn-panel-close" onclick={closePanels} aria-label="Close">✕</button>
         <button class="btn-signout-panel" onclick={handleSignOut}>Sign out</button>
       </div>
     {/if}
@@ -196,6 +227,7 @@
     </button>
     {#if showPanel}
       <div class="auth-panel" style="top: {panelTop}px; left: {panelLeft}px" bind:this={panelEl}>
+        <button class="btn-panel-close" onclick={closePanels} aria-label="Close">✕</button>
         <p class="auth-panel-label">Sign in with your <HelpLink doc="atmosphere">Atmosphere account</HelpLink>.</p>
         <div class="auth-input-wrap">
           <div class="auth-form-wrap">
@@ -324,7 +356,7 @@
 
   .auth-panel.auth-account-panel {
     width: auto;
-    padding: 0.4rem;
+    padding: 1.5rem 0.4rem 0.4rem;
   }
 
   .btn-signout-panel {
@@ -396,10 +428,28 @@
     gap: 0.75rem;
   }
 
+  .btn-panel-close {
+    position: absolute;
+    top: 0.4rem;
+    right: 0.4rem;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    color: #9ca3af;
+    font-size: 0.7rem;
+    line-height: 1;
+    padding: 0.3rem;
+    margin: 0;
+    cursor: pointer;
+    border-radius: 2px;
+  }
+  .btn-panel-close:hover { color: #374151; background: #f3f4f6; }
+
   .auth-panel-label {
     font-size: 0.85rem;
     color: #374151;
     margin: 0;
+    padding-right: 1.25rem;
     font-weight: 500;
   }
 
