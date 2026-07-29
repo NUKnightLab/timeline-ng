@@ -439,6 +439,7 @@
         <p>A lot has changed since 2012 when it was released. We thought we'd try a little experiment to see how it might be different today.</p>
         <nav class="sidebar-docs" aria-label="Documentation">
         <h2>Documentation</h2>
+          <a href="./docs.html#intro" target="_blank" rel="noopener noreferrer">Getting Started</a>
           <a href="./docs.html#atmosphere" target="_blank" rel="noopener noreferrer">About Atmosphere</a>
           <a href="./docs.html#self-hosting" target="_blank" rel="noopener noreferrer">Self-hosting</a>
           <a href="./docs.html#data-format" target="_blank" rel="noopener noreferrer">Data format</a>

@@ -1632,20 +1632,35 @@
     transform: scaleX(-1);
   }
   .slide-date-summary {
+    /* Matches --tl-font-body in the rendered player. */
+    font-family: system-ui, sans-serif;
     margin: 0;
     font-size: 0.82rem;
     color: #666;
   }
 
   .slide-h {
+    /* Explicit font-family so Orangeline's global h1-h6 rule (a serif display
+       font) can't win — matches --tl-font-heading in the rendered player. */
+    font-family: system-ui, sans-serif;
     font-size: 1.65rem;
     font-weight: 700;
     color: #1d1f21;
     margin: 0;
     line-height: 1.2;
   }
+  .slide-h :global(strong),
+  .slide-h :global(b) {
+    /* Orangeline forces b/strong to an absolute font-weight: bold (700),
+       which collides with the headline's own 700 weight and makes bolded
+       text invisible. The real player has no such override, so restore the
+       browser's native relative "bolder" behavior here too. */
+    font-weight: bolder;
+  }
 
   .slide-body-text {
+    /* Matches --tl-font-body in the rendered player. */
+    font-family: system-ui, sans-serif;
     font-size: 0.9rem;
     line-height: 1.65;
     color: #333;

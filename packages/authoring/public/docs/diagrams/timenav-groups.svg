@@ -1,0 +1,24 @@
+<svg viewBox="0 0 640 150" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title">
+  <title id="title">Diagram: TimeNav split into rows by group, each with its own label</title>
+  <rect x="1" y="1" width="638" height="148" rx="6" fill="#fff" stroke="#e5e7eb"/>
+
+  <rect x="16" y="16" width="608" height="38" fill="#fafafa"/>
+  <text x="28" y="39" font-size="10" fill="#374151" font-family="sans-serif">Politics</text>
+  <line x1="110" y1="35" x2="606" y2="35" stroke="#d1d5db" stroke-width="2"/>
+  <circle cx="180" cy="35" r="5" fill="#9ca3af"/>
+  <circle cx="340" cy="35" r="5" fill="#9ca3af"/>
+  <circle cx="500" cy="35" r="5" fill="#9ca3af"/>
+
+  <rect x="16" y="54" width="608" height="38" fill="#fff"/>
+  <text x="28" y="77" font-size="10" fill="#374151" font-family="sans-serif">Culture</text>
+  <line x1="110" y1="73" x2="606" y2="73" stroke="#d1d5db" stroke-width="2"/>
+  <circle cx="240" cy="73" r="5" fill="#6b7280"/>
+  <circle cx="420" cy="73" r="5" fill="#6b7280"/>
+
+  <rect x="16" y="92" width="608" height="38" fill="#fafafa"/>
+  <text x="28" y="115" font-size="10" fill="#374151" font-family="sans-serif">Science</text>
+  <line x1="110" y1="111" x2="606" y2="111" stroke="#d1d5db" stroke-width="2"/>
+  <circle cx="150" cy="111" r="5" fill="#9ca3af"/>
+  <circle cx="460" cy="111" r="5" fill="#9ca3af"/>
+  <circle cx="560" cy="111" r="5" fill="#9ca3af"/>
+</svg>

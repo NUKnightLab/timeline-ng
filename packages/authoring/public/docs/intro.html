@@ -1,0 +1,107 @@
+<title>Getting Started — Timeline NG</title>
+<style>
+  .diagram {
+    width: 100%;
+    height: auto;
+    display: block;
+    margin: 0 0 0.5rem;
+    background: #fafafa;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+  }
+  .diagram-caption {
+    font-size: 0.82rem;
+    color: #6b7280;
+    text-align: center;
+    margin: 0 0 1.75rem;
+  }
+  .anatomy-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+  .anatomy-list li {
+    padding-left: 1.1rem;
+    border-left: 3px solid #f3cbae;
+  }
+  .anatomy-list .term { font-weight: 600; color: #1d1f21; }
+</style>
+
+<h1>Getting Started</h1>
+
+<h2>What is a timeline?</h2>
+<p>
+  A timeline tells a story as a sequence of dated <strong>slides</strong>. People move
+  through a timeline either by reading slide-to-slide with the Next/Previous controls, or by scrubbing the navigation strip along the bottom of the screen to jump straight to a date. We have tried to make them really easy to read and to make, but it never hurts to explain the details.
+</p>
+
+<h2>The two halves of the screen</h2>
+<p>
+  Every timeline splits into two regions: a big <strong>slide viewer</strong> showing the current
+  slide's content, and a thin <strong>TimeNav</strong> strip below it showing where that slide sits
+  in time relative to everything else.
+</p>
+<img class="diagram" src="docs/diagrams/screen-halves.svg" alt="A slide viewer on top, with the TimeNav strip below it">
+<p class="diagram-caption">The orange dot is the slide currently shown above; the gray dots are the other slides in the timeline.</p>
+
+<p>
+  Clicking on a marker or label in the TimeNav brings the slide for that event into view.
+  By default, the TimeNav is drawn to show the entire span of the story. Sometimes that means that labels overlap and are hard to read. Viewers can zoom in, and the labels will spread out. Viewers can also drag the handle at the center top of the TimeNav to show more or fewer rows. At the smallest, no labels are visible, only event markers along the axis line.
+</p>
+
+<h2>Anatomy of a slide</h2>
+<p>
+  Each slide is built from the same handful of pieces. Any of them can be left out except the date
+  (title slides are the one case where you don't use a date — see below).
+</p>
+<img class="diagram" src="docs/diagrams/slide-anatomy.svg" alt="A single slide's parts — date, headline, text, and media with caption and credit">
+<p class="diagram-caption">The date is required on every slide except the optional title slide. Everything else is optional.</p>
+
+<ul class="anatomy-list">
+  <li><span class="term">Date</span> — when the event happened. One date makes a point; adding an end date makes it a range, shown as a span on the TimeNav. The start and end date can be just years, or can be more specific as appropriate.</li>
+  <li><span class="term">Headline</span> — a short title for the slide. Can include bold and italic, and other basic HTML.</li>
+  <li><span class="term">Text</span> — the body of the slide. Also allows basic HTML.</li>
+  <li><span class="term">Media</span> — an image, video, audio clip, or embed illustrating the event, with an optional caption and credit line. See <a href="./docs.html#media-types">media types</a> for more details.</li>
+  <li><span class="term">Background</span> — an optional color or image behind the slide itself.</li>
+  <li><span class="term">Group</span> — an optional label used to sort related slides into their own row on the TimeNav (see below).</li>
+</ul>
+<h2>The title slide</h2>
+<p>
+  A timeline can optionally start with one special slide that has no date — it's just an
+  introduction to the whole story, shown before the first event. It's built from the same
+  headline / text / media pieces as any other slide, it just isn't placed on TimeNav.
+</p>
+
+<h2>Grouping events</h2>
+<p>
+  Slides that share the same <code>group</code> label get their own row on the TimeNav instead of all
+  sharing one line. This is useful for stories with multiple parallel threads — say, tracking two
+  people's timelines side by side, or separating "cultural" events from "political" ones.
+</p>
+<img class="diagram" src="docs/diagrams/timenav-groups.svg" alt="TimeNav split into rows by group, each with its own label">
+<p class="diagram-caption">Three groups ("Politics", "Culture", "Science") each get their own labeled row.</p>
+<p>Slides without a <code>group</code> value all share a single unlabeled row. If the handle is used to make the TimeNav smaller than enough to fit all groups, the labels will be hidden and the event labels may no longer be aligned by the group.</p>
+
+<h2>Where to go next</h2>
+<p>Now you understand the basic components of a timeline, here's more reading about the system.</p>
+<ul class="app-list">
+  <li>
+    <div class="app-name"><a href="./docs.html#media-types">Media types</a></div>
+    <div class="app-desc">Everything you can put in a slide's media field, from a plain image to a pasted Bluesky link.</div>
+  </li>
+  <li>
+    <div class="app-name"><a href="./docs.html#atmosphere">About Atmosphere</a></div>
+    <div class="app-desc">How signing in lets you save timelines and upload media to your own server.</div>
+  </li>
+  <li>
+    <div class="app-name"><a href="./docs.html#self-hosting">Self-hosting</a></div>
+    <div class="app-desc">Running the player or the whole editor yourself.</div>
+  </li>
+  <li>
+    <div class="app-name"><a href="./docs.html#data-format">Timeline data format</a></div>
+    <div class="app-desc">The full JSON shape for a timeline, event by event, field by field. Typically only important for self-hosters.</div>
+  </li>
+</ul>

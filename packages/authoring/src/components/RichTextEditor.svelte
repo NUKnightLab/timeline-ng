@@ -465,6 +465,13 @@
     font-size: 1.35rem;
     font-weight: 700;
   }
+  .rte-body :global(.rte-content--singleline strong),
+  .rte-body :global(.rte-content--singleline b) {
+    /* Orangeline forces b/strong to an absolute font-weight: bold (700),
+       colliding with this field's own 700 weight and hiding the bold.
+       Restore native relative "bolder" behavior while editing the headline. */
+    font-weight: bolder;
+  }
 
   .rte-body :global(.rte-content > * + *) { margin-top: 0.4em; }
   .rte-body :global(.rte-content p)  { margin: 0; }

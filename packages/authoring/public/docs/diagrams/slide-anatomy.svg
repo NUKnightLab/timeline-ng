@@ -1,0 +1,28 @@
+<svg viewBox="0 0 640 260" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title">
+  <title id="title">Diagram: a single slide's parts — date, headline, text, and media with caption and credit</title>
+  <rect x="1" y="1" width="638" height="258" rx="6" fill="#fff" stroke="#e5e7eb"/>
+
+  <!-- media side -->
+  <rect x="20" y="20" width="230" height="150" rx="4" fill="#f3f4f6" stroke="#e5e7eb"/>
+  <text x="135" y="100" font-size="13" fill="#9ca3af" font-family="sans-serif" text-anchor="middle">Media</text>
+  <text x="20" y="188" font-size="10" fill="#9ca3af" font-family="sans-serif">Caption</text>
+  <text x="20" y="202" font-size="10" fill="#9ca3af" font-family="sans-serif">Credit</text>
+
+  <!-- text side -->
+  <rect x="272" y="20" width="60" height="20" rx="10" fill="#fdf1ea" stroke="#f3cbae"/>
+  <text x="302" y="34" font-size="10" fill="#93370c" font-family="sans-serif" text-anchor="middle">Date</text>
+  <text x="342" y="34" font-size="10" fill="#9ca3af" font-family="sans-serif">start_date (+ optional end_date for a range)</text>
+
+  <rect x="272" y="52" width="330" height="18" rx="2" fill="#1d1f21"/>
+  <text x="280" y="65" font-size="10" fill="#fff" font-family="sans-serif">Headline</text>
+
+  <rect x="272" y="86" width="330" height="8" rx="2" fill="#d1d5db"/>
+  <rect x="272" y="102" width="330" height="8" rx="2" fill="#d1d5db"/>
+  <rect x="272" y="118" width="330" height="8" rx="2" fill="#d1d5db"/>
+  <rect x="272" y="134" width="200" height="8" rx="2" fill="#d1d5db"/>
+  <text x="272" y="160" font-size="10" fill="#9ca3af" font-family="sans-serif">Body text</text>
+
+  <!-- media_position arrow -->
+  <path d="M262 95 L272 90 L272 100 Z" fill="#9ca3af"/>
+  <text x="135" y="210" font-size="10" fill="#9ca3af" font-family="sans-serif" text-anchor="middle">media_position: "left" (or "right")</text>
+</svg>
