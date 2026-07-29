@@ -37,7 +37,7 @@
   const MIN_RANGE     = 0.1;
   const GROUP_LABEL_H = 20;   // height of each group's label band
   const AXIS_H        = 18;   // axis strip below the shared track
-  const GROUP_GUTTER  = 72;   // px reserved on the left for group name labels
+  const GROUP_GUTTER  = 120;  // px reserved on the left for group name labels (must clear the zoom-controls column)
   const ZOOM_GUTTER   = 44;   // px reserved on the left for zoom controls (non-grouped)
 
   // ── Responsive layout derived from compact/minimal props ─────────────────
@@ -120,9 +120,36 @@
     for (const ev of baseEvents) {
       if (!seen.has(ev.group)) { seen.add(ev.group); result.push(ev.group); }
     }
+    // The "no group" bucket lands wherever its first event falls chronologically;
+    // pin it to the last band instead so it doesn't split up the named groups.
+    const emptyIdx = result.indexOf('');
+    if (emptyIdx !== -1 && emptyIdx !== result.length - 1) {
+      result.splice(emptyIdx, 1);
+      result.push('');
+    }
     return result;
   });
   const hasGroups = $derived(groupOrder.some(g => g !== ''));
+  const groupRowsNeeded = $derived(hasGroups ? groupOrder.length : 0);
+  // The smallest ungrouped-equivalent row count whose height (r*ROW_HEIGHT+...)
+  // reaches the grouped bands' height (groupRowsNeeded*GROUP_LABEL_H). Rows cost
+  // less in grouped mode (GROUP_LABEL_H) than in the ungrouped fallback
+  // (ROW_HEIGHT), so this is normally a few rows short of groupRowsNeeded — using
+  // groupRowsNeeded itself as the seed/target would leave a "dead" first drag
+  // step that changes nothing before the real transition point.
+  const groupThresholdRows = $derived.by((): number => {
+    if (!hasGroups) return 0;
+    const neededHeight = groupRowsNeeded * GROUP_LABEL_H;
+    return Math.max(1, Math.ceil((neededHeight - SPAN_PAD - TICK_H) / ROW_HEIGHT));
+  });
+  // Grouped layout needs one row per group — if the drawer isn't tall enough to
+  // show them all, drop grouping entirely and lay out like an ungrouped timeline.
+  // Compared in actual pixels (not raw row counts): a "row" costs GROUP_LABEL_H
+  // in grouped mode but ROW_HEIGHT in the ungrouped fallback, so comparing counts
+  // directly could flip into fallback at a height that's actually *taller* than
+  // the grouped view it's replacing. Comparing heights guarantees dragging down
+  // never grows the drawer.
+  const showGroups = $derived.by(() => hasGroups && displayRows >= groupThresholdRows);
 
   // ── Projected + visible events (viewport-dependent) ───────────────────────
   interface PositionedEvent extends BaseEvent {
@@ -150,7 +177,7 @@
       const screenPct = isDuration
         ? toScreenPct(ev.dataPct)
         : (ev.dataWidthPct !== null ? screenStartPct : toScreenPct(ev.dataPct));
-      const groupIdx = hasGroups ? groupOrder.indexOf(ev.group) : 0;
+      const groupIdx = showGroups ? groupOrder.indexOf(ev.group) : 0;
       return { ...ev, isDuration, screenPct, screenStartPct, screenWidthPct, groupIdx };
     }).filter(ev => {
       const l = ev.isDuration ? ev.screenStartPct : ev.screenPct;
@@ -165,7 +192,7 @@
 
     const labelMap = new Map<number, { row: number; centerPct: number }>();
 
-    if (hasGroups) {
+    if (showGroups) {
       // Per-group label allocation — 1 row per group band
       for (let gi = 0; gi < groupOrder.length; gi++) {
         const groupEvs = projected.filter(ev => ev.groupIdx === gi);
@@ -354,32 +381,39 @@
 
   const HANDLE_H  = 8;   // grip strip at top of nav
 
-  // User-controlled label rows: 0 = collapsed (axis only), 1..MAX_ROWS = open
+  // User-controlled label rows: 0 = collapsed (axis only), 1..MAX_ROWS = open.
+  // For a grouped timeline, "open" defaults to one row per group (see the
+  // layout-signature effect below), not just 1.
   let displayRows = $state(1);
   let userAdjustedRows = $state(false);
-  let lastCompact = $state<boolean | null>(null);
+  let lastLayoutSignature = $state<string | null>(null);
 
   // Compact mode should default closed, but once the viewer opens/closes the drawer
-  // manually we preserve that choice instead of forcing rows again.
+  // manually we preserve that choice instead of forcing rows again. Re-seed whenever
+  // compact mode or the group structure changes (e.g. a new timeline is loaded).
   $effect(() => {
     const isCompact = compact;
-    const priorCompact = untrack(() => lastCompact);
+    const signature = `${isCompact}:${groupRowsNeeded}`;
+    const priorSignature = untrack(() => lastLayoutSignature);
     const hasUserAdjustedRows = untrack(() => userAdjustedRows);
-    lastCompact = isCompact;
+    lastLayoutSignature = signature;
 
     if (hasUserAdjustedRows) return;
-    if (priorCompact === null || priorCompact !== isCompact) {
-      displayRows = isCompact ? 0 : 1;
+    if (priorSignature === null || priorSignature !== signature) {
+      displayRows = isCompact ? 0 : Math.max(1, groupThresholdRows);
     }
   });
 
   // Stable layout metrics — computed from the full dataset, not the viewport,
   // so the nav height doesn't jump during pan/zoom.
   const layoutMetrics = $derived.by((): { maxLabelRows: number } => {
-    if (hasGroups || baseEvents.length === 0) return { maxLabelRows: 1 };
+    if (baseEvents.length === 0) return { maxLabelRows: Math.max(1, groupThresholdRows) };
     const halfPct = (LABEL_MAX_PX / 2) / timelineWidth * 100;
     const gapPct  = LABEL_GAP_PX    / timelineWidth * 100;
     const rowRight: number[] = new Array(MAX_ROWS).fill(-Infinity);
+    // Rows needed for the ungrouped fallback layout — computed unconditionally
+    // (even when grouped) so we know how far the drawer can shrink before
+    // dropping below one row per group.
     let maxLabelRows = 1;
     for (const ev of [...baseEvents].sort((a, b) => a.dataPct - b.dataPct)) {
       const pos = Math.max(halfPct, Math.min(100 - halfPct, ev.dataPct));
@@ -394,19 +428,20 @@
       }
       if (!placed) maxLabelRows = MAX_ROWS;
     }
+    maxLabelRows = Math.max(maxLabelRows, groupThresholdRows);
     return { maxLabelRows };
   });
 
   // Track Y position responds to displayRows, not the dataset maximum.
   const sharedTrackTop = $derived.by((): number => {
-    if (hasGroups) return groupOrder.length * GROUP_LABEL_H;
+    if (showGroups) return groupRowsNeeded * GROUP_LABEL_H;
     if (displayRows === 0) return 0;
     return displayRows * ROW_HEIGHT + SPAN_PAD + TICK_H;
   });
   const sharedTrackMidY = $derived(sharedTrackTop + TRACK_AREA / 2);
 
   const groupBands = $derived.by((): GroupBand[] =>
-    hasGroups
+    showGroups
       ? groupOrder.map((label, gi) => ({
           label,
           isEven: gi % 2 === 1,
@@ -419,8 +454,8 @@
   );
 
   const contentHeight = $derived(
-    hasGroups
-      ? groupOrder.length * GROUP_LABEL_H + TRACK_AREA
+    showGroups
+      ? groupRowsNeeded * GROUP_LABEL_H + TRACK_AREA
       : sharedTrackTop + TRACK_AREA
   );
 
@@ -461,17 +496,17 @@
   function handleGripClick() {
     if (_wasDrag) { _wasDrag = false; return; }
     userAdjustedRows = true;
-    displayRows = displayRows > 0 ? 0 : 1;
+    displayRows = displayRows > 0 ? 0 : Math.max(1, groupThresholdRows);
   }
 
   // Absolute Y helpers
   function absRowCenterY(ev: PositionedEvent): number {
-    return hasGroups
+    return showGroups
       ? ev.groupIdx * GROUP_LABEL_H + GROUP_LABEL_H / 2
       : ev.row * ROW_HEIGHT + ROW_HEIGHT / 2;
   }
   function absRowBottomY(ev: PositionedEvent): number {
-    return hasGroups
+    return showGroups
       ? (ev.groupIdx + 1) * GROUP_LABEL_H - 2
       : (ev.row + 1) * ROW_HEIGHT - 4;
   }
@@ -521,7 +556,7 @@
     e.preventDefault();
     const dy = ady >= adx ? e.deltaY : e.deltaX;
     if (dy === 0) return;
-    const gutter = hasGroups ? GROUP_GUTTER : ZOOM_GUTTER;
+    const gutter = showGroups ? GROUP_GUTTER : ZOOM_GUTTER;
     const rect       = (e.currentTarget as Element).getBoundingClientRect();
     const cursorFrac = Math.max(0, Math.min(1, (e.clientX - rect.left - gutter) / timelineWidth));
     const cursorData = viewStart + cursorFrac * viewRange;
@@ -705,7 +740,7 @@
   </div>
 
   <!-- Group label bands — full width, gutter holds the group name -->
-  {#if hasGroups}
+  {#if showGroups}
     {#each groupBands as band}
       <div
         class="tl-nav__group-band"
@@ -714,7 +749,10 @@
         aria-hidden="true"
       >
         {#if band.label}
-          <span class="tl-nav__group-name">{band.label}</span>
+          <span
+            class="tl-nav__group-name"
+            style="left: {controlGutter + 6}px; right: calc(100% - {GROUP_GUTTER - 6}px);"
+          >{band.label}</span>
         {/if}
       </div>
     {/each}
@@ -723,7 +761,7 @@
   <!-- Timeline content area — offset right of gutter when groups are present -->
   <div
     class="tl-nav__content"
-    style="left: {hasGroups ? GROUP_GUTTER : controlGutter}px; bottom: {AXIS_H}px;"
+    style="left: {showGroups ? GROUP_GUTTER : controlGutter}px; bottom: {AXIS_H}px;"
     bind:clientWidth={timelineWidth}
   >
     {#if displayRows > 0}
@@ -808,7 +846,7 @@
 
   <div
     class="tl-nav__axis-strip"
-    style="left: {hasGroups ? GROUP_GUTTER : controlGutter}px; height: {AXIS_H}px; --tl-axis-track-offset: {Math.round(TRACK_AREA / 2)}px;"
+    style="left: {showGroups ? GROUP_GUTTER : controlGutter}px; height: {AXIS_H}px; --tl-axis-track-offset: {Math.round(TRACK_AREA / 2)}px;"
     aria-hidden="true"
   >
     {#each axisTicks as { screenPct, label, edge }}
@@ -821,7 +859,7 @@
         <span class="tl-nav__axis-label">{label}</span>
       </div>
     {/each}
-    {#if !hasGroups}
+    {#if !showGroups}
       <div class="tl-nav__minimap">
         <div class="tl-nav__minimap-thumb" style="left: {viewStart}%; width: {viewRange}%;"></div>
       </div>
@@ -923,9 +961,9 @@
   .tl-nav__group-name {
     position: absolute;
     top: 50%;
-    left: 6px;
-    right: calc(100% - 72px + 4px); /* stays in the gutter */
+    /* left/right set inline — must clear the zoom-controls column, see GROUP_GUTTER */
     transform: translateY(-50%);
+    z-index: 1; /* float above leader lines/dots when the label overflows the gutter */
     font-size: 0.6rem;
     font-weight: 700;
     letter-spacing: 0.06em;
@@ -933,8 +971,8 @@
     color: var(--tl-color-text-muted);
     opacity: 0.55;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    /* Intentionally not clipped — a long label (e.g. "Social Media") floats
+       over the timeline content rather than truncating with an ellipsis. */
     user-select: none;
   }
 

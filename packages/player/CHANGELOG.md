@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- `TimeNav` group-band labels (e.g. from TL3 `group` fields) were effectively
+  invisible — the label gutter overlapped the zoom-controls column, which sat
+  on top with an opaque background, hiding all but a sliver of each name.
+  Labels now render clear of the controls, and a label too long for the
+  gutter (e.g. "Social Media") floats over the timeline instead of being
+  truncated with an ellipsis.
+- The group with no `group` value could land in the middle of the group
+  list, wherever its first event happened to fall chronologically. It's now
+  always pinned to the last band.
+- Dragging the nav handle down on a grouped timeline could make it *taller*
+  instead of shorter, because grouped rows and the ungrouped fallback layout
+  used different row heights. Shrinking the drawer below the height needed
+  to show one row per group now drops grouping entirely and lays out events
+  like an ungrouped timeline, using as many rows as actually fit — and the
+  fallback height can never exceed the grouped height it replaces.
+
 ## [0.3.0] - 2026-07-28
 
 ### Added
