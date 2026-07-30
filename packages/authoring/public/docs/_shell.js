@@ -17,6 +17,7 @@ async function loadPage() {
     document.head.appendChild(style.cloneNode(true));
   }
   document.getElementById('doc-content').innerHTML = frag.body.innerHTML;
+  window.scrollTo(0, 0);
 }
 
 loadPage();
