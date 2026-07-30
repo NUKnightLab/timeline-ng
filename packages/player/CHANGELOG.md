@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- `loadTimeline()` never hydrated `blobRef`-backed media or backgrounds (images
+  uploaded to a PDS rather than linked by URL) into fetchable URLs — only the
+  authoring app did that hydration, for the signed-in user's own drafts. Any
+  read-only playback of an `at://` timeline (embeds, share links) with an
+  uploaded background or event image silently rendered without it. Blob
+  references are now hydrated into `getBlob` URLs using the author's DID and
+  resolved PDS at load time.
 - `TimeNav` group-band labels (e.g. from TL3 `group` fields) were effectively
   invisible — the label gutter overlapped the zoom-controls column, which sat
   on top with an opaque background, hiding all but a sliver of each name.

@@ -1,5 +1,5 @@
 import { normalizeTimelineSourceUrl, parseTimelineText } from '@knight-lab/timeline-ng-core';
-import type { TLTimeline } from '@knight-lab/timeline-ng-core';
+import type { TLTimeline, TLEvent, TLSettings } from '@knight-lab/timeline-ng-core';
 
 export interface LoaderConfig {
   plcDirectory?: string;
@@ -47,6 +47,47 @@ async function resolvePds(did: string, plcDir: string): Promise<string> {
   return svc.serviceEndpoint;
 }
 
+// getRecord responses do IPLD JSON decoding: blobRef.ref comes back as a CID
+// class object, not the plain { $link: string } we write on upload. Handle both.
+function extractCid(ref: { $link: string } | unknown): string {
+  if (!ref) return '';
+  if (typeof ref === 'object' && '$link' in (ref as object)) return (ref as { $link: string }).$link ?? '';
+  return String(ref);
+}
+
+// Read-only playback (embed, share links) has no PDS session, so blobRef-backed
+// media/background must be hydrated into fetchable getBlob URLs using the
+// author's DID and PDS resolved above — mirrors the authoring app's
+// hydrateBlobRefs, but for an arbitrary author rather than the signed-in user.
+function hydrateBlobRefs(events: TLEvent[], pds: string, did: string): TLEvent[] {
+  const cidUrl = (cid: string) => cid ? `${pds}/xrpc/com.atproto.sync.getBlob?did=${did}&cid=${encodeURIComponent(cid)}` : '';
+  return events.map(ev => ({
+    ...ev,
+    ...(ev.media?.blobRef ? { media: { ...ev.media, url: cidUrl(extractCid(ev.media.blobRef.ref)), mimeType: ev.media.blobRef.mimeType } } : {}),
+    ...(ev.background?.blobRef ? { background: { ...ev.background, url: cidUrl(extractCid(ev.background.blobRef.ref)) } } : {}),
+  }));
+}
+
+function hydrateOgImage(settings: TLSettings | undefined, pds: string, did: string): TLSettings | undefined {
+  const blobRef = settings?.ogImage?.blobRef;
+  if (!blobRef) return settings;
+  const cid = extractCid(blobRef.ref);
+  if (!cid) return settings;
+  return {
+    ...settings,
+    ogImage: { ...settings.ogImage, url: `${pds}/xrpc/com.atproto.sync.getBlob?did=${did}&cid=${encodeURIComponent(cid)}` },
+  };
+}
+
+function hydrateTimeline(timeline: TLTimeline, pds: string, did: string): TLTimeline {
+  return {
+    ...timeline,
+    events: hydrateBlobRefs(timeline.events, pds, did),
+    ...(timeline.title ? { title: hydrateBlobRefs([timeline.title], pds, did)[0] } : {}),
+    ...(timeline.settings ? { settings: hydrateOgImage(timeline.settings, pds, did) } : {}),
+  };
+}
+
 async function fetchAtRecord(
   authority: string, collection: string, rkey: string,
   cfg: Required<LoaderConfig>,
@@ -68,7 +109,7 @@ async function fetchAtRecord(
   }
   const record = await resp.json() as { value?: { timeline?: TLTimeline } };
   if (!record.value?.timeline) throw new Error('Record has no timeline field');
-  return { timeline: record.value.timeline, did };
+  return { timeline: hydrateTimeline(record.value.timeline, pds, did), did };
 }
 
 async function fetchHttpTimeline(url: string): Promise<TLTimeline> {
