@@ -24,7 +24,7 @@
   // rendered and can be measured — the account panel sizes to its one button
   // rather than sharing the sign-in form's fixed 280px width.
   const SIGNIN_PANEL_WIDTH = 280;
-  const ACCOUNT_PANEL_WIDTH = 100;
+  const ACCOUNT_PANEL_WIDTH = 130;
   const MARGIN = 8;
 
   $effect(() => { if (showPanel) handleInputEl?.focus(); });
@@ -213,8 +213,8 @@
     </button>
     {#if showAccountPanel}
       <div class="auth-panel auth-account-panel" style="top: {panelTop}px; left: {panelLeft}px" bind:this={panelEl}>
-        <button class="btn-panel-close" onclick={closePanels} aria-label="Close">✕</button>
         <button class="btn-signout-panel" onclick={handleSignOut}>Sign out</button>
+        <button class="btn-panel-close btn-panel-close--inline" onclick={closePanels} aria-label="Close">✕</button>
       </div>
     {/if}
   </div>
@@ -356,7 +356,10 @@
 
   .auth-panel.auth-account-panel {
     width: auto;
-    padding: 1.5rem 0.4rem 0.4rem;
+    padding: 0.4rem;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.4rem;
   }
 
   .btn-signout-panel {
@@ -373,7 +376,6 @@
     cursor: pointer;
     border-radius: 2px;
     margin: 0;
-    width: 100%;
   }
   .btn-signout-panel:hover { border-color: #9ca3af; background: #f9fafb; }
 
@@ -444,6 +446,11 @@
     border-radius: 2px;
   }
   .btn-panel-close:hover { color: #374151; background: #f3f4f6; }
+
+  .btn-panel-close--inline {
+    position: static;
+    flex-shrink: 0;
+  }
 
   .auth-panel-label {
     font-size: 0.85rem;
