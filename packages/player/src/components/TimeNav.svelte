@@ -1187,40 +1187,58 @@
   }
 
   /* Point-event dots — padding + background-clip extends the hit area without changing the visual */
+  /*
+   * The element is the hit target; ::before is the visible dot. They are kept
+   * separate so the target can be sized for WCAG 2.2 SC 2.5.8 without the mark
+   * changing shape.
+   *
+   * This used to be one box, relying on `background-clip: content-box` to keep
+   * the paint inside a 0.25px content box — except the `background` shorthand
+   * that followed reset background-clip to border-box, so the painted dot was
+   * really the padding box all along. It stayed round only because the padding
+   * happened to be uniform; giving it a taller target turned it into an
+   * ellipse.
+   *
+   * The target is deliberately taller than it is wide. The 44px track has
+   * vertical room to spare, whereas dots are positioned by date and can sit a
+   * few pixels apart (7px in the sample timeline) — 24px-wide targets would
+   * occlude each other's centres and make the earlier of two close events
+   * unreachable, which is worse for exactly the users the criterion protects.
+   * Where dots are dense the label above is the accessible target;
+   * --tl-nav-dot-target-x widens them for timelines sparse enough to afford it.
+   */
   .tl-nav__dot {
-    transition: left 0.3s ease,
-                transform var(--tl-transition-speed) ease,
-                background var(--tl-transition-speed) ease;
     position: absolute;
     top: 50%;
-    width: var(--tl-nav-marker-size, .25px);
-    height: var(--tl-nav-marker-size, .25px);
-    box-sizing: content-box;
-    /*
-     * Hit area, not visual size — content-box plus background-clip means this
-     * padding enlarges the target without changing the painted dot.
-     *
-     * Vertical padding is generous because the 44px track has room to spare.
-     * Horizontal padding stays tight on purpose: dots are positioned by date
-     * and can sit a handful of pixels apart (7px in the sample timeline), so a
-     * 24px-wide target would have neighbours occluding each other's centres
-     * and make the earlier event unreachable — worse for exactly the users
-     * SC 2.5.8 protects. Where dots are dense, the label above is the
-     * accessible target. Embedders with sparse timelines can widen via
-     * --tl-nav-dot-target-x.
-     */
-    padding: var(--tl-nav-dot-target-y, 12px) var(--tl-nav-dot-target-x, 6px);
-    background-clip: content-box;
-    border-radius: 50%;
-    background: var(--tl-color-nav-marker);
-    transform: translate(-50%, -50%);
+    width: calc(var(--tl-nav-dot-target-x, 6px) * 2);
+    height: calc(var(--tl-nav-dot-target-y, 12px) * 2);
+    padding: 0;
     border: none;
+    background: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform: translate(-50%, -50%);
     cursor: pointer;
+    transition: left 0.3s ease;
   }
 
-  .tl-nav__dot--active {
+  .tl-nav__dot::before {
+    content: '';
+    display: block;
+    width: var(--tl-nav-marker-size, 12px);
+    height: var(--tl-nav-marker-size, 12px);
+    border-radius: 50%;
+    background: var(--tl-color-nav-marker);
+    transition: transform var(--tl-transition-speed) ease,
+                background var(--tl-transition-speed) ease;
+  }
+
+  /* Scale the mark, not the target — growing the hit area on selection would
+     make it steal clicks from its neighbours. */
+  .tl-nav__dot--active::before {
     background: var(--tl-nav-mark-active, var(--tl-color-nav-marker-active));
-    transform: translate(-50%, -50%) scale(var(--tl-nav-dot-active-scale, 1.4));
+    transform: scale(var(--tl-nav-dot-active-scale, 1.4));
   }
 
   /* Axis ticks — anchored to the bottom of the track, above the minimap */

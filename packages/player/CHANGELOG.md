@@ -97,6 +97,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- TimeNav marker dots rendered as vertical ellipses. The dot's visible size had
+  always come from its padding box, not — as the code claimed — from a tiny
+  content box clipped by `background-clip: content-box`: the `background`
+  shorthand declared after it reset `background-clip` back to `border-box`.
+  With uniform padding the result was a circle by accident, so giving the dot a
+  taller hit target for SC 2.5.8 stretched the mark with it. The visible dot is
+  now drawn by a `::before` at a fixed size, independent of the target, and the
+  active state scales that mark rather than the target — growing a target on
+  selection would have let it steal clicks from its neighbours.
+- `--tl-nav-marker-size` now means what its name implies: the dot's diameter,
+  defaulting to 12px. It previously set a content box whose size had no effect
+  on the rendered dot.
+
 - TimeNav zoom/navigation buttons were 28x20px, under WCAG 2.2 SC 2.5.8's
   24x24 minimum target size. They are now 24x24. The control column needed the
   extra room, so it now spans the axis band as well as the content area — the
