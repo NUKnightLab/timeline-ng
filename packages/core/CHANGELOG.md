@@ -24,6 +24,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   Regenerate with `pnpm fonts:extract`.
 - `TLSettings.fontPairing`, typed as `FontPairingId` so the JSON schema
   validates against the shipped list without a hand-maintained duplicate.
+- `PAIRING_ALIASES`. TimelineJS 3 shipped `default` as a byte-identical copy of
+  `pt` — the same two faces under a second name — so 19 pairings are offered
+  rather than 20, and `getPairing('default')` resolves to `pt`. `FontPairingId`
+  keeps accepting `'default'`: what a record may name is deliberately a superset
+  of what the picker offers, so an existing record never stops resolving.
 
 - `TLSettings.skin` — selects a named visual skin in the player. Orthogonal to
   `TLSettings.theme`, which stays a light/dark choice.

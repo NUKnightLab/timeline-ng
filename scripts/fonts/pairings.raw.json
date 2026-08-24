@@ -1,32 +1,5 @@
 [
   {
-    "id": "default",
-    "heading": {
-      "family": "PT Sans Narrow",
-      "fallback": [
-        "sans-serif"
-      ]
-    },
-    "body": {
-      "family": "PT Serif",
-      "fallback": [
-        "serif"
-      ]
-    },
-    "scripts": [
-      "cyrillic",
-      "cyrillic-ext",
-      "latin",
-      "latin-ext"
-    ],
-    "headingTransform": "uppercase",
-    "headingWeight": 700,
-    "headingPx": 46,
-    "bodyPx": 16,
-    "bodyLineHeight": "1.3em",
-    "webfontFaces": 20
-  },
-  {
     "id": "georgia-helvetica",
     "heading": {
       "family": "Georgia",

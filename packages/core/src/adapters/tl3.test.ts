@@ -115,3 +115,13 @@ describe('settings passthrough', () => {
     expect(tl.settings).toBeUndefined();
   });
 });
+
+describe('font pairing aliases', () => {
+  it("resolves TL3's 'default' to the identical 'pt' pairing", () => {
+    const tl = fromTL3({
+      events: [{ start_date: { year: 2000 } }],
+      settings: { fontPairing: 'default' },
+    });
+    expect(tl.settings?.fontPairing).toBe('pt');
+  });
+});

@@ -242,7 +242,6 @@
     "FontPairingId": {
       "type": "string",
       "enum": [
-        "default",
         "georgia-helvetica",
         "pt",
         "ubuntu",
@@ -261,9 +260,10 @@
         "playfair-faunaone",
         "roboto-megrim",
         "rufina-sintony",
-        "unicaone-vollkorn"
+        "unicaone-vollkorn",
+        "default"
       ],
-      "description": "Every pairing id, as a union — this is what TLSettings.fontPairing accepts."
+      "description": "Every id TLSettings.fontPairing accepts. This is deliberately a superset of the ids in FONT_PAIRINGS: what a record may *name* includes aliases, while what the UI *offers* does not. See PAIRING_ALIASES."
     },
     "TLOgImage": {
       "type": "object",

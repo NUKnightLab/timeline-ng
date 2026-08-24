@@ -31,9 +31,12 @@ export interface FontPairing {
   tokens: Record<string, string>;
 }
 
-/** Every pairing id, as a union — this is what TLSettings.fontPairing accepts. */
+/**
+ * Every id TLSettings.fontPairing accepts. This is deliberately a superset of
+ * the ids in FONT_PAIRINGS: what a record may *name* includes aliases, while
+ * what the UI *offers* does not. See PAIRING_ALIASES.
+ */
 export type FontPairingId =
-  | 'default'
   | 'georgia-helvetica'
   | 'pt'
   | 'ubuntu'
@@ -52,31 +55,10 @@ export type FontPairingId =
   | 'playfair-faunaone'
   | 'roboto-megrim'
   | 'rufina-sintony'
-  | 'unicaone-vollkorn';
+  | 'unicaone-vollkorn'
+  | 'default';
 
 export const FONT_PAIRINGS: FontPairing[] = [
-  {
-    "id": "default",
-    "label": "PT Sans Narrow + PT Serif",
-    "heading": "PT Sans Narrow",
-    "body": "PT Serif",
-    "scripts": [
-      "cyrillic",
-      "cyrillic-ext",
-      "latin",
-      "latin-ext"
-    ],
-    "webfonts": [
-      "PT Serif",
-      "PT Sans Narrow"
-    ],
-    "tokens": {
-      "--tl-font-heading": "'PT Sans Narrow', sans-serif",
-      "--tl-font-body": "'PT Serif', serif",
-      "--tl-headline-size": "clamp(1.2rem, 3cqi, 2.875rem)",
-      "--tl-headline-transform": "uppercase"
-    }
-  },
   {
     "id": "georgia-helvetica",
     "label": "Georgia + Helvetica Neue",
@@ -484,9 +466,17 @@ export const FONT_PAIRINGS: FontPairing[] = [
 
 export const DEFAULT_PAIRING: FontPairingId = 'georgia-helvetica';
 
+/**
+ * Ids that resolve to another pairing. TimelineJS 3 shipped `default` as a
+ * duplicate of `pt` — the same two faces under a second name — so records
+ * naming it still resolve, but it is not offered as a separate choice.
+ */
+export const PAIRING_ALIASES: Record<string, FontPairingId> = { default: 'pt' };
+
 export function getPairing(id: string | undefined): FontPairing | undefined {
   if (!id) return undefined;
-  return FONT_PAIRINGS.find(p => p.id === id);
+  const resolved = PAIRING_ALIASES[id] ?? id;
+  return FONT_PAIRINGS.find(p => p.id === resolved);
 }
 
 /**

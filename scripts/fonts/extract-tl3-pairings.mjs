@@ -38,9 +38,18 @@ const UA =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 ' +
   '(KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36';
 
-/* From the TimelineJS3 repo tree. `base` is a shared partial, not a pairing. */
+/*
+ * From the TimelineJS3 repo tree. `base` is a shared partial, not a pairing.
+ *
+ * `default` is omitted deliberately: font.default.css and font.pt.css are the
+ * same stylesheet apart from a comment header, so TL3's "default" is an alias
+ * for "pt". It is carried as an alias in generate-pairings.mjs rather than a
+ * second entry — offering the same two faces twice is confusing, and the name
+ * is worse than redundant in this codebase, where `fontPairing: 'default'`
+ * would read as "the default" while meaning PT Sans Narrow + PT Serif.
+ */
 const SETS = [
-  'default', 'georgia-helvetica', 'pt', 'ubuntu', 'oldstandard',
+  'georgia-helvetica', 'pt', 'ubuntu', 'oldstandard',
   'abril-droidsans', 'amatic-andika', 'bevan-pontanosans', 'bitter-raleway',
   'clicker-garamond', 'dancing-ledger', 'fjalla-average', 'lustria-lato',
   'medula-lato', 'opensans-gentiumbook', 'playfair', 'playfair-faunaone',
