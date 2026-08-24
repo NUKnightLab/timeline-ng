@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- A `fontPairing` prop on `SlidePlayer`, applying a pairing's typography tokens
+  as inline custom properties. The player supplies tokens only and never loads
+  font files — whoever mounts it serves the faces. An unrecognised id is
+  ignored rather than throwing, since a saved record can outlive a pairing.
+
 - `--tl-headline-transform`, so a font pairing can set its headline in caps —
   five of the TimelineJS 3 pairings do. Defaults to `none`.
 

@@ -90,3 +90,28 @@ describe('fromTL3', () => {
     expect(tl.events[1].text?.headline).toBe('Cold War ends');
   });
 });
+
+describe('settings passthrough', () => {
+  it('carries a settings block through, since TL3 JSON has none of its own', () => {
+    const tl = fromTL3({
+      events: [{ start_date: { year: 2000 }, text: { headline: 'x' } }],
+      settings: { language: 'es', theme: 'dark', fontPairing: 'playfair', skin: 'quiet', reverseOrder: true },
+    });
+    expect(tl.settings).toEqual({
+      language: 'es', theme: 'dark', fontPairing: 'playfair', skin: 'quiet', reverseOrder: true,
+    });
+  });
+
+  it('drops values it does not recognise rather than passing them to the player', () => {
+    const tl = fromTL3({
+      events: [{ start_date: { year: 2000 } }],
+      settings: { theme: 'chartreuse', fontPairing: 'not-a-pairing', initialIndex: -3, reverseOrder: 'yes' },
+    });
+    expect(tl.settings).toBeUndefined();
+  });
+
+  it('leaves settings absent for a genuine TL3 file', () => {
+    const tl = fromTL3({ events: [{ start_date: { year: 2000 } }] });
+    expect(tl.settings).toBeUndefined();
+  });
+});

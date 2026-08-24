@@ -1,3 +1,5 @@
+import type { FontPairingId } from './fonts.ts';
+
 /**
  * Variable-resolution date. Only `year` is required.
  * Negative year = BCE. Values may be outside JS Date range (cosmological scale).
@@ -81,6 +83,14 @@ export interface TLSettings {
   language?: string;
   /** Color theme. 'auto' (default) follows the viewer's OS/browser preference. */
   theme?: 'light' | 'dark' | 'auto';
+  /**
+   * Font pairing, carried forward from TimelineJS 3. Supplies
+   * `--tl-font-heading` / `--tl-font-body` and a few matching size and weight
+   * tokens; see FONT_PAIRINGS. Defaults to 'georgia-helvetica', the one
+   * pairing built from system fonts and therefore the only one that covers
+   * every writing system.
+   */
+  fontPairing?: FontPairingId;
   /**
    * Named visual skin — a packaged set of design-token values. Orthogonal to
    * `theme`: every skin has a light and a dark variant. 'default' (default)

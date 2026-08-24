@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
   import type { TLTimeline, TLEvent } from '@knight-lab/timeline-ng-core';
-  import { getLocale, getMessage } from '@knight-lab/timeline-ng-core';
+  import { getLocale, getMessage, getPairing } from '@knight-lab/timeline-ng-core';
+  import type { FontPairingId } from '@knight-lab/timeline-ng-core';
   import SlideContent from './SlideContent.svelte';
   import TimeNav from './TimeNav.svelte';
   import '../styles/base.css';
@@ -17,6 +18,13 @@
      * 'default' applies no overlay.
      */
     skin?: 'default' | 'quiet' | 'contrast' | 'bare';
+    /**
+     * Font pairing id (see FONT_PAIRINGS). Supplies typography tokens only —
+     * the player never loads font files. Whoever mounts it is responsible for
+     * serving the faces the pairing names in `webfonts`; if they aren't
+     * served, the pairing's fallback stack renders instead.
+     */
+    fontPairing?: FontPairingId;
     initialIndex?: number;
     autofocus?: boolean;
   }
@@ -27,6 +35,7 @@
     reverseOrder = false,
     theme = 'auto',
     skin = 'default',
+    fontPairing,
     initialIndex = 0,
     autofocus = false,
   }: Props = $props();
@@ -116,6 +125,21 @@
   const themeAttr: string | undefined = $derived(theme === 'auto' ? undefined : theme);
   const skinAttr: string | undefined = $derived(skin === 'default' ? undefined : skin);
 
+  /*
+   * A pairing is applied as inline custom properties rather than a class, so
+   * it lands on the element itself and outranks every :root and [data-tl-*]
+   * block without needing a stylesheet of its own. An unrecognised id is
+   * ignored rather than throwing — a record can outlive the pairing it names.
+   */
+  const resolvedPairing = $derived(getPairing(fontPairing));
+  const fontStyle: string = $derived(
+    resolvedPairing
+      ? Object.entries(resolvedPairing.tokens)
+          .map(([token, value]) => `${token}: ${value};`)
+          .join(' ')
+      : '',
+  );
+
   const tl = $derived(getLocale(language));
 
   const liveLabel: string = $derived.by(() => {
@@ -203,6 +227,8 @@
   class="tl-player"
   data-tl-theme={themeAttr}
   data-tl-skin={skinAttr}
+  data-tl-font={resolvedPairing?.id}
+  style={fontStyle}
   onkeydown={handleKeydown}
   tabindex="0"
   aria-label={timeline.title?.text?.headline ?? getMessage(tl, 'timeline.label')}

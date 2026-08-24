@@ -209,6 +209,10 @@
           ],
           "description": "Color theme. 'auto' (default) follows the viewer's OS/browser preference."
         },
+        "fontPairing": {
+          "$ref": "#/definitions/FontPairingId",
+          "description": "Font pairing, carried forward from TimelineJS 3. Supplies `--tl-font-heading` / `--tl-font-body` and a few matching size and weight tokens; see FONT_PAIRINGS. Defaults to 'georgia-helvetica', the one pairing built from system fonts and therefore the only one that covers every writing system."
+        },
         "skin": {
           "type": "string",
           "enum": [
@@ -234,6 +238,32 @@
       },
       "additionalProperties": false,
       "description": "Timeline-level playback/display configuration. All fields optional; omitted = player default."
+    },
+    "FontPairingId": {
+      "type": "string",
+      "enum": [
+        "default",
+        "georgia-helvetica",
+        "pt",
+        "ubuntu",
+        "oldstandard",
+        "abril-droidsans",
+        "amatic-andika",
+        "bevan-pontanosans",
+        "bitter-raleway",
+        "clicker-garamond",
+        "dancing-ledger",
+        "fjalla-average",
+        "lustria-lato",
+        "medula-lato",
+        "opensans-gentiumbook",
+        "playfair",
+        "playfair-faunaone",
+        "roboto-megrim",
+        "rufina-sintony",
+        "unicaone-vollkorn"
+      ],
+      "description": "Every pairing id, as a union — this is what TLSettings.fontPairing accepts."
     },
     "TLOgImage": {
       "type": "object",

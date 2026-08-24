@@ -94,7 +94,7 @@ const ts = `/*
  */
 
 export interface FontPairing {
-  id: string;
+  id: FontPairingId;
   /** Human-readable "Heading + Body". */
   label: string;
   heading: string;
@@ -107,11 +107,16 @@ export interface FontPairing {
   tokens: Record<string, string>;
 }
 
+/** Every pairing id, as a union — this is what TLSettings.fontPairing accepts. */
+export type FontPairingId =
+${out.map(p => `  | '${p.id}'`).join('\n')};
+
 export const FONT_PAIRINGS: FontPairing[] = ${JSON.stringify(out, null, 2)};
 
-export const DEFAULT_PAIRING = 'georgia-helvetica';
+export const DEFAULT_PAIRING: FontPairingId = 'georgia-helvetica';
 
-export function getPairing(id: string): FontPairing | undefined {
+export function getPairing(id: string | undefined): FontPairing | undefined {
+  if (!id) return undefined;
   return FONT_PAIRINGS.find(p => p.id === id);
 }
 

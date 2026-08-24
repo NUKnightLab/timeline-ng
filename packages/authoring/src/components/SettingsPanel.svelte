@@ -1,5 +1,6 @@
 <script lang="ts">
-  import type { TLSettings } from '@knight-lab/timeline-ng-core';
+  import { FONT_PAIRINGS, DEFAULT_PAIRING, getPairing, coversLanguage } from '@knight-lab/timeline-ng-core';
+  import type { TLSettings, FontPairingId } from '@knight-lab/timeline-ng-core';
 
   interface Props {
     settings: TLSettings;
@@ -11,6 +12,27 @@
   const language = $derived(settings.language ?? 'en');
   const theme = $derived(settings.theme ?? 'auto');
   const reverseOrder = $derived(settings.reverseOrder ?? false);
+  const fontPairing = $derived(settings.fontPairing ?? DEFAULT_PAIRING);
+
+  /*
+   * Most of these pairings are Latin, sometimes Cyrillic. A timeline in a
+   * script the faces don't cover still renders — from the fallback stack,
+   * per character — but it won't look like what the author picked, and
+   * finding that out after publishing is the bad version of this.
+   */
+  const coverageWarning = $derived.by(() => {
+    const pairing = getPairing(fontPairing);
+    if (!pairing || coversLanguage(pairing, language)) return null;
+    return `${pairing.label} doesn't include glyphs for this timeline's language. Text will fall back to a system font.`;
+  });
+
+  /* System-font pairings load nothing and cover every script — worth saying. */
+  const sortedPairings = $derived(
+    [...FONT_PAIRINGS].sort((a, b) => {
+      const sys = (p: typeof a) => (p.webfonts.length === 0 ? 0 : 1);
+      return sys(a) - sys(b) || a.label.localeCompare(b.label);
+    }),
+  );
 </script>
 
 <div class="settings-panel">
@@ -26,6 +48,26 @@
       <option value="en">English</option>
       <option value="es">Español</option>
     </select>
+  </div>
+
+  <div class="field">
+    <label class="field-label" for="settings-font">Typeface</label>
+    <select
+      id="settings-font"
+      value={fontPairing}
+      onchange={(e) => onchange({ fontPairing: (e.target as HTMLSelectElement).value as FontPairingId })}
+    >
+      {#each sortedPairings as p (p.id)}
+        <option value={p.id}>
+          {p.label}{p.webfonts.length === 0 ? ' — system' : ''}
+        </option>
+      {/each}
+    </select>
+    {#if coverageWarning}
+      <p class="field-warning" role="status">{coverageWarning}</p>
+    {:else}
+      <p class="field-hint">Headline and body faces, carried over from the classic TimelineJS.</p>
+    {/if}
   </div>
 
   <div class="field" role="group" aria-label="Theme">
@@ -51,6 +93,13 @@
 </div>
 
 <style>
+  .field-warning {
+    margin: 0.35rem 0 0;
+    font-size: 0.8rem;
+    line-height: 1.4;
+    color: #f0b429;
+  }
+
   .settings-panel {
     height: 100%;
     overflow-y: auto;

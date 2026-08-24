@@ -18,7 +18,7 @@
  */
 
 export interface FontPairing {
-  id: string;
+  id: FontPairingId;
   /** Human-readable "Heading + Body". */
   label: string;
   heading: string;
@@ -30,6 +30,29 @@ export interface FontPairing {
   /** --tl-* values to apply. */
   tokens: Record<string, string>;
 }
+
+/** Every pairing id, as a union — this is what TLSettings.fontPairing accepts. */
+export type FontPairingId =
+  | 'default'
+  | 'georgia-helvetica'
+  | 'pt'
+  | 'ubuntu'
+  | 'oldstandard'
+  | 'abril-droidsans'
+  | 'amatic-andika'
+  | 'bevan-pontanosans'
+  | 'bitter-raleway'
+  | 'clicker-garamond'
+  | 'dancing-ledger'
+  | 'fjalla-average'
+  | 'lustria-lato'
+  | 'medula-lato'
+  | 'opensans-gentiumbook'
+  | 'playfair'
+  | 'playfair-faunaone'
+  | 'roboto-megrim'
+  | 'rufina-sintony'
+  | 'unicaone-vollkorn';
 
 export const FONT_PAIRINGS: FontPairing[] = [
   {
@@ -459,9 +482,10 @@ export const FONT_PAIRINGS: FontPairing[] = [
   }
 ];
 
-export const DEFAULT_PAIRING = 'georgia-helvetica';
+export const DEFAULT_PAIRING: FontPairingId = 'georgia-helvetica';
 
-export function getPairing(id: string): FontPairing | undefined {
+export function getPairing(id: string | undefined): FontPairing | undefined {
+  if (!id) return undefined;
   return FONT_PAIRINGS.find(p => p.id === id);
 }
 

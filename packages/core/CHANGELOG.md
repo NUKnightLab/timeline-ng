@@ -22,9 +22,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   the fallback stack rather than the chosen face.
 
   Regenerate with `pnpm fonts:extract`.
+- `TLSettings.fontPairing`, typed as `FontPairingId` so the JSON schema
+  validates against the shipped list without a hand-maintained duplicate.
 
 - `TLSettings.skin` — selects a named visual skin in the player. Orthogonal to
   `TLSettings.theme`, which stays a light/dark choice.
+
+### Fixed
+
+- `fromTL3()` discarded any `settings` block. TimelineJS 3's own JSON has no
+  such key, so anything present came from a timeline-ng file being read back
+  in — which meant the authoring tool's file import silently dropped every
+  setting an author had chosen. Downloading a timeline and re-importing it lost
+  language, theme, reverse order, start slide, skin and font pairing. Settings
+  now survive the round trip, field by field, with unrecognised values dropped
+  rather than passed to the player.
 
 ## [0.3.0] - 2026-07-28
 

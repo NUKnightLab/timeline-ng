@@ -5,7 +5,9 @@ import type {
   TLMedia,
   TLText,
   TLBackground,
+  TLSettings,
 } from '../types.ts';
+import { getPairing } from '../fonts.ts';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -108,6 +110,44 @@ function adaptEvent(e: unknown): TLEvent | undefined {
  * Accepts the raw parsed JSON (not a JSON string).
  * Unknown or malformed fields are silently dropped.
  */
+/**
+ * Carry a `settings` block through the adapter.
+ *
+ * TimelineJS 3's own JSON has no `settings` key, so anything found here came
+ * from a timeline-ng file being read back in — which is the common case for
+ * the authoring tool's file import. Without this, a round trip through
+ * download-and-reimport silently discarded every setting the author had
+ * chosen, typeface and skin included.
+ *
+ * Each field is checked rather than spread wholesale: the input is an
+ * arbitrary file, and an unrecognised value should be dropped rather than
+ * handed to the player.
+ */
+function adaptSettings(raw: unknown): TLSettings | undefined {
+  if (typeof raw !== 'object' || raw === null) return undefined;
+  const s = raw as Record<string, unknown>;
+  const out: TLSettings = {};
+
+  if (typeof s['language'] === 'string') out.language = s['language'];
+  if (s['theme'] === 'light' || s['theme'] === 'dark' || s['theme'] === 'auto') {
+    out.theme = s['theme'];
+  }
+  if (typeof s['reverseOrder'] === 'boolean') out.reverseOrder = s['reverseOrder'];
+  if (typeof s['initialIndex'] === 'number' && Number.isFinite(s['initialIndex']) && s['initialIndex'] >= 0) {
+    out.initialIndex = s['initialIndex'];
+  }
+  if (s['skin'] === 'quiet' || s['skin'] === 'contrast' || s['skin'] === 'bare' || s['skin'] === 'default') {
+    out.skin = s['skin'];
+  }
+  /* Validated against the shipped list — a file can name a pairing we dropped. */
+  if (typeof s['fontPairing'] === 'string') {
+    const pairing = getPairing(s['fontPairing']);
+    if (pairing) out.fontPairing = pairing.id;
+  }
+
+  return Object.keys(out).length ? out : undefined;
+}
+
 export function fromTL3(data: unknown): TLTimeline {
   if (typeof data !== 'object' || data === null) {
     return { events: [] };
@@ -129,6 +169,9 @@ export function fromTL3(data: unknown): TLTimeline {
       }
     }
   }
+
+  const settings = adaptSettings(obj['settings']);
+  if (settings) timeline.settings = settings;
 
   return timeline;
 }
