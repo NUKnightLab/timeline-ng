@@ -1,11 +1,16 @@
-/* ── Skins ─────────────────────────────────────────────────────────────────
-   Token-only overlays, selected via the player's `skin` prop, which sets
-   data-tl-skin on the same element that carries data-tl-theme.
+/* ── Font pairings, then skins ─────────────────────────────────────────────
+   Both are token-only overlays on the player root, selected by a prop that
+   sets a data attribute. Pairings come first deliberately: they carry the
+   same (0,2,0) specificity as skins, so source order decides the tie, and a
+   skin should be able to override a pairing's typography where it has a
+   reason to — the contrast skin's larger, heavier body text, for instance.
 
    @import must precede every other rule in the file, so a skin's rules land
    *before* the [data-tl-theme] blocks below rather than after them. Each
    skin therefore has to out-specify those on its own — see the specificity
    note in quiet.css. */
+@import './pairings.css';
+
 @import './skins/quiet.css';
 @import './skins/contrast.css';
 @import './skins/bare.css';

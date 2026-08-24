@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
   import type { TLTimeline, TLEvent } from '@knight-lab/timeline-ng-core';
-  import { getLocale, getMessage, getPairing } from '@knight-lab/timeline-ng-core';
+  import { getLocale, getMessage, getPairing, DEFAULT_PAIRING } from '@knight-lab/timeline-ng-core';
   import type { FontPairingId } from '@knight-lab/timeline-ng-core';
   import SlideContent from './SlideContent.svelte';
   import TimeNav from './TimeNav.svelte';
@@ -131,14 +131,15 @@
    * block without needing a stylesheet of its own. An unrecognised id is
    * ignored rather than throwing — a record can outlive the pairing it names.
    */
-  const resolvedPairing = $derived(getPairing(fontPairing));
-  const fontStyle: string = $derived(
-    resolvedPairing
-      ? Object.entries(resolvedPairing.tokens)
-          .map(([token, value]) => `${token}: ${value};`)
-          .join(' ')
-      : '',
-  );
+  /*
+   * Unset — or naming a pairing that no longer exists — resolves to
+   * DEFAULT_PAIRING rather than falling through to the raw token defaults in
+   * base.css. Those two paths produced almost-identical output by coincidence
+   * rather than by design, which is the kind of thing that quietly diverges.
+   * One path now, and data-tl-font always reports what actually applied.
+   */
+  const resolvedPairing = $derived(getPairing(fontPairing) ?? getPairing(DEFAULT_PAIRING));
+
 
   const tl = $derived(getLocale(language));
 
@@ -228,7 +229,6 @@
   data-tl-theme={themeAttr}
   data-tl-skin={skinAttr}
   data-tl-font={resolvedPairing?.id}
-  style={fontStyle}
   onkeydown={handleKeydown}
   tabindex="0"
   aria-label={timeline.title?.text?.headline ?? getMessage(tl, 'timeline.label')}

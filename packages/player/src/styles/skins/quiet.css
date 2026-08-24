@@ -51,8 +51,12 @@
  */
 
 .tl-player[data-tl-skin='quiet'] {
-  --tl-font-heading: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-  --tl-font-body: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  /*
+   * No --tl-font-heading / --tl-font-body here on purpose. Which faces render
+   * is the author's choice, made through the font pairing; a skin that pinned
+   * them would make picking a typeface do nothing while this skin was on.
+   * Skins adjust size, weight and colour — never the family.
+   */
   --tl-radius: 4px;
 
   /* ── Slide typography ────────────────────────────────────────────────── */

@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { SlidePlayer, loadTimeline } from '@knight-lab/timeline-ng';
   import '@knight-lab/timeline-ng/styles.css';
-  import { getPairing } from '@knight-lab/timeline-ng-core';
+  import { getPairing, DEFAULT_PAIRING } from '@knight-lab/timeline-ng-core';
   import type { TLTimeline } from '@knight-lab/timeline-ng-core';
 
   // Auto-focus is only appropriate when this page IS the destination the user
@@ -55,7 +55,9 @@
   const FONT_LINK_ID = 'tl-font-pairing';
 
   $effect(() => {
-    const pairing = getPairing(settings.fontPairing);
+    /* Resolve exactly as the player does, so the stylesheet always matches
+       the tokens actually applied. */
+    const pairing = getPairing(settings.fontPairing) ?? getPairing(DEFAULT_PAIRING);
     const existing = document.getElementById(FONT_LINK_ID);
 
     if (!pairing || pairing.webfonts.length === 0) {

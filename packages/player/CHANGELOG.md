@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `styles/pairings.css`, generated from `FONT_PAIRINGS` — each pairing's tokens
+  as a `[data-tl-font]` block. Imported before the skins so the cascade reads
+  base defaults < pairing < skin < embedder.
+
 - A `fontPairing` prop on `SlidePlayer`, applying a pairing's typography tokens
   as inline custom properties. The player supplies tokens only and never loads
   font files — whoever mounts it serves the faces. An unrecognised id is
@@ -60,6 +64,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   a skin can be expressed purely as token values, with no component overrides.
 
 ### Changed
+
+- An unset (or unrecognised) `fontPairing` now resolves to `DEFAULT_PAIRING`
+  rather than falling through to the raw token defaults in `base.css`. Those
+  two paths produced near-identical output by coincidence rather than design.
+  One consequence is visible: with no pairing named, headlines are now Georgia
+  and body copy Helvetica Neue at 17px, where before both were `system-ui` at
+  16px.
+- Skins no longer set `--tl-font-heading` or `--tl-font-body`. Which faces
+  render is the author's choice, expressed through the font pairing; a skin
+  that pinned the family made picking a typeface do nothing while that skin
+  was on. Skins adjust size, weight and colour — never the family.
 
 - The slide date no longer renders as a bold, uppercase, letter-spaced eyebrow.
   It was one of the loudest elements on a slide when it should be among the
