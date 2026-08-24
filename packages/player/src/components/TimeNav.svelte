@@ -38,6 +38,7 @@
   const GROUP_LABEL_H = 20;   // height of each group's label band
   const AXIS_H        = 18;   // axis strip below the shared track
   const GROUP_GUTTER  = 120;  // px reserved on the left for group name labels (must clear the zoom-controls column)
+  const AXIS_CHAR_PX  = 6;    // rough advance width of an axis-label glyph at 0.65rem, tabular
   const ZOOM_GUTTER   = 44;   // px reserved on the left for zoom controls (non-grouped)
   const BTN_SIZE      = 24;   // WCAG 2.2 SC 2.5.8 minimum target: 24x24 CSS px
 
@@ -369,6 +370,35 @@
       { label: startLabel, screenPct: 0, edge: 'start' },
       { label: endLabel, screenPct: 100, edge: 'end' },
     ];
+  });
+
+  /*
+   * A tick is centred on its date, so a label near either end overflows the
+   * strip and gets clipped by the nav. The edge-start/edge-end treatment
+   * anchors the label's near edge to the tick instead, keeping the tick mark
+   * exactly on its date while the text runs inward.
+   *
+   * That treatment already existed but was only ever applied to the two
+   * synthetic ticks used when no real ones fit — every generated tick stayed
+   * centred and could run off. Which end a tick needs is a question about
+   * pixels, not percentages, so it is decided here against the measured width.
+   * The label width is estimated from its character count rather than
+   * measured: these are short, mostly-digit strings in a tabular face, and
+   * an estimate that errs toward anchoring costs nothing but a slightly
+   * early switch.
+   */
+  const clampedAxisTicks = $derived.by(() => {
+    const width = timelineWidth;
+    if (width <= 0) return axisTicks;
+
+    return axisTicks.map(tick => {
+      if (tick.edge) return tick;
+      const halfLabel = (tick.label.length * AXIS_CHAR_PX) / 2;
+      const x = (tick.screenPct / 100) * width;
+      if (x - halfLabel < 0) return { ...tick, edge: 'start' as const };
+      if (x + halfLabel > width) return { ...tick, edge: 'end' as const };
+      return tick;
+    });
   });
 
   // ── Group band layout ─────────────────────────────────────────────────────
@@ -859,7 +889,7 @@
     style="left: {showGroups ? GROUP_GUTTER : controlGutter}px; height: {AXIS_H}px; --tl-axis-track-offset: {Math.round(TRACK_AREA / 2)}px;"
     aria-hidden="true"
   >
-    {#each axisTicks as { screenPct, label, edge }}
+    {#each clampedAxisTicks as { screenPct, label, edge }}
       <div
         class="tl-nav__axis-tick"
         class:tl-nav__axis-tick--edge-start={edge === 'start'}

@@ -97,6 +97,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Axis labels ran off the ends of the TimeNav. Each tick is centred on its
+  date, so a label near either edge overflowed the strip and was clipped. An
+  edge treatment that anchors the label's near side to the tick already
+  existed, but was only ever applied to the two synthetic ticks used when no
+  real ones fit — every generated tick stayed centred. It now applies to any
+  tick whose label would overflow, at either end, with the tick mark staying
+  exactly on its date and the text running inward.
+
 - The TimeNav axis line stopped short of the first and last events, leaving a
   visible gap between the end dot and the line. The line was inset 2% at each
   end while the marks are positioned across the full 0-100% of the same box,
