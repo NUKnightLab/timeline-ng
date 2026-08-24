@@ -81,6 +81,12 @@ export interface TLSettings {
   language?: string;
   /** Color theme. 'auto' (default) follows the viewer's OS/browser preference. */
   theme?: 'light' | 'dark' | 'auto';
+  /**
+   * Named visual skin — a packaged set of design-token values. Orthogonal to
+   * `theme`: every skin has a light and a dark variant. 'default' (default)
+   * applies no overlay.
+   */
+  skin?: 'default' | 'quiet' | 'contrast' | 'bare';
   /** 0-based index of the slide to display first (counting the title slide if present). Defaults to 0. */
   initialIndex?: number;
   /** Show events newest-first. The title slide (if any) always stays first. Defaults to false. */

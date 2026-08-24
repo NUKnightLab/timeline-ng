@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `FONT_PAIRINGS`, `getPairing()` and `coversLanguage()` — the 20 TimelineJS 3
+  font pairings, re-extracted from TL3's own stylesheets and re-resolved
+  against the modern Google Fonts API. A pairing is a set of `--tl-*` token
+  values plus two pieces of metadata: `webfonts` (families a host must serve)
+  and `scripts` (writing systems both faces actually cover). Nothing is
+  loaded by the module itself.
+
+  `coversLanguage()` exists so the authoring tool can warn an author whose
+  language falls outside a pairing's coverage — most of these families are
+  Latin and sometimes Cyrillic, so a Japanese or Arabic timeline renders from
+  the fallback stack rather than the chosen face.
+
+  Regenerate with `pnpm fonts:extract`.
+
+- `TLSettings.skin` — selects a named visual skin in the player. Orthogonal to
+  `TLSettings.theme`, which stays a light/dark choice.
+
 ## [0.3.0] - 2026-07-28
 
 ### Added

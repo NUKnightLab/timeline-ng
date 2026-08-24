@@ -82,6 +82,7 @@
     {initialIndex}
     language={settings.language}
     theme={settings.theme}
+    skin={settings.skin}
     reverseOrder={settings.reverseOrder}
     autofocus={isTopLevel}
   />

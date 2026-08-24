@@ -11,7 +11,10 @@
     "authoring:devnet": "pnpm --filter @timeline-ng/authoring dev:devnet",
     "embed": "pnpm --filter @timeline-ng/embed dev",
     "og-preview": "pnpm --filter @timeline-ng/og-preview dev",
-    "typecheck": "pnpm -r typecheck"
+    "skin-lab": "pnpm --filter @timeline-ng/skin-lab dev",
+    "typecheck": "pnpm -r typecheck",
+    "fonts:extract": "node scripts/fonts/extract-tl3-pairings.mjs && node scripts/fonts/generate-pairings.mjs",
+    "fonts:fetch": "node scripts/fonts/fetch-fonts.mjs && node scripts/fonts/fetch-licenses.mjs"
   },
   "devDependencies": {
     "playwright": "^1.61.1",

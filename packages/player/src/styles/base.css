@@ -1,3 +1,15 @@
+/* ── Skins ─────────────────────────────────────────────────────────────────
+   Token-only overlays, selected via the player's `skin` prop, which sets
+   data-tl-skin on the same element that carries data-tl-theme.
+
+   @import must precede every other rule in the file, so a skin's rules land
+   *before* the [data-tl-theme] blocks below rather than after them. Each
+   skin therefore has to out-specify those on its own — see the specificity
+   note in quiet.css. */
+@import './skins/quiet.css';
+@import './skins/contrast.css';
+@import './skins/bare.css';
+
 /* ── Timeline NG — Design Tokens ─────────────────────────────────────────── */
 :root {
   --tl-font-heading: system-ui, sans-serif;
@@ -7,6 +19,8 @@
   --tl-color-surface: #f5f5f5;
   --tl-color-text: #111111;
   --tl-color-text-muted: #555555;
+  --tl-headline-color: #111111;
+  --tl-body-color: #3d3d3d;
   --tl-color-accent: #d4550e;
   --tl-color-accent-hover: #b5400a;
   --tl-color-border: #dddddd;
@@ -28,6 +42,8 @@
     --tl-color-surface: #2a2a2a;
     --tl-color-text: #f0f0f0;
     --tl-color-text-muted: #aaaaaa;
+    --tl-headline-color: #f8f8f8;
+    --tl-body-color: #d2d2d2;
     --tl-color-border: #444444;
     --tl-color-nav-bg: #111111;
     --tl-color-nav-marker: #aaaaaa;
@@ -41,6 +57,8 @@
   --tl-color-surface: #2a2a2a;
   --tl-color-text: #f0f0f0;
   --tl-color-text-muted: #aaaaaa;
+  --tl-headline-color: #f8f8f8;
+  --tl-body-color: #d2d2d2;
   --tl-color-border: #444444;
   --tl-color-nav-bg: #111111;
   --tl-color-nav-marker: #aaaaaa;
@@ -53,6 +71,8 @@
   --tl-color-surface: #f5f5f5;
   --tl-color-text: #111111;
   --tl-color-text-muted: #555555;
+  --tl-headline-color: #111111;
+  --tl-body-color: #3d3d3d;
   --tl-color-border: #dddddd;
   --tl-color-nav-bg: #e0e0e0;
   --tl-color-nav-marker: #555555;

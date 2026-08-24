@@ -1,0 +1,163 @@
+/*
+ * ── Skin: "contrast" ─────────────────────────────────────────────────────
+ *
+ * An accessibility-forward skin targeting WCAG AAA (7:1) for all text, and
+ * pushing well past the 3:1 non-text minimum. Built as much to *test* the
+ * token surface as to ship: if a skin cannot express an accessible mode, the
+ * token surface is not finished.
+ *
+ * Verified in the skin lab at 21:1 for most marks in both themes.
+ *
+ * Writing this skin is what surfaced three gaps in the token surface, all now
+ * closed — it uses each of the tokens it originally could not reach:
+ *
+ *   1. `--tl-nav-mark-active` separates the active *mark* colour (dot, span
+ *      bar, leader, minimap thumb) from `--tl-color-nav-marker-active`, which
+ *      now only sets the active label's text. Previously one token drove both,
+ *      so inverting the active label to light-on-dark — the natural
+ *      high-contrast treatment — also turned the active dot white on a white
+ *      nav and erased it. This skin now inverts the label and keeps the marks
+ *      black.
+ *   2. `--tl-focus-ring-width` / `--tl-focus-ring-offset` / `--tl-focus-ring-color`
+ *      replace what were five hardcoded `2px solid var(--tl-color-accent)`
+ *      declarations across three components. This skin takes 3px.
+ *   3. `--tl-nav-dot-active-scale` replaces a hardcoded `scale(1.4)`. Under a
+ *      monochrome palette that scale is the *only* thing distinguishing an
+ *      active dot from an inactive one, so this skin pushes it to 1.8.
+ */
+
+.tl-player[data-tl-skin='contrast'] {
+  --tl-color-bg: #ffffff;
+  --tl-color-surface: #ffffff;
+  --tl-color-text: #000000;
+  --tl-color-text-muted: #262626;
+  --tl-color-border: #000000;
+  --tl-color-accent: #0b3d91;
+  --tl-color-accent-hover: #072a66;
+  --tl-focus-ring-width: 3px;
+  --tl-focus-ring-offset: 3px;
+
+  /* Type: heavier and slightly larger, since weight carries meaning here. */
+  --tl-headline-color: #000000;
+  --tl-headline-weight: 800;
+  --tl-body-color: #1a1a1a;
+  --tl-body-size: 1.05rem;
+  --tl-body-line-height: 1.7;
+  --tl-date-color: #262626;
+  --tl-date-weight: 700;
+
+  --tl-slide-valign: auto;
+  --tl-slide-media-align: center;
+
+  /* Nav: white ground, black marks, a hard 2px rule instead of a soft tint. */
+  --tl-color-nav-bg: #ffffff;
+  --tl-nav-border-top: 2px solid #000000;
+  --tl-color-nav-marker: #000000;
+  /* Active label text — inverted; marks stay black via --tl-nav-mark-active. */
+  --tl-color-nav-marker-active: #ffffff;
+  --tl-nav-mark-active: #000000;
+  --tl-color-nav-marker-hover: #0b3d91;
+  --tl-nav-dot-active-scale: 1.8;
+
+  /*
+   * Inactive labels keep a visible 1px edge — in a high-contrast mode a
+   * boundary is information — and the active label inverts outright.
+   */
+  --tl-nav-label-bg: #ffffff;
+  --tl-nav-label-ring: 0 0 0 1px #000000;
+  --tl-nav-label-active-bg: #1a1a1a;
+  --tl-nav-label-active-ring: 0 0 0 2px #000000;
+  --tl-nav-label-active-weight: 700;
+  --tl-nav-label-radius: 2px;
+  --tl-nav-label-padding: 2px 6px;
+
+  --tl-nav-axis-bg: #ffffff;
+  --tl-nav-axis-border-top: 1px solid #000000;
+  --tl-nav-axis-tick-color: #000000;
+  --tl-nav-axis-tick-opacity: 1;
+  --tl-nav-axis-color: #1a1a1a;
+
+  --tl-nav-gutter-bg: #ffffff;
+  --tl-nav-gutter-border: 1px solid #000000;
+
+  /* No mark relies on opacity to be legible. */
+  --tl-nav-leader-opacity: 1;
+  --tl-nav-leader-active-opacity: 1;
+  --tl-nav-track-opacity: 1;
+  --tl-nav-minimap-opacity: 0.35;
+
+  --tl-nav-band-border: 1px solid #000000;
+  --tl-nav-band-alt-bg: transparent;
+}
+
+.tl-player[data-tl-skin='contrast'][data-tl-theme='dark'] {
+  --tl-color-bg: #000000;
+  --tl-color-surface: #000000;
+  --tl-color-text: #ffffff;
+  --tl-color-text-muted: #e0e0e0;
+  --tl-color-border: #ffffff;
+  --tl-color-accent: #7fb2ff;
+  --tl-color-accent-hover: #a9cbff;
+
+  --tl-headline-color: #ffffff;
+  --tl-body-color: #f0f0f0;
+  --tl-date-color: #e0e0e0;
+
+  --tl-color-nav-bg: #000000;
+  --tl-nav-border-top: 2px solid #ffffff;
+  --tl-color-nav-marker: #ffffff;
+  --tl-color-nav-marker-active: #000000;
+  --tl-nav-mark-active: #ffffff;
+  --tl-color-nav-marker-hover: #7fb2ff;
+
+  --tl-nav-label-bg: #000000;
+  --tl-nav-label-ring: 0 0 0 1px #ffffff;
+  --tl-nav-label-active-bg: #ffffff;
+  --tl-nav-label-active-ring: 0 0 0 2px #ffffff;
+
+  --tl-nav-axis-bg: #000000;
+  --tl-nav-axis-border-top: 1px solid #ffffff;
+  --tl-nav-axis-tick-color: #ffffff;
+  --tl-nav-axis-color: #f0f0f0;
+
+  --tl-nav-gutter-bg: #000000;
+  --tl-nav-gutter-border: 1px solid #ffffff;
+  --tl-nav-band-border: 1px solid #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  .tl-player[data-tl-skin='contrast']:not([data-tl-theme='light']) {
+    --tl-color-bg: #000000;
+    --tl-color-surface: #000000;
+    --tl-color-text: #ffffff;
+    --tl-color-text-muted: #e0e0e0;
+    --tl-color-border: #ffffff;
+    --tl-color-accent: #7fb2ff;
+    --tl-color-accent-hover: #a9cbff;
+
+    --tl-headline-color: #ffffff;
+    --tl-body-color: #f0f0f0;
+    --tl-date-color: #e0e0e0;
+
+    --tl-color-nav-bg: #000000;
+    --tl-nav-border-top: 2px solid #ffffff;
+    --tl-color-nav-marker: #ffffff;
+    --tl-color-nav-marker-active: #000000;
+    --tl-nav-mark-active: #ffffff;
+    --tl-color-nav-marker-hover: #7fb2ff;
+
+    --tl-nav-label-bg: #000000;
+    --tl-nav-label-ring: 0 0 0 1px #ffffff;
+    --tl-nav-label-active-bg: #ffffff;
+    --tl-nav-label-active-ring: 0 0 0 2px #ffffff;
+
+    --tl-nav-axis-bg: #000000;
+    --tl-nav-axis-border-top: 1px solid #ffffff;
+    --tl-nav-axis-tick-color: #ffffff;
+    --tl-nav-axis-color: #f0f0f0;
+
+    --tl-nav-gutter-bg: #000000;
+    --tl-nav-gutter-border: 1px solid #ffffff;
+    --tl-nav-band-border: 1px solid #ffffff;
+  }
+}

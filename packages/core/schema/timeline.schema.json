@@ -209,6 +209,16 @@
           ],
           "description": "Color theme. 'auto' (default) follows the viewer's OS/browser preference."
         },
+        "skin": {
+          "type": "string",
+          "enum": [
+            "default",
+            "quiet",
+            "contrast",
+            "bare"
+          ],
+          "description": "Named visual skin — a packaged set of design-token values. Orthogonal to `theme`: every skin has a light and a dark variant. 'default' (default) applies no overlay."
+        },
         "initialIndex": {
           "type": "number",
           "description": "0-based index of the slide to display first (counting the title slide if present). Defaults to 0."

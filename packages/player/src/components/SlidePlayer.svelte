@@ -11,6 +11,12 @@
     language?: string;
     reverseOrder?: boolean;
     theme?: 'light' | 'dark' | 'auto';
+    /**
+     * Named visual skin. Orthogonal to `theme`: a skin restyles the player,
+     * a theme picks its light/dark ground, and every skin supports both.
+     * 'default' applies no overlay.
+     */
+    skin?: 'default' | 'quiet' | 'contrast' | 'bare';
     initialIndex?: number;
     autofocus?: boolean;
   }
@@ -20,6 +26,7 @@
     language = 'en',
     reverseOrder = false,
     theme = 'auto',
+    skin = 'default',
     initialIndex = 0,
     autofocus = false,
   }: Props = $props();
@@ -107,6 +114,7 @@
   }
 
   const themeAttr: string | undefined = $derived(theme === 'auto' ? undefined : theme);
+  const skinAttr: string | undefined = $derived(skin === 'default' ? undefined : skin);
 
   const tl = $derived(getLocale(language));
 
@@ -194,6 +202,7 @@
 <section
   class="tl-player"
   data-tl-theme={themeAttr}
+  data-tl-skin={skinAttr}
   onkeydown={handleKeydown}
   tabindex="0"
   aria-label={timeline.title?.text?.headline ?? getMessage(tl, 'timeline.label')}
@@ -269,8 +278,8 @@
   }
 
   .tl-player:focus-visible {
-    outline: 2px solid var(--tl-color-accent);
-    outline-offset: -2px;
+    outline: var(--tl-focus-ring-width, 2px) solid var(--tl-focus-ring-color, var(--tl-color-accent));
+    outline-offset: calc(-1 * var(--tl-focus-ring-width, 2px));
   }
 
   .tl-player__stage {
@@ -315,7 +324,7 @@
 
   .tl-player__btn:hover:not(:disabled) { background: var(--tl-btn-bg-hover, rgba(0, 0, 0, 0.35)); }
   .tl-player__btn:disabled             { opacity: 0; pointer-events: none; }
-  .tl-player__btn:focus-visible        { outline: 2px solid var(--tl-color-accent); outline-offset: -2px; }
+  .tl-player__btn:focus-visible        { outline: var(--tl-focus-ring-width, 2px) solid var(--tl-focus-ring-color, var(--tl-color-accent)); outline-offset: calc(-1 * var(--tl-focus-ring-width, 2px)); }
 
   /* The base .tl-player rule's `position: relative` is author CSS, which beats the
      UA stylesheet's `:fullscreen { position: fixed }` regardless of specificity —

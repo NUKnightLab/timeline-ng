@@ -39,9 +39,11 @@
   const AXIS_H        = 18;   // axis strip below the shared track
   const GROUP_GUTTER  = 120;  // px reserved on the left for group name labels (must clear the zoom-controls column)
   const ZOOM_GUTTER   = 44;   // px reserved on the left for zoom controls (non-grouped)
+  const BTN_SIZE      = 24;   // WCAG 2.2 SC 2.5.8 minimum target: 24x24 CSS px
 
   // ── Responsive layout derived from compact/minimal props ─────────────────
   const controlGutter = $derived(compact || minimal ? 28 : 44);
+
 
   // ── Viewport state (data-space percentages 0–100) ─────────────────────────
   let viewStart       = $state(0);
@@ -460,6 +462,14 @@
   );
 
   const navHeight = $derived(HANDLE_H + contentHeight + AXIS_H);
+  /*
+   * How many 24px controls the gutter can stack. The column is allowed to run
+   * the full height of the drawer *including* the axis band: the axis strip
+   * starts at `left: controlGutter`, so the gutter's own slice of that band is
+   * empty and free to borrow. Without it four buttons (96px) would not fit the
+   * 80px content area at the default height.
+   */
+  const controlSlots = $derived(Math.floor((contentHeight + AXIS_H) / BTN_SIZE));
   $effect(() => {
     height = navHeight;
   });
@@ -727,15 +737,15 @@
   <!-- Body — sits below the grip strip -->
   <div class="tl-nav__body" style="top: {HANDLE_H}px;">
 
-  <div class="tl-nav__zoom-controls" style="width: {controlGutter}px; height: {contentHeight}px;" role="group" aria-label="Timeline controls" onpointerdown={(e) => e.stopPropagation()}>
+  <div class="tl-nav__zoom-controls" style="width: {controlGutter}px; height: {contentHeight + AXIS_H}px;" role="group" aria-label="Timeline controls" onpointerdown={(e) => e.stopPropagation()}>
     {#if displayRows === 0}
       <button class="tl-nav__zoom-btn" onclick={goToStart} aria-label="Go to beginning" title="Beginning">⏮︎</button>
       <button class="tl-nav__zoom-btn" onclick={goToEnd} aria-label="Go to end" title="End">⏭︎</button>
     {:else}
-      {#if !compact}<button class="tl-nav__zoom-btn" onclick={goToStart} aria-label="Go to beginning" title="Beginning">⏮︎</button>{/if}
+      {#if !compact && controlSlots >= 4}<button class="tl-nav__zoom-btn" onclick={goToStart} aria-label="Go to beginning" title="Beginning">⏮︎</button>{/if}
       <button class="tl-nav__zoom-btn" onclick={zoomIn}  aria-label="Zoom in"  title="Zoom in"  disabled={viewRange <= MIN_RANGE}>+</button>
       <button class="tl-nav__zoom-btn" onclick={zoomOut} aria-label="Zoom out" title="Zoom out" disabled={!isZoomed}>−</button>
-      {#if !compact}<button class="tl-nav__zoom-btn" onclick={goToEnd} aria-label="Go to end" title="End">⏭︎</button>{/if}
+      {#if !compact && controlSlots >= 4}<button class="tl-nav__zoom-btn" onclick={goToEnd} aria-label="Go to end" title="End">⏭︎</button>{/if}
     {/if}
   </div>
 
@@ -872,6 +882,7 @@
 <style>
   .tl-nav {
     background: var(--tl-color-nav-bg);
+    border-top: var(--tl-nav-border-top, none);
     position: absolute;
     bottom: 0;
     left: 0;
@@ -914,8 +925,8 @@
     touch-action: none;
   }
   .tl-nav__handle:focus-visible {
-    outline: 2px solid var(--tl-color-accent);
-    outline-offset: -2px;
+    outline: var(--tl-focus-ring-width, 2px) solid var(--tl-focus-ring-color, var(--tl-color-accent));
+    outline-offset: calc(-1 * var(--tl-focus-ring-width, 2px));
   }
   .tl-nav__grip {
     width: 32px;
@@ -954,10 +965,10 @@
     position: absolute;
     left: 0;
     right: 0;
-    border-bottom: 1px solid var(--tl-color-border, rgba(0,0,0,0.08));
+    border-bottom: var(--tl-nav-band-border, 1px solid var(--tl-color-border, rgba(0,0,0,0.08)));
     pointer-events: none;
   }
-  .tl-nav__group-band--alt { background: rgba(0,0,0,0.03); }
+  .tl-nav__group-band--alt { background: var(--tl-nav-band-alt-bg, rgba(0,0,0,0.03)); }
   .tl-nav__group-name {
     position: absolute;
     top: 50%;
@@ -989,6 +1000,8 @@
     position: absolute;
     right: 0;
     bottom: 0;
+    background: var(--tl-nav-axis-bg, transparent);
+    border-top: var(--tl-nav-axis-border-top, none);
     padding-bottom: 4px;
     overflow: visible;
     z-index: 2;
@@ -1004,18 +1017,19 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 1px;
+    gap: 0;
     z-index: 10;
-    background: var(--tl-color-nav-bg);
-    border-right: 1px solid var(--tl-color-border, rgba(0,0,0,0.1));
+    background: var(--tl-nav-gutter-bg, var(--tl-color-nav-bg));
+    border-right: var(--tl-nav-gutter-border, 1px solid var(--tl-color-border, rgba(0,0,0,0.1)));
   }
 
   .tl-nav__zoom-btn {
     background: none;
     border: none;
     padding: 0;
-    width: 28px;
-    height: 20px;
+    /* 24x24 is WCAG 2.2 SC 2.5.8's minimum target size; it was 28x20. */
+    width: var(--tl-nav-btn-size, 24px);
+    height: var(--tl-nav-btn-size, 24px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1050,26 +1064,32 @@
   .tl-nav__leader {
     stroke: var(--tl-color-nav-marker);
     stroke-width: 1;
-    opacity: 0.5;
+    /*
+     * A leader line is what associates a label with its point on the track, so
+     * it carries information and is held to WCAG's 3:1 for non-text. At the
+     * previous 0.5 the default marker faded to an effective #9b9b9b on the nav
+     * band — 2.11:1. 0.7 is the lightest value that clears it in both themes.
+     */
+    opacity: var(--tl-nav-leader-opacity, 0.7);
     pointer-events: none;
     transition: x1 0.3s ease, y1 0.3s ease, x2 0.3s ease, y2 0.3s ease,
                 opacity var(--tl-transition-speed) ease;
   }
 
   .tl-nav__leader--active {
-    stroke: var(--tl-color-nav-marker-active);
-    opacity: 0.8;
+    stroke: var(--tl-nav-mark-active, var(--tl-color-nav-marker-active));
+    opacity: var(--tl-nav-leader-active-opacity, 0.8);
   }
 
   /* Label buttons */
   .tl-nav__label {
     position: absolute;
     transform: translate(-50%, -50%);
-    background: var(--tl-color-nav-bg);
+    background: var(--tl-nav-label-bg, var(--tl-color-nav-bg));
     border: none;
-    border-radius: 3px;
-    box-shadow: 0 0 0 1px var(--tl-color-border, rgba(0,0,0,0.12));
-    padding: 1px 4px;
+    border-radius: var(--tl-nav-label-radius, 3px);
+    box-shadow: var(--tl-nav-label-ring, 0 0 0 1px var(--tl-color-border, rgba(0,0,0,0.12)));
+    padding: var(--tl-nav-label-padding, 1px 4px);
     cursor: pointer;
     color: var(--tl-color-nav-marker);
     font-size: var(--tl-nav-label-size, 0.72rem);
@@ -1096,14 +1116,16 @@
   }
 
   .tl-nav__label:focus-visible {
-    outline: 2px solid var(--tl-color-accent);
-    outline-offset: 2px;
+    outline: var(--tl-focus-ring-width, 2px) solid var(--tl-focus-ring-color, var(--tl-color-accent));
+    outline-offset: var(--tl-focus-ring-offset, 2px);
     border-radius: 2px;
   }
 
   .tl-nav__label--active {
     color: var(--tl-color-nav-marker-active);
-    font-weight: 600;
+    background: var(--tl-nav-label-active-bg, var(--tl-nav-label-bg, var(--tl-color-nav-bg)));
+    box-shadow: var(--tl-nav-label-active-ring, var(--tl-nav-label-ring, 0 0 0 1px var(--tl-color-border, rgba(0,0,0,0.12))));
+    font-weight: var(--tl-nav-label-active-weight, 600);
     max-width: 130px;
     z-index: 2;
   }
@@ -1140,10 +1162,10 @@
   }
   .tl-nav__span-bar:hover { opacity: 0.75; }
   .tl-nav__span-bar--active {
-    border-color: var(--tl-color-nav-marker-active);
+    border-color: var(--tl-nav-mark-active, var(--tl-color-nav-marker-active));
     opacity: 1;
   }
-  .tl-nav__span-bar--active::before { background: var(--tl-color-nav-marker-active); }
+  .tl-nav__span-bar--active::before { background: var(--tl-nav-mark-active, var(--tl-color-nav-marker-active)); }
 
   /* Track area */
   .tl-nav__track {
@@ -1160,7 +1182,7 @@
     right: 2%;
     height: 1px;
     background: var(--tl-color-nav-marker);
-    opacity: 0.4;
+    opacity: var(--tl-nav-track-opacity, 0.4);
     transform: translateY(-50%);
   }
 
@@ -1174,7 +1196,20 @@
     width: var(--tl-nav-marker-size, .25px);
     height: var(--tl-nav-marker-size, .25px);
     box-sizing: content-box;
-    padding: 6px;
+    /*
+     * Hit area, not visual size — content-box plus background-clip means this
+     * padding enlarges the target without changing the painted dot.
+     *
+     * Vertical padding is generous because the 44px track has room to spare.
+     * Horizontal padding stays tight on purpose: dots are positioned by date
+     * and can sit a handful of pixels apart (7px in the sample timeline), so a
+     * 24px-wide target would have neighbours occluding each other's centres
+     * and make the earlier event unreachable — worse for exactly the users
+     * SC 2.5.8 protects. Where dots are dense, the label above is the
+     * accessible target. Embedders with sparse timelines can widen via
+     * --tl-nav-dot-target-x.
+     */
+    padding: var(--tl-nav-dot-target-y, 12px) var(--tl-nav-dot-target-x, 6px);
     background-clip: content-box;
     border-radius: 50%;
     background: var(--tl-color-nav-marker);
@@ -1184,8 +1219,8 @@
   }
 
   .tl-nav__dot--active {
-    background: var(--tl-color-nav-marker-active);
-    transform: translate(-50%, -50%) scale(1.4);
+    background: var(--tl-nav-mark-active, var(--tl-color-nav-marker-active));
+    transform: translate(-50%, -50%) scale(var(--tl-nav-dot-active-scale, 1.4));
   }
 
   /* Axis ticks — anchored to the bottom of the track, above the minimap */
@@ -1215,15 +1250,15 @@
     display: block;
     width: 1px;
     height: calc(var(--tl-axis-track-offset) - 4px);
-    background: var(--tl-color-nav-marker);
-    opacity: 0.5;
+    background: var(--tl-nav-axis-tick-color, var(--tl-color-nav-marker));
+    opacity: var(--tl-nav-axis-tick-opacity, 0.5);
     margin-bottom: 2px;
   }
 
   .tl-nav__axis-label {
     display: block;
-    font-size: 0.65rem;
-    color: var(--tl-color-text-muted);
+    font-size: var(--tl-nav-axis-size, 0.65rem);
+    color: var(--tl-nav-axis-color, var(--tl-color-text-muted));
     white-space: nowrap;
     line-height: 1;
     font-feature-settings: "tnum";
@@ -1237,14 +1272,14 @@
     right: 0;
     height: 4px;
     background: var(--tl-color-nav-marker);
-    opacity: 0.15;
+    opacity: var(--tl-nav-minimap-opacity, 0.15);
     z-index: 0;
   }
 
   .tl-nav__minimap-thumb {
     position: absolute;
     inset-block: 0;
-    background: var(--tl-color-nav-marker-active);
+    background: var(--tl-nav-mark-active, var(--tl-color-nav-marker-active));
     opacity: 0.7;
   }
 

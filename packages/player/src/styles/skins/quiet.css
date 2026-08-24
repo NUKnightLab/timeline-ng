@@ -1,0 +1,209 @@
+/*
+ * ── Skin: "quiet" ────────────────────────────────────────────────────────
+ *
+ * A low-attention treatment of the player, expressed entirely in --tl-*
+ * token values.
+ *
+ * This started life as an attempted TimelineJS 3 reproduction and is not one.
+ * TL3's timenav marker is a 100px card with a media thumbnail, flag-cornered
+ * and hung from a vertical drop line; ours is a text chip joined to a dot by a
+ * diagonal leader. The silhouettes differ, and no token reaches silhouette —
+ * so a token-only skin can borrow TL3's restraint but never its likeness.
+ *
+ * What it does answer is the request that prompted it: a nav that is "more
+ * subtle" and "doesn't pull as much attention" as the default. No component overrides, no !important, no structural CSS —
+ * if something here can't be said with a token, the token is missing and
+ * belongs in the component instead.
+ *
+ * Typography and proportion follow TimelineJS 3's own stylesheet
+ * (cdn.knightlab.com/libs/timeline3/latest/css/timeline.css). The colours
+ * deliberately do NOT.
+ *
+ * TL3 achieves its calm nav by drawing everything in a narrow low-contrast
+ * band between #bfbfbf and #f2f2f2 — which is exactly why it fails WCAG AA.
+ * Measured against their own backgrounds, TL3's date (#b3b3b3 on white) comes
+ * in at 2.10:1, its axis labels at 2.85:1 and its axis ticks at 1.84:1, versus
+ * the 4.5:1 required for body text and 3:1 for meaningful non-text.
+ *
+ * So this skin keeps the *relationships* that make TL3 feel the way it does
+ * and abandons the absolute values that made it inaccessible:
+ *
+ *   1. The nav recedes — but through less ink, not lighter ink. Inactive
+ *      labels lose their border ring and take the band's own colour as fill,
+ *      so they occlude the lines behind them without drawing a visible chip.
+ *      Group bands lose their alternating tint, the zoom column loses its
+ *      divider. Every one of those is noise removed at zero contrast cost.
+ *   2. Slide text keeps its hierarchy — headline black, body mid-grey, date
+ *      quietest of the three — with each step clamped to the AA floor rather
+ *      than continuing down to TL3's #b3b3b3. The date reads quiet mostly
+ *      because it is no longer bold, uppercase and letter-spaced, which costs
+ *      nothing in contrast.
+ *   3. Purely decorative marks (the track rule, the minimap) stay faint. They
+ *      carry no information, so no threshold applies to them. Anything that
+ *      does carry information — labels, dots, span bars, axis ticks, leader
+ *      lines — meets its threshold.
+ *
+ * Every value below is verified against its actual rendered background; see
+ * the contrast table in the skin lab app.
+ *
+ * A skin is a colour/typography layer only. It cannot add or remove nav
+ * chrome — see the `navChrome` prop for that.
+ */
+
+.tl-player[data-tl-skin='quiet'] {
+  --tl-font-heading: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --tl-font-body: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --tl-radius: 4px;
+
+  /* ── Slide typography ────────────────────────────────────────────────── */
+  /* TL3 centres slide content vertically; that is now the player default. */
+  --tl-slide-valign: auto;
+  --tl-slide-media-align: center;
+
+  /*
+   * The date's size, weight, casing and tracking, and the headline/body
+   * contrast split, all moved into the default player — they were fixes, not
+   * preferences. What is left here is genuinely this skin's own: a slightly
+   * lighter date, a smaller headline ceiling, and TL3's tighter body measure.
+   */
+  --tl-date-color: #767676;
+
+  /* TL3 caps h2 at 28px; the default ceiling is nearly half again as large. */
+  --tl-headline-size: clamp(1.35rem, 2.6cqi, 1.75rem);
+  --tl-headline-color: #000000;
+
+  --tl-body-size: 0.9375rem;
+  --tl-body-line-height: 1.42857143;
+  --tl-body-color: #666666;
+
+  /* TL3 narrows and centres text-only slides. */
+  --tl-slide-text-only-align: center;
+  --tl-slide-text-only-width: 80%;
+  --tl-slide-text-only-margin: auto;
+
+  /* ── Nav ─────────────────────────────────────────────────────────────── */
+  --tl-color-nav-bg: #f2f2f2;
+  --tl-nav-border-top: 1px solid #e5e5e5;
+
+  /*
+   * TL3 uses #919191/#737373 here. Those measure 2.50:1 and 2.82:1 against
+   * the surfaces they actually sit on, so this is the lightest pair that
+   * still clears AA: #6e6e6e is 4.55:1 on the band. Barely lighter than the
+   * default skin's #555 — proof that colour alone can't buy the quiet, which
+   * is why the ink reductions below do most of the work.
+   */
+  --tl-color-nav-marker: #6e6e6e;
+  --tl-color-nav-marker-active: #333333;
+  --tl-color-nav-marker-hover: #1a1a1a;
+
+  /*
+   * Label chips. TL3 draws visible cards (#e5e5e5 fill, #d9d9d9 border); a
+   * strip of N bordered boxes is most of the perceived busyness. Taking the
+   * band's own colour as the fill and dropping the ring keeps the occlusion
+   * — labels still mask the lines running behind them — while removing every
+   * visible edge. The active label earns a white pill and bold weight, so
+   * the only chip you actually see is the one that means something.
+   */
+  --tl-nav-label-bg: #f2f2f2;
+  --tl-nav-label-ring: none;
+  --tl-nav-label-active-bg: #ffffff;
+  --tl-nav-label-active-ring: none;
+  --tl-nav-label-active-weight: 700;
+  --tl-nav-label-radius: 4px;
+  --tl-nav-label-padding: 2px 5px;
+
+  /* Axis: TL3 floats it on its own white band. Its #bfbfbf ticks measure
+     1.84:1, so ticks are #949494 (3.03:1) and labels #767676 (4.54:1). */
+  --tl-nav-axis-bg: #ffffff;
+  --tl-nav-axis-border-top: 1px solid #e5e5e5;
+  --tl-nav-axis-tick-color: #949494;
+  --tl-nav-axis-tick-opacity: 1;
+  --tl-nav-axis-color: #767676;
+
+  /* Zoom controls: TL3's menubar floats, it isn't a bordered gutter column. */
+  --tl-nav-gutter-bg: transparent;
+  --tl-nav-gutter-border: none;
+
+  /*
+   * Leader lines associate a label with its point on the track, so they carry
+   * information and are held to 3:1 — at 0.8 opacity #6e6e6e resolves to an
+   * effective #888888, or 3.17:1 on the band. The track rule and minimap are
+   * decorative and carry no threshold, so they stay genuinely faint.
+   */
+  --tl-nav-leader-opacity: 0.8;
+  --tl-nav-leader-active-opacity: 1;
+  --tl-nav-track-opacity: 0.35;
+  --tl-nav-minimap-opacity: 0.12;
+
+  /* Group bands: hairline only, no alternating tint. */
+  --tl-nav-band-border: 1px solid #e5e5e5;
+  --tl-nav-band-alt-bg: transparent;
+}
+
+/*
+ * Dark variant. TL3 had no dark mode, so this is an extrapolation rather than
+ * a reproduction: same *relationships* (nav recedes, date is quietest, body
+ * sits below headline in contrast) inverted onto a dark ground.
+ *
+ * Specificity, not source order, is what makes these blocks win: @import has
+ * to come first in base.css, so everything here is emitted *before* the
+ * :root and [data-tl-theme] blocks it needs to beat. Qualifying each
+ * selector with .tl-player buys the extra step — the light block below is
+ * (0,2,0) against :root's (0,1,0), and this dark block is (0,3,0) so it also
+ * beats the light block. The player root carries the class and both data
+ * attributes, so all three match the same element.
+ */
+.tl-player[data-tl-skin='quiet'][data-tl-theme='dark'] {
+  --tl-headline-color: #ffffff;
+  --tl-body-color: #b0b0b0;
+  --tl-date-color: #8f8f8f;
+
+  --tl-color-nav-bg: #141414;
+  --tl-nav-border-top: 1px solid #2e2e2e;
+  --tl-color-nav-marker: #9a9a9a;
+  --tl-color-nav-marker-active: #ffffff;
+  --tl-color-nav-marker-hover: #e0e0e0;
+
+  --tl-nav-label-bg: #141414;
+  --tl-nav-label-ring: none;
+  --tl-nav-label-active-bg: #333333;
+  --tl-nav-label-active-ring: none;
+
+  --tl-nav-axis-bg: #0d0d0d;
+  --tl-nav-axis-border-top: 1px solid #2e2e2e;
+  --tl-nav-axis-tick-color: #6b6b6b;
+  --tl-nav-axis-color: #8f8f8f;
+
+  --tl-nav-band-border: 1px solid #2e2e2e;
+}
+
+/*
+ * theme='auto' resolves to a bare element with no data-tl-theme attribute at
+ * all, so the block above can't reach it — match the media query instead,
+ * excluding an explicit light choice exactly as base.css does.
+ */
+@media (prefers-color-scheme: dark) {
+  .tl-player[data-tl-skin='quiet']:not([data-tl-theme='light']) {
+    --tl-headline-color: #ffffff;
+    --tl-body-color: #b0b0b0;
+    --tl-date-color: #8f8f8f;
+
+    --tl-color-nav-bg: #141414;
+    --tl-nav-border-top: 1px solid #2e2e2e;
+    --tl-color-nav-marker: #9a9a9a;
+    --tl-color-nav-marker-active: #ffffff;
+    --tl-color-nav-marker-hover: #e0e0e0;
+
+    --tl-nav-label-bg: #141414;
+    --tl-nav-label-ring: none;
+    --tl-nav-label-active-bg: #333333;
+    --tl-nav-label-active-ring: none;
+
+    --tl-nav-axis-bg: #0d0d0d;
+    --tl-nav-axis-border-top: 1px solid #2e2e2e;
+    --tl-nav-axis-tick-color: #6b6b6b;
+    --tl-nav-axis-color: #8f8f8f;
+
+    --tl-nav-band-border: 1px solid #2e2e2e;
+  }
+}

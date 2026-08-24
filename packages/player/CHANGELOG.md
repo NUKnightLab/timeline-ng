@@ -7,8 +7,95 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `--tl-headline-transform`, so a font pairing can set its headline in caps —
+  five of the TimelineJS 3 pairings do. Defaults to `none`.
+
+- **Skins.** A `skin` prop on `SlidePlayer` (and a matching `settings.skin`
+  field) selects a named, token-only visual overlay. It sets `data-tl-skin`
+  on the player root, alongside — and orthogonal to — `data-tl-theme`: a skin
+  restyles the player, a theme picks its light/dark ground, and every skin
+  supports both. Three ship:
+  - `quiet` — a low-attention treatment, for embedders who find the default
+    nav too assertive. Typography and proportion follow TimelineJS 3; the
+    colours deliberately do not, since TL3's own values fail WCAG AA in
+    several places (its date is 2.10:1 on white, its axis ticks 1.84:1). The
+    restraint comes from removing ink — no chip rings, no band tints, no
+    gutter divider — rather than from lightening it, because lightening is
+    precisely what made TL3 inaccessible. It is not a TL3 reproduction and
+    does not claim to be: TL3's marker is a thumbnail-bearing card hung from
+    a drop line, ours is a text chip on a leader, and no token reaches
+    silhouette.
+  - `contrast` — targets WCAG AAA (7:1) for all text and pushes non-text well
+    past 3:1; worst measured case is 15.13:1 in light, 15.91:1 in dark.
+  - `bare` — the nav reduced as far as tokens can reduce it.
+
+  All three are verified in the `skin-lab` app, which measures rendered
+  colours rather than stylesheet values.
+- `--tl-nav-mark-active`, splitting the active *mark* colour (dot, span bar,
+  leader stroke, minimap thumb) out of `--tl-color-nav-marker-active`, which
+  now sets only the active label's text colour. One token previously drove
+  both, which made a light-on-dark active label impossible: inverting the
+  label also turned the active dot white on a white nav and erased it.
+  Defaults to `--tl-color-nav-marker-active`, so existing skins are unaffected.
+- `--tl-focus-ring-width`, `--tl-focus-ring-offset` and `--tl-focus-ring-color`,
+  replacing five hardcoded `2px solid var(--tl-color-accent)` declarations
+  across three components. A skin could previously change a focus ring's
+  colour but not its weight.
+- `--tl-nav-dot-active-scale` (was a hardcoded `scale(1.4)`) and
+  `--tl-nav-btn-size`, `--tl-nav-dot-target-x`, `--tl-nav-dot-target-y`.
+- A set of `--tl-nav-*` and slide typography tokens covering values that were
+  previously hardcoded — the nav's top border, label chip fill/ring/radius, the
+  zoom gutter's fill and border, axis strip background and tick colour, leader,
+  track and minimap opacities, group band border and tint, plus
+  `--tl-date-transform`, `--tl-headline-color`, `--tl-body-color` and the
+  `--tl-slide-text-only-*` trio. Every default matches the previous hardcoded
+  value, so nothing changes unless a skin or embedder sets them. These exist so
+  a skin can be expressed purely as token values, with no component overrides.
+
+### Changed
+
+- The slide date no longer renders as a bold, uppercase, letter-spaced eyebrow.
+  It was one of the loudest elements on a slide when it should be among the
+  quietest; it is now plain sentence case at reading size (0.9375rem/400),
+  following TimelineJS 3. The previous treatment is still reachable through
+  `--tl-date-size`, `--tl-date-weight`, `--tl-date-tracking` and
+  `--tl-date-transform`.
+- Body copy is now a step lighter than the headline rather than sharing its
+  colour, via new `--tl-headline-color` and `--tl-body-color` defaults
+  (`#111111`/`#3d3d3d` light, `#f8f8f8`/`#d2d2d2` dark; 10.86:1 and 11.51:1
+  for body). Slides with a dark or image background flip both tokens
+  alongside `--tl-color-text`.
+- Slide content is now vertically centred in the stage, matching TimelineJS 3,
+  rather than pinned to the top; media and text columns centre against each
+  other too. Centring uses auto block margins rather than
+  `justify-content: center`, so a slide taller than the stage still scrolls
+  from its true top instead of clipping it out of reach. Set
+  `--tl-slide-valign: 0` for the previous top alignment, and
+  `--tl-slide-media-align: start` for the previous column alignment.
+
 ### Fixed
 
+- TimeNav zoom/navigation buttons were 28x20px, under WCAG 2.2 SC 2.5.8's
+  24x24 minimum target size. They are now 24x24. The control column needed the
+  extra room, so it now spans the axis band as well as the content area — the
+  axis strip begins at `left: controlGutter`, leaving the gutter's own slice of
+  that band empty — and the start/end buttons drop out when the drawer is too
+  short to stack four controls.
+- TimeNav marker dots had a hit area of roughly 12x12px. Vertical padding now
+  brings it to 12x24. It is deliberately not widened to 24x24: dots are placed
+  by date and can sit a few pixels apart, so 24px-wide targets would occlude
+  each other's centres and make the earlier of two close events unreachable —
+  worse for the users the criterion protects. Where dots are dense the label
+  above is the accessible target; `--tl-nav-dot-target-x` widens them for
+  timelines that are sparse enough to afford it.
+- TimeNav leader lines failed WCAG AA. They were drawn at 0.5 opacity, fading
+  the default marker colour to an effective `#9b9b9b` against the nav band —
+  2.11:1 in light mode and 2.91:1 in dark, against the 3:1 required for
+  non-text that carries meaning (a leader is what ties a label to its point on
+  the track). Default opacity is now 0.7, the lightest value that clears the
+  threshold in both themes; override with `--tl-nav-leader-opacity`.
 - `loadTimeline()` never hydrated `blobRef`-backed media or backgrounds (images
   uploaded to a PDS rather than linked by URL) into fetchable URLs — only the
   authoring app did that hydration, for the signed-in user's own drafts. Any

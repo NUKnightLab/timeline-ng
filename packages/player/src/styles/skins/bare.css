@@ -1,0 +1,89 @@
+/*
+ * ── Skin: "bare" ─────────────────────────────────────────────────────────
+ *
+ * The nav reduced as far as tokens can reduce it: no band, no border, no
+ * chips, no tint — labels and dots floating directly on the stage background.
+ *
+ * This skin exists to find the wall, and it finds it. Everything below is a
+ * *appearance* change, because appearance is all a token can address. Four
+ * pieces of nav chrome cannot be removed at all, only made invisible, and
+ * making them invisible does not reclaim the space they occupy:
+ *
+ *   1. The zoom-control column. Its fill and border are tokens, so it can be
+ *      made to disappear — but `controlGutter` still reserves 44px (28px when
+ *      compact) of horizontal space, and the buttons remain in the tab order.
+ *      A "bare" nav ends up with a 44px hole on its left for invisible
+ *      controls.
+ *   2. The axis strip. Ticks and labels can be faded out, but AXIS_H still
+ *      reserves 18px at the bottom of the drawer.
+ *   3. The minimap. `--tl-nav-minimap-opacity: 0` hides it; the element and
+ *      its 4px band stay.
+ *   4. The drag handle and its grip. Not tokenised at all — no custom
+ *      property reaches either, so a bare nav still shows the grip.
+ *
+ * All four are presence questions, and presence is not a token. This is the
+ * concrete case for a `navChrome` prop: a skin should be able to say which
+ * parts of the nav exist, not merely what colour they are.
+ *
+ * NOTE: hiding informative marks with opacity is a deliberate demonstration
+ * of the limit, not a pattern to copy. The axis is `aria-hidden` so nothing
+ * is stranded in the accessibility tree, but a real "bare" mode should remove
+ * these elements rather than paint them out.
+ */
+
+.tl-player[data-tl-skin='bare'] {
+  --tl-slide-valign: auto;
+  --tl-slide-media-align: center;
+
+  /* Nav dissolves into the stage — no band, no separating rule. */
+  --tl-color-nav-bg: var(--tl-color-bg, #ffffff);
+  --tl-nav-border-top: none;
+
+  --tl-color-nav-marker: #6e6e6e;
+  --tl-color-nav-marker-active: #111111;
+  --tl-color-nav-marker-hover: #000000;
+
+  /* Labels as bare text: no fill, no ring. */
+  --tl-nav-label-bg: transparent;
+  --tl-nav-label-ring: none;
+  --tl-nav-label-active-bg: transparent;
+  --tl-nav-label-active-ring: none;
+  --tl-nav-label-active-weight: 700;
+  --tl-nav-label-padding: 1px 3px;
+
+  /* Axis and gutter: faded to nothing — but see notes 1 and 2 above. */
+  --tl-nav-axis-bg: transparent;
+  --tl-nav-axis-border-top: none;
+  --tl-nav-axis-tick-opacity: 0;
+  --tl-nav-axis-color: transparent;
+  --tl-nav-gutter-bg: transparent;
+  --tl-nav-gutter-border: none;
+
+  /*
+   * 0.8, not the 0.7 default: this skin drops the nav band, so leaders are
+   * composited against the stage's white rather than a grey band, and the
+   * lighter ground costs about half a contrast point. The skin lab caught
+   * this at 2.81:1 — a reminder that leader opacity is only meaningful
+   * relative to whatever the nav ends up sitting on.
+   */
+  --tl-nav-leader-opacity: 0.8;
+  --tl-nav-track-opacity: 0.15;
+  --tl-nav-minimap-opacity: 0;
+
+  --tl-nav-band-border: none;
+  --tl-nav-band-alt-bg: transparent;
+}
+
+.tl-player[data-tl-skin='bare'][data-tl-theme='dark'] {
+  --tl-color-nav-marker: #9a9a9a;
+  --tl-color-nav-marker-active: #ffffff;
+  --tl-color-nav-marker-hover: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  .tl-player[data-tl-skin='bare']:not([data-tl-theme='light']) {
+    --tl-color-nav-marker: #9a9a9a;
+    --tl-color-nav-marker-active: #ffffff;
+    --tl-color-nav-marker-hover: #ffffff;
+  }
+}

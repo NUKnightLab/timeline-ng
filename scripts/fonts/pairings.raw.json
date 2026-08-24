@@ -1,0 +1,576 @@
+[
+  {
+    "id": "default",
+    "heading": {
+      "family": "PT Sans Narrow",
+      "fallback": [
+        "sans-serif"
+      ]
+    },
+    "body": {
+      "family": "PT Serif",
+      "fallback": [
+        "serif"
+      ]
+    },
+    "scripts": [
+      "cyrillic",
+      "cyrillic-ext",
+      "latin",
+      "latin-ext"
+    ],
+    "headingTransform": "uppercase",
+    "headingWeight": 700,
+    "headingPx": 46,
+    "bodyPx": 16,
+    "bodyLineHeight": "1.3em",
+    "webfontFaces": 20
+  },
+  {
+    "id": "georgia-helvetica",
+    "heading": {
+      "family": "Georgia",
+      "fallback": [
+        "Times",
+        "serif"
+      ]
+    },
+    "body": {
+      "family": "Helvetica Neue",
+      "fallback": [
+        "Helvetica",
+        "Arial",
+        "MS Trebuchet",
+        "sans-serif"
+      ]
+    },
+    "scripts": [
+      "system"
+    ],
+    "headingTransform": "none",
+    "headingWeight": 800,
+    "headingPx": 42,
+    "bodyPx": 17,
+    "bodyLineHeight": "1.3em",
+    "webfontFaces": 0
+  },
+  {
+    "id": "pt",
+    "heading": {
+      "family": "PT Sans Narrow",
+      "fallback": [
+        "sans-serif"
+      ]
+    },
+    "body": {
+      "family": "PT Serif",
+      "fallback": [
+        "serif"
+      ]
+    },
+    "scripts": [
+      "cyrillic",
+      "cyrillic-ext",
+      "latin",
+      "latin-ext"
+    ],
+    "headingTransform": "uppercase",
+    "headingWeight": 700,
+    "headingPx": 46,
+    "bodyPx": 16,
+    "bodyLineHeight": "1.3em",
+    "webfontFaces": 20
+  },
+  {
+    "id": "ubuntu",
+    "heading": {
+      "family": "Ubuntu",
+      "fallback": [
+        "Helvetica Neue",
+        "Helvetica",
+        "Arial",
+        "MS Trebuchet",
+        "sans-serif"
+      ]
+    },
+    "body": {
+      "family": "Ubuntu",
+      "fallback": [
+        "Helvetica Neue",
+        "Helvetica",
+        "Arial",
+        "MS Trebuchet",
+        "sans-serif"
+      ]
+    },
+    "scripts": [
+      "cyrillic",
+      "cyrillic-ext",
+      "greek",
+      "greek-ext",
+      "latin",
+      "latin-ext"
+    ],
+    "headingTransform": "none",
+    "headingWeight": 500,
+    "headingPx": 40,
+    "bodyPx": 17,
+    "bodyLineHeight": "1.3em",
+    "webfontFaces": 18
+  },
+  {
+    "id": "oldstandard",
+    "heading": {
+      "family": "Old Standard TT",
+      "fallback": [
+        "serif"
+      ]
+    },
+    "body": {
+      "family": "Old Standard TT",
+      "fallback": [
+        "serif"
+      ]
+    },
+    "scripts": [
+      "cyrillic",
+      "cyrillic-ext",
+      "latin",
+      "latin-ext",
+      "vietnamese"
+    ],
+    "headingTransform": "uppercase",
+    "headingWeight": 400,
+    "headingPx": 46,
+    "bodyPx": 16,
+    "bodyLineHeight": "1.3em",
+    "webfontFaces": 15
+  },
+  {
+    "id": "abril-droidsans",
+    "heading": {
+      "family": "Abril Fatface",
+      "fallback": [
+        "cursive"
+      ]
+    },
+    "body": {
+      "family": "Noto Sans",
+      "fallback": [
+        "sans-serif"
+      ]
+    },
+    "scripts": [
+      "latin",
+      "latin-ext"
+    ],
+    "headingTransform": "none",
+    "headingWeight": 700,
+    "headingPx": 46,
+    "bodyPx": 16,
+    "bodyLineHeight": "1.3em",
+    "webfontFaces": 26
+  },
+  {
+    "id": "amatic-andika",
+    "heading": {
+      "family": "Amatic SC",
+      "fallback": [
+        "cursive"
+      ]
+    },
+    "body": {
+      "family": "Andika",
+      "fallback": [
+        "sans-serif"
+      ]
+    },
+    "scripts": [
+      "cyrillic",
+      "latin",
+      "latin-ext",
+      "vietnamese"
+    ],
+    "headingTransform": "none",
+    "headingWeight": 700,
+    "headingPx": 64,
+    "bodyPx": 16,
+    "bodyLineHeight": "1.3em",
+    "webfontFaces": 25
+  },
+  {
+    "id": "bevan-pontanosans",
+    "heading": {
+      "family": "Bevan",
+      "fallback": [
+        "cursive"
+      ]
+    },
+    "body": {
+      "family": "Pontano Sans",
+      "fallback": [
+        "sans-serif"
+      ]
+    },
+    "scripts": [
+      "latin",
+      "latin-ext"
+    ],
+    "headingTransform": "none",
+    "headingWeight": 400,
+    "headingPx": 38,
+    "bodyPx": 17,
+    "bodyLineHeight": "1.3em",
+    "webfontFaces": 7
+  },
+  {
+    "id": "bitter-raleway",
+    "heading": {
+      "family": "Bitter",
+      "fallback": [
+        "serif"
+      ]
+    },
+    "body": {
+      "family": "Raleway",
+      "fallback": [
+        "sans-serif"
+      ]
+    },
+    "scripts": [
+      "cyrillic",
+      "cyrillic-ext",
+      "latin",
+      "latin-ext",
+      "vietnamese"
+    ],
+    "headingTransform": "none",
+    "headingWeight": 700,
+    "headingPx": 46,
+    "bodyPx": 16,
+    "bodyLineHeight": "1.3em",
+    "webfontFaces": 25
+  },
+  {
+    "id": "clicker-garamond",
+    "heading": {
+      "family": "Clicker Script",
+      "fallback": [
+        "cursive"
+      ]
+    },
+    "body": {
+      "family": "EB Garamond",
+      "fallback": [
+        "serif"
+      ]
+    },
+    "scripts": [
+      "latin",
+      "latin-ext"
+    ],
+    "headingTransform": "none",
+    "headingWeight": 400,
+    "headingPx": 58,
+    "bodyPx": 18,
+    "bodyLineHeight": "1.3em",
+    "webfontFaces": 23
+  },
+  {
+    "id": "dancing-ledger",
+    "heading": {
+      "family": "Dancing Script",
+      "fallback": [
+        "cursive"
+      ]
+    },
+    "body": {
+      "family": "Ledger",
+      "fallback": [
+        "serif"
+      ]
+    },
+    "scripts": [
+      "latin",
+      "latin-ext"
+    ],
+    "headingTransform": "none",
+    "headingWeight": 700,
+    "headingPx": 58,
+    "bodyPx": 16,
+    "bodyLineHeight": "1.3em",
+    "webfontFaces": 9
+  },
+  {
+    "id": "fjalla-average",
+    "heading": {
+      "family": "Fjalla One",
+      "fallback": [
+        "sans-serif"
+      ]
+    },
+    "body": {
+      "family": "Average Sans",
+      "fallback": [
+        "sans-serif"
+      ]
+    },
+    "scripts": [
+      "latin",
+      "latin-ext"
+    ],
+    "headingTransform": "none",
+    "headingWeight": 400,
+    "headingPx": 46,
+    "bodyPx": 17,
+    "bodyLineHeight": "1.3em",
+    "webfontFaces": 6
+  },
+  {
+    "id": "lustria-lato",
+    "heading": {
+      "family": "Lustria",
+      "fallback": [
+        "serif"
+      ]
+    },
+    "body": {
+      "family": "Lato",
+      "fallback": [
+        "sans-serif"
+      ]
+    },
+    "scripts": [
+      "latin"
+    ],
+    "headingTransform": "none",
+    "headingWeight": 400,
+    "headingPx": 46,
+    "bodyPx": 17,
+    "bodyLineHeight": "1.3em",
+    "webfontFaces": 7
+  },
+  {
+    "id": "medula-lato",
+    "heading": {
+      "family": "Medula One",
+      "fallback": [
+        "cursive"
+      ]
+    },
+    "body": {
+      "family": "Lato",
+      "fallback": [
+        "sans-serif"
+      ]
+    },
+    "scripts": [
+      "latin"
+    ],
+    "headingTransform": "none",
+    "headingWeight": 700,
+    "headingPx": 58,
+    "bodyPx": 16,
+    "bodyLineHeight": "1.3em",
+    "webfontFaces": 7
+  },
+  {
+    "id": "opensans-gentiumbook",
+    "heading": {
+      "family": "Open Sans",
+      "fallback": [
+        "sans-serif"
+      ]
+    },
+    "body": {
+      "family": "Gentium Book Plus",
+      "fallback": [
+        "serif"
+      ]
+    },
+    "scripts": [
+      "cyrillic",
+      "cyrillic-ext",
+      "greek",
+      "greek-ext",
+      "latin",
+      "latin-ext",
+      "vietnamese"
+    ],
+    "headingTransform": "none",
+    "headingWeight": 800,
+    "headingPx": 40,
+    "bodyPx": 17,
+    "bodyLineHeight": "1.3em",
+    "webfontFaces": 41
+  },
+  {
+    "id": "playfair",
+    "heading": {
+      "family": "Playfair Display SC",
+      "fallback": [
+        "serif"
+      ]
+    },
+    "body": {
+      "family": "Playfair Display",
+      "fallback": [
+        "serif"
+      ]
+    },
+    "scripts": [
+      "cyrillic",
+      "latin",
+      "latin-ext",
+      "vietnamese"
+    ],
+    "headingTransform": "none",
+    "headingWeight": 400,
+    "headingPx": 46,
+    "bodyPx": 17,
+    "bodyLineHeight": "1.3em",
+    "webfontFaces": 20
+  },
+  {
+    "id": "playfair-faunaone",
+    "heading": {
+      "family": "Playfair Display",
+      "fallback": [
+        "Georgia",
+        "serif"
+      ]
+    },
+    "body": {
+      "family": "Fauna One",
+      "fallback": [
+        "serif"
+      ]
+    },
+    "scripts": [
+      "latin",
+      "latin-ext"
+    ],
+    "headingTransform": "uppercase",
+    "headingWeight": 400,
+    "headingPx": 46,
+    "bodyPx": 17,
+    "bodyLineHeight": "1.3em",
+    "webfontFaces": 10
+  },
+  {
+    "id": "roboto-megrim",
+    "heading": {
+      "family": "Megrim",
+      "fallback": [
+        "Helvetica Neue",
+        "Helvetica",
+        "Arial",
+        "MS Trebuchet",
+        "sans-serif"
+      ]
+    },
+    "body": {
+      "family": "Roboto Slab",
+      "fallback": [
+        "Georgia",
+        "serif"
+      ]
+    },
+    "scripts": [
+      "latin",
+      "latin-ext"
+    ],
+    "headingTransform": "none",
+    "headingWeight": 400,
+    "headingPx": 46,
+    "bodyPx": 17,
+    "bodyLineHeight": "1.3em",
+    "webfontFaces": 16
+  },
+  {
+    "id": "rufina-sintony",
+    "heading": {
+      "family": "Rufina",
+      "fallback": [
+        "serif"
+      ]
+    },
+    "body": {
+      "family": "Sintony",
+      "fallback": [
+        "sans-serif"
+      ]
+    },
+    "scripts": [
+      "latin",
+      "latin-ext"
+    ],
+    "headingTransform": "none",
+    "headingWeight": 700,
+    "headingPx": 46,
+    "bodyPx": 15,
+    "bodyLineHeight": "1.3em",
+    "webfontFaces": 8
+  },
+  {
+    "id": "unicaone-vollkorn",
+    "heading": {
+      "family": "Unica One",
+      "fallback": [
+        "Helvetica Neue",
+        "Helvetica",
+        "Arial",
+        "MS Trebuchet",
+        "sans-serif"
+      ]
+    },
+    "body": {
+      "family": "Vollkorn",
+      "fallback": [
+        "Georgia",
+        "serif"
+      ]
+    },
+    "scripts": [
+      "latin",
+      "latin-ext",
+      "vietnamese"
+    ],
+    "headingTransform": "uppercase",
+    "headingWeight": 400,
+    "headingPx": 46,
+    "bodyPx": 17,
+    "bodyLineHeight": "1.3em",
+    "webfontFaces": 21
+  },
+  {
+    "id": "knightlab",
+    "heading": {
+      "family": "Salvo Serif Cond",
+      "fallback": [
+        "Georgia",
+        "Times New Roman",
+        "Times",
+        "serif"
+      ]
+    },
+    "body": {
+      "family": "Turnip RE",
+      "fallback": [
+        "Georgia",
+        "Times New Roman",
+        "Times",
+        "serif"
+      ]
+    },
+    "scripts": [
+      "system"
+    ],
+    "headingTransform": "none",
+    "headingWeight": 400,
+    "headingPx": 46,
+    "bodyPx": 16,
+    "bodyLineHeight": "1.3em",
+    "webfontFaces": 0
+  }
+]

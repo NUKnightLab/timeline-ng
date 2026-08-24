@@ -24,6 +24,9 @@ export { fromTL3CSV, toTL3CSV } from './adapters/tl3csv.ts';
 export { normalizeTimelineSourceUrl, parseTimelineText } from './adapters/url-import.ts';
 
 export { getMessage, getLocale, en, es } from './i18n/index.ts';
+
+export { FONT_PAIRINGS, DEFAULT_PAIRING, getPairing, coversLanguage } from './fonts.ts';
+export type { FontPairing } from './fonts.ts';
 export type { TLLocale } from './i18n/index.ts';
 
 export { resolveMedia, pickSlideImageUrl } from './resolver.ts';
