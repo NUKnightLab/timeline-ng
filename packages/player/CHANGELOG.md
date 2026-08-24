@@ -97,6 +97,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- The TimeNav axis line stopped short of the first and last events, leaving a
+  visible gap between the end dot and the line. The line was inset 2% at each
+  end while the marks are positioned across the full 0-100% of the same box,
+  so the extreme dots sat outside it. The inset is a leftover from an earlier
+  layout where it was `margin: 0 2%` on the track itself and moved the marks
+  along with the line; the rewrite kept it on the line alone. The line now
+  spans the full track.
+
 - TimeNav marker dots rendered as vertical ellipses. The dot's visible size had
   always come from its padding box, not — as the code claimed — from a tiny
   content box clipped by `background-clip: content-box`: the `background`

@@ -1174,12 +1174,21 @@
     right: 0;
   }
 
+  /*
+   * The axis line spans the full track, because that is the space the marks
+   * are positioned in: dots sit at 0-100% of this box, so an inset line left
+   * the first and last dots floating off the end of it.
+   *
+   * The 2% inset here is a leftover from an earlier layout where it was
+   * `margin: 0 2%` on the track itself, insetting the marks along with the
+   * line. The rewrite kept the inset on the line alone.
+   */
   .tl-nav__track::before {
     content: '';
     position: absolute;
     top: 50%;
-    left: 2%;
-    right: 2%;
+    left: 0;
+    right: 0;
     height: 1px;
     background: var(--tl-color-nav-marker);
     opacity: var(--tl-nav-track-opacity, 0.4);
