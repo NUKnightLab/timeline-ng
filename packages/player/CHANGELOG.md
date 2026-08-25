@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-08-25
+
 ### Added
 
 - **`fontPairing` prop**, applying one of the TimelineJS 3 font pairings from
@@ -73,7 +75,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   showing which slice of the date range was in view. It was drawn at 0.12
   opacity, had no click or drag handling, no accessible name, and only
   appeared on ungrouped timelines. The axis labels already say where you are,
-  in words. `--tl-nav-minimap-opacity` is removed with it.
+  in words.
 
 - **Slide content is vertically centered** in the stage, matching TimelineJS 3,
   rather than pinned to the top; media and text columns center against each
@@ -251,7 +253,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 Initial public release. Earlier history predates this changelog; see
 `git log` for detail.
 
-[Unreleased]: https://github.com/NUKnightLab/timeline-ng/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/NUKnightLab/timeline-ng/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/NUKnightLab/timeline-ng/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/NUKnightLab/timeline-ng/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/NUKnightLab/timeline-ng/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/NUKnightLab/timeline-ng/compare/v0.1.0...v0.2.0
