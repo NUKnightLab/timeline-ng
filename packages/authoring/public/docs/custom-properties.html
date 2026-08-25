@@ -28,10 +28,11 @@
 <p class="subtitle">Every CSS variable the player reads, and what it defaults to.</p>
 
 <p>
-  The player draws itself entirely from CSS custom properties. Set any of them
+  The player uses CSS custom properties extensively. If you're <a href="#self-hosting">self-hosting</a> 
+  instead of using our embed or direct share link, you can set any of them
   on the player's container — or any ancestor of it — and the player picks them
-  up. This is the route to appearances the
-  <a href="./docs.html#appearance">Appearance settings</a> don't offer, and it
+  up. This is the route to more control than the
+  <a href="./docs.html#appearance">Appearance settings</a> offer. It
   needs no build step and no overriding of the player's own rules:
 </p>
 
@@ -154,11 +155,11 @@
 <h3>Media cards</h3>
 <table class="field-table token-table">
   <tr><th>Property</th><th>Default</th></tr>
-  <tr><td><code>--tl-bsky-card-bg</code></td><td><code>&mdash;</code></td></tr>
-  <tr><td><code>--tl-bsky-card-border</code></td><td><code>&mdash;</code></td></tr>
-  <tr><td><code>--tl-bsky-card-link</code></td><td><code>&mdash;</code></td></tr>
-  <tr><td><code>--tl-bsky-card-muted</code></td><td><code>&mdash;</code></td></tr>
-  <tr><td><code>--tl-bsky-card-text</code></td><td><code>&mdash;</code></td></tr>
+  <tr><td><code>--tl-bsky-card-bg</code></td><td><code>rgba(255, 255, 255, 0.96)</code></td></tr>
+  <tr><td><code>--tl-bsky-card-border</code></td><td><code>rgba(17, 17, 17, 0.12)</code></td></tr>
+  <tr><td><code>--tl-bsky-card-link</code></td><td><code>#0a66c2</code></td></tr>
+  <tr><td><code>--tl-bsky-card-muted</code></td><td><code>#536471</code></td></tr>
+  <tr><td><code>--tl-bsky-card-text</code></td><td><code>#16181c</code></td></tr>
 </table>
 
 <h3>Everything else</h3>

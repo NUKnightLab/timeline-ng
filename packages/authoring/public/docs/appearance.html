@@ -17,12 +17,25 @@
   .pairing-table td:first-child { width: 34%; }
   .pairing-table td:nth-child(2) { width: 22%; }
   .pairing-table code { font-size: 0.85em; }
+  /*
+   * Orangeline owns .note — it supplies the grey fill, the rounded corner, the
+   * orange "Note:" prefix and 1rem of padding. This used to override the
+   * padding and add a left border, which killed the inset and drew a rule
+   * invisible against the fill. So it inherits Orangeline's box now and
+   * changes only two things it gets wrong for body copy:
+   *
+   *   its #9c9c9c text measures 2.41:1 on that fill, which fails AA — an
+   *   awkward thing for a page explaining contrast settings — and
+   *
+   *   italics are fine for a line but tiring for a paragraph.
+   */
   .note {
-    border-left: 3px solid #e5e7eb;
-    padding: 0.15rem 0 0.15rem 1rem;
-    margin: 1.25rem 0;
-    color: #4b5563;
+    color: #4b5563;      /* 6.63:1 on Orangeline's #f0f0f0 */
+    font-style: normal;
+    font-size: 0.9rem;
+    line-height: 1.55;
   }
+  .note p:last-child { margin-bottom: 0; }
 
   @media (max-width: 640px) {
     .field-table, .field-table tbody, .field-table tr, .field-table th, .field-table td {

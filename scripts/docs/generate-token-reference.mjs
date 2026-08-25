@@ -41,6 +41,7 @@ function readFallback(text, from) {
 const files = walk(SRC);
 const used = new Set();
 const fallback = new Map();
+const componentDeclared = new Map();
 const internal = new Set();
 
 for (const f of files) {
@@ -53,6 +54,19 @@ for (const f of files) {
   }
   /* Written by the player itself into a style attribute — layout plumbing. */
   for (const m of t.matchAll(/style="[^"]*?(--tl-[a-z0-9-]+):/g)) internal.add(m[1]);
+
+  /*
+   * Some properties are declared on the component that uses them rather than
+   * in base.css, and then read without a fallback because the declaration is
+   * right there — the Bluesky card's colors work this way. Those defaults are
+   * real; they were simply invisible to a scan that only looked at base.css
+   * and at inline fallbacks.
+   */
+  for (const block of t.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)) {
+    for (const d of block[1].matchAll(/(--tl-[a-z0-9-]+):\s*([^;]+);/g)) {
+      if (!componentDeclared.has(d[1])) componentDeclared.set(d[1], d[2].trim());
+    }
+  }
 }
 
 /* base.css declarations are the real defaults where they exist. */
@@ -86,7 +100,9 @@ for (const [name, test] of GROUPS) {
     rows.push({
       group: name,
       token: t,
-      value: declared.get(t) ?? fallback.get(t) ?? '',
+      /* base.css is authoritative; then an inline fallback; then a
+         declaration on the component that owns the property. */
+      value: declared.get(t) ?? fallback.get(t) ?? componentDeclared.get(t) ?? '',
       themed: themed.has(t),
     });
   }
