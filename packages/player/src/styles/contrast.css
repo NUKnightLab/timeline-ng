@@ -13,7 +13,7 @@
  * Note that it deliberately restores boundaries that navChrome='quiet'
  * removes. In a high-contrast mode an edge is information, not decoration.
  *
- * Verified in the skin lab at 21:1 for most marks in both themes.
+ * Verified in the contrast lab at 21:1 for most marks in both themes.
  *
  * Writing this is what surfaced three gaps in the token surface, all now
  * closed — it uses each of the tokens it originally could not reach:

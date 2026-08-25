@@ -54,7 +54,7 @@
 
 <div class="lab" data-lab-theme={theme === 'auto' ? undefined : theme}>
   <header class="bar">
-    <h1>Skin Lab</h1>
+    <h1>Contrast Lab</h1>
 
     <div class="group" role="group" aria-label="View">
       <button class:on={mode === 'compare'} onclick={() => (mode = 'compare')}>Side by side</button>

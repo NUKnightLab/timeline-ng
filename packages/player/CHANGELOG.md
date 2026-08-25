@@ -41,7 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
   A skin had bundled these three unrelated axes under one name, which is why
   none of them could be described to a user. Both new settings are exposed in
-  the authoring tool, and every combination is verified in the lab app, which
+  the authoring tool, and every combination is verified in the contrast-lab app, which
   measures rendered colours rather than stylesheet values.
 - `--tl-nav-mark-active`, splitting the active *mark* colour (dot, span bar,
   leader stroke, minimap thumb) out of `--tl-color-nav-marker-active`, which
