@@ -73,7 +73,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   a hairline top rule, labels with no chip ring, a zoom column with no
   divider, group bands with no alternating tint, and a lighter marker
   (`#6e6e6e`, was `#555555`) — the lightest that still clears AA against the
-  band, at 4.55:1.
+  band, at 4.55:1. The date axis keeps sitting directly on the band, with no
+  strip of its own.
 - **Default typography** is now the `georgia-helvetica` pairing rather than
   bare `system-ui`: Georgia headlines, Helvetica Neue body at 17px. It is the
   one pairing built from system fonts, so it needs no downloads and covers

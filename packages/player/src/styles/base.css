@@ -46,8 +46,10 @@
   --tl-color-nav-marker-active: #333333;
   --tl-color-nav-marker-hover: #1a1a1a;
   --tl-nav-label-active-bg: #ffffff;
-  --tl-nav-axis-bg: #ffffff;
-  --tl-nav-axis-border-top: 1px solid #e5e5e5;
+  /* The axis sits directly on the nav band — no strip of its own. TimelineJS 3
+     insets its axis on white, but TL3's markers are tall cards filling the
+     band, so the strip separates cards from the date scale. Ours are floating
+     labels with the axis right under the track, where a band earns nothing. */
   --tl-nav-axis-tick-color: #949494;
   --tl-nav-axis-color: #767676;
   --tl-nav-band-border: 1px solid #e5e5e5;
@@ -74,8 +76,6 @@
     --tl-color-nav-marker-active: #ffffff;
     --tl-color-nav-marker-hover: #e0e0e0;
     --tl-nav-label-active-bg: #333333;
-    --tl-nav-axis-bg: #0d0d0d;
-    --tl-nav-axis-border-top: 1px solid #2e2e2e;
     --tl-nav-axis-tick-color: #6b6b6b;
     --tl-nav-axis-color: #8f8f8f;
     --tl-nav-band-border: 1px solid #2e2e2e;
@@ -96,8 +96,6 @@
   --tl-color-nav-marker-active: #ffffff;
   --tl-color-nav-marker-hover: #e0e0e0;
   --tl-nav-label-active-bg: #333333;
-  --tl-nav-axis-bg: #0d0d0d;
-  --tl-nav-axis-border-top: 1px solid #2e2e2e;
   --tl-nav-axis-tick-color: #6b6b6b;
   --tl-nav-axis-color: #8f8f8f;
   --tl-nav-band-border: 1px solid #2e2e2e;
@@ -125,8 +123,6 @@
   --tl-color-nav-marker-active: #333333;
   --tl-color-nav-marker-hover: #1a1a1a;
   --tl-nav-label-active-bg: #ffffff;
-  --tl-nav-axis-bg: #ffffff;
-  --tl-nav-axis-border-top: 1px solid #e5e5e5;
   --tl-nav-axis-tick-color: #949494;
   --tl-nav-axis-color: #767676;
   --tl-nav-band-border: 1px solid #e5e5e5;
