@@ -114,6 +114,11 @@
       3:1; purely decorative marks have no threshold. A row only appears when the
       slide actually contains that element, so the set varies as you move the
       slider — a slide with no date, or an event with no duration, drops its row.
+      <strong>Resting states only</strong>: hover and focus are not measured, because
+      forcing them would mean re-implementing the cascade here, where it could
+      drift from the stylesheet it is supposed to be checking. An active nav
+      label once dropped from 17.4:1 to 1.73:1 on hover without this table
+      noticing.
     </p>
     <div class="audit__tables" class:audit__tables--split={shown.length > 1}>
       {#each shown as skin, slot (slot + ':' + skin)}

@@ -1151,6 +1151,23 @@
     border-radius: 2px;
   }
 
+  /*
+   * An active label keeps its own colour on hover and focus.
+   *
+   * --tl-color-nav-marker-hover is calibrated against the nav background, but
+   * an active label may carry a background of its own — the contrast skin
+   * inverts it to a dark pill — and combining the two independently-designed
+   * states produced dark blue on near-black, 1.73:1 where the resting state
+   * measures 17.40:1. Hover feedback still comes from the halo, the width
+   * expansion and the raised z-index in the rule above; only the colour is
+   * held. A skin that wants a hover shade here can set
+   * --tl-nav-label-active-hover against whatever pill it chose.
+   */
+  .tl-nav__label--active:hover,
+  .tl-nav__label--active:focus-visible {
+    color: var(--tl-nav-label-active-hover, var(--tl-color-nav-marker-active));
+  }
+
   .tl-nav__label--active {
     color: var(--tl-color-nav-marker-active);
     background: var(--tl-nav-label-active-bg, var(--tl-nav-label-bg, var(--tl-color-nav-bg)));

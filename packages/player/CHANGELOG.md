@@ -97,6 +97,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Hovering an active TimeNav label dropped it to unreadable contrast under the
+  `contrast` skin — dark blue on near-black, 1.73:1 in light mode and 2.16:1 in
+  dark, against resting states of 17.40:1 and 21.00:1. `.tl-nav__label:hover`
+  is (0,2,0) and outranks `.tl-nav__label--active` at (0,1,0), so hover swapped
+  in `--tl-color-nav-marker-hover` — a colour calibrated against the nav
+  background — while the label kept its own inverted pill. Active labels now
+  hold their colour through hover and focus; the halo, width expansion and
+  raised z-index still provide the feedback. A skin can set
+  `--tl-nav-label-active-hover` for a shade matched to its own pill.
+
 - Axis labels ran off the ends of the TimeNav. Each tick is centred on its
   date, so a label near either edge overflowed the strip and was clipped. An
   edge treatment that anchors the label's near side to the tick already
