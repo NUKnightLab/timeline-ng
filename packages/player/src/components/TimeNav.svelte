@@ -177,6 +177,8 @@
     screenWidthPct: number | null;
     row: number;
     labelCenterPct: number;
+    /** True when no non-overlapping slot exists; the dot stands in for it. */
+    labelHidden: boolean;
     groupIdx: number;
   }
 
@@ -209,7 +211,7 @@
     const stepPct     = SHIFT_STEP_PX / timelineWidth * 100;
     const maxShiftPct = SHIFT_MAX_PX  / timelineWidth * 100;
 
-    const labelMap = new Map<number, { row: number; centerPct: number }>();
+    const labelMap = new Map<number, { row: number; centerPct: number; hidden?: boolean }>();
 
     if (showGroups) {
       // Per-group label allocation — 1 row per group band
@@ -265,15 +267,28 @@
         for (let row = 1; row < visRows; row++) {
           if (rowRight[row] < rowRight[bestRow]) bestRow = row;
         }
-        const packedPct = Math.min(100 - halfPct, rowRight[bestRow] + gapPct + halfPct);
+        const packedPct = rowRight[bestRow] + gapPct + halfPct;
+        if (packedPct > 100 - halfPct) {
+          /*
+           * Nowhere left to put it. This used to clamp to the right edge, which
+           * meant every label that ran out of room landed on the same spot and
+           * stacked into something unreadable — worst on the timelines that
+           * need help most, where events bunch at one end. Hiding the label is
+           * the honest outcome: the dot still marks the date and still
+           * navigates, and zooming in spreads the events out until the label
+           * has room to come back.
+           */
+          labelMap.set(ev.index, { row: bestRow, centerPct: naturalPct, hidden: true });
+          continue;
+        }
         rowRight[bestRow] = packedPct + halfPct;
         labelMap.set(ev.index, { row: bestRow, centerPct: packedPct });
       }
     }
 
     return projected.map(ev => {
-      const { row, centerPct } = labelMap.get(ev.index) ?? { row: 0, centerPct: ev.screenPct };
-      return { ...ev, row, labelCenterPct: centerPct };
+      const entry = labelMap.get(ev.index) ?? { row: 0, centerPct: ev.screenPct };
+      return { ...ev, row: entry.row, labelCenterPct: entry.centerPct, labelHidden: entry.hidden === true };
     });
   });
 
@@ -436,22 +451,6 @@
   let userAdjustedRows = $state(false);
   let lastLayoutSignature = $state<string | null>(null);
 
-  // Compact mode should default closed, but once the viewer opens/closes the drawer
-  // manually we preserve that choice instead of forcing rows again. Re-seed whenever
-  // compact mode or the group structure changes (e.g. a new timeline is loaded).
-  $effect(() => {
-    const isCompact = compact;
-    const signature = `${isCompact}:${groupRowsNeeded}`;
-    const priorSignature = untrack(() => lastLayoutSignature);
-    const hasUserAdjustedRows = untrack(() => userAdjustedRows);
-    lastLayoutSignature = signature;
-
-    if (hasUserAdjustedRows) return;
-    if (priorSignature === null || priorSignature !== signature) {
-      displayRows = isCompact ? 0 : Math.max(1, groupThresholdRows);
-    }
-  });
-
   // Stable layout metrics — computed from the full dataset, not the viewport,
   // so the nav height doesn't jump during pan/zoom.
   const layoutMetrics = $derived.by((): { maxLabelRows: number } => {
@@ -478,6 +477,32 @@
     }
     maxLabelRows = Math.max(maxLabelRows, groupThresholdRows);
     return { maxLabelRows };
+  });
+
+  /*
+   * Compact mode defaults closed; otherwise the drawer opens to as many rows
+   * as the data actually needs, which layoutMetrics already works out from the
+   * full dataset. It previously opened to one row regardless, so a timeline
+   * whose events cluster — most real ones — rendered every label into a single
+   * row and piled them on top of each other. The row count was being computed
+   * and then used only to cap the drag.
+   *
+   * Once the viewer drags the drawer themselves that choice is preserved
+   * instead of being overridden. Re-seeds when compact mode or the group
+   * structure changes, e.g. a new timeline is loaded.
+   */
+  $effect(() => {
+    const isCompact = compact;
+    const needed = layoutMetrics.maxLabelRows;
+    const signature = `${isCompact}:${groupRowsNeeded}:${needed}`;
+    const priorSignature = untrack(() => lastLayoutSignature);
+    const hasUserAdjustedRows = untrack(() => userAdjustedRows);
+    lastLayoutSignature = signature;
+
+    if (hasUserAdjustedRows) return;
+    if (priorSignature === null || priorSignature !== signature) {
+      displayRows = isCompact ? 0 : Math.max(1, groupThresholdRows, needed);
+    }
   });
 
   // Track Y position responds to displayRows, not the dataset maximum.
@@ -628,8 +653,27 @@
 
   function resetView() { viewStart = 0; viewEnd = 100; }
 
+  /*
+   * Zoom around the active event rather than the middle of the viewport.
+   *
+   * Centring on the viewport meant that a timeline whose events bunch at one
+   * end — most real ones — zoomed straight into empty space, so the controls
+   * were least useful exactly where they were most needed. That also matters
+   * now that a label with nowhere to go is dropped rather than stacked:
+   * zooming is how you get it back, so it has to land somewhere with events.
+   */
+  function zoomAnchor(): number {
+    const viewCenter = (viewStart + viewEnd) / 2;
+    const active = baseEvents.find(e => e.index === activeIndex);
+    if (!active) return viewCenter;
+    /* Only follow it while it is actually on screen; the pan-to-active effect
+       is what brings it there in the first place. */
+    if (active.dataPct < viewStart || active.dataPct > viewEnd) return viewCenter;
+    return active.dataPct;
+  }
+
   function zoomIn() {
-    const center = (viewStart + viewEnd) / 2;
+    const center = zoomAnchor();
     const newRange = Math.max(MIN_RANGE, viewRange / 1.5);
     viewStart = Math.max(0, center - newRange / 2);
     viewEnd   = Math.min(100, viewStart + newRange);
@@ -637,7 +681,7 @@
   }
 
   function zoomOut() {
-    const center = (viewStart + viewEnd) / 2;
+    const center = zoomAnchor();
     const newRange = Math.min(100, viewRange * 1.5);
     viewStart = Math.max(0, center - newRange / 2);
     viewEnd   = Math.min(100, viewStart + newRange);
@@ -825,7 +869,7 @@
     {#if displayRows > 0}
     <!-- Leader lines — hit area + visual -->
     <svg class="tl-nav__leaders" aria-hidden="true">
-      {#each positioned as ev}
+      {#each positioned.filter(e => !e.labelHidden) as ev}
         {@const x1=`${ev.labelCenterPct}%`}
         {@const y1=absRowBottomY(ev)}
         {@const x2=`${ev.screenPct}%`}
@@ -849,7 +893,7 @@
     </svg>
 
     <!-- Label buttons (primary keyboard / screen-reader targets) -->
-    {#each positioned as ev}
+    {#each positioned.filter(e => !e.labelHidden) as ev}
       {@const isActive = ev.index === activeIndex}
       <button
         class="tl-nav__label"
@@ -872,12 +916,20 @@
     <div class="tl-nav__track" style="top: {sharedTrackTop}px; height: {TRACK_AREA}px;">
       {#each positioned as ev}
         {#if !ev.isDuration}
+            <!-- The label is normally this event's accessible control, so the
+                 mark is hidden from assistive tech to avoid duplicating it.
+                 When the label had nowhere to go, the mark takes that role
+                 instead — otherwise the event would be unreachable by keyboard
+                 or screen reader precisely on the crowded timelines where the
+                 label gets dropped. -->
           <button
             class="tl-nav__dot"
             class:tl-nav__dot--active={ev.index === activeIndex}
             style="left: {ev.screenPct}%;"
-            tabindex="-1"
-            aria-hidden="true"
+            tabindex={ev.labelHidden ? 0 : -1}
+            aria-hidden={ev.labelHidden ? undefined : 'true'}
+            aria-label={ev.labelHidden ? ev.ariaLabel : undefined}
+            aria-current={ev.labelHidden && ev.index === activeIndex ? 'true' : undefined}
             onpointerdown={(e) => e.stopPropagation()}
             onclick={() => onnavigate(ev.index)}
           ></button>
@@ -891,8 +943,10 @@
             class="tl-nav__span-bar"
             class:tl-nav__span-bar--active={ev.index === activeIndex}
             style="left: {ev.screenStartPct}%; width: {bracketWidthPct(ev.screenWidthPct!)};"
-            tabindex="-1"
-            aria-hidden="true"
+            tabindex={ev.labelHidden ? 0 : -1}
+            aria-hidden={ev.labelHidden ? undefined : 'true'}
+            aria-label={ev.labelHidden ? ev.ariaLabel : undefined}
+            aria-current={ev.labelHidden && ev.index === activeIndex ? 'true' : undefined}
             onpointerdown={(e) => e.stopPropagation()}
             onclick={() => onnavigate(ev.index)}
           ></button>

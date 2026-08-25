@@ -105,6 +105,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- TimeNav labels piled on top of each other on any timeline whose events
+  cluster, which is most real ones. Three separate causes:
+  - The drawer opened to one row regardless of the data. `layoutMetrics`
+    already computed how many rows the dataset needs, but that number was only
+    used to cap the drag, never to set the initial height. It now seeds it, so
+    a timeline that needs three rows opens with three.
+  - A label with no free slot was clamped to the right edge, so every label
+    that ran out of room landed on the same spot. Such a label is now dropped
+    instead; its marker still shows the date and still navigates, and zooming
+    in restores the label once there is room. When a label is dropped its
+    marker takes over as the accessible control — otherwise the event would be
+    unreachable by keyboard or screen reader on exactly the crowded timelines
+    where labels get dropped.
+  - Zoom centred on the middle of the viewport, so a timeline bunched at one
+    end zoomed into empty space — the control was least useful where it was
+    most needed, and it is now the recovery path for a dropped label. Zoom now
+    anchors on the active event whenever that event is on screen.
+
+  On a clustered 11-event timeline this goes from 1 row with 45 overlapping
+  label pairs (29 of them at identical positions) to 3 rows with none. The
+  sample 8-event timeline goes from 1 row to 3, also with none.
+
 - `navChrome: 'minimal'` had no boundary between the navigator and the slide.
   It takes the stage's own background, so on a white slide the two surfaces
   were identical with nothing between them. It now draws a hairline top rule.
