@@ -105,6 +105,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- The active event could end up without a label in the navigator. Labels are
+  placed left to right, so on a crowded timeline the events that come first
+  take the slots and later ones are dropped — including, often, the one being
+  viewed, leaving no indication of where you were. The active event now takes
+  over the slot nearest its own position, dropping that slot's previous
+  occupant instead. The packing geometry is untouched; only ownership of a
+  slot changes, and the two are adjacent by construction so the leader line
+  stays short.
+
 - TimeNav labels piled on top of each other on any timeline whose events
   cluster, which is most real ones. Three separate causes:
   - The drawer opened to one row regardless of the data. `layoutMetrics`

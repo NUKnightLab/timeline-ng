@@ -286,6 +286,36 @@
       }
     }
 
+    /*
+     * Guarantee the active event a label.
+     *
+     * Placement runs left to right, so on a crowded timeline the events that
+     * happen to come first take the available slots and everything after them
+     * is dropped — including, quite often, the one being viewed. A navigator
+     * that cannot show you where you are has failed at its main job.
+     *
+     * Rather than disturb the packing, the active event takes over the slot
+     * nearest its own position and the previous occupant is dropped instead.
+     * The geometry is untouched; only ownership changes. The two are close
+     * together by construction, so the leader line stays short.
+     */
+    const activeEntry = labelMap.get(activeIndex);
+    if (activeEntry?.hidden) {
+      const activeAt = activeEntry.centerPct;
+      let nearest: number | null = null;
+      let nearestDist = Infinity;
+      for (const [index, entry] of labelMap) {
+        if (entry.hidden || index === activeIndex) continue;
+        const dist = Math.abs(entry.centerPct - activeAt);
+        if (dist < nearestDist) { nearestDist = dist; nearest = index; }
+      }
+      if (nearest !== null) {
+        const slot = labelMap.get(nearest)!;
+        labelMap.set(activeIndex, { row: slot.row, centerPct: slot.centerPct });
+        labelMap.set(nearest, { row: slot.row, centerPct: slot.centerPct, hidden: true });
+      }
+    }
+
     return projected.map(ev => {
       const entry = labelMap.get(ev.index) ?? { row: 0, centerPct: ev.screenPct };
       return { ...ev, row: entry.row, labelCenterPct: entry.centerPct, labelHidden: entry.hidden === true };
