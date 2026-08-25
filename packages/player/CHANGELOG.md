@@ -24,12 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - **`navChrome` and `highContrast` props**, replacing the `skin` prop. Three
   independent axes now, each expressed as token values and each selected by its
-  own data attribute on the player root:
-  - `navChrome: 'quiet'` keeps every navigator control but draws it with less
-    ink — no chip rings, no band tints, no gutter divider. The restraint comes
-    from removing marks rather than lightening them, because lightening is what
-    made TimelineJS 3's navigator inaccessible: its date measures 2.10:1 on
-    white and its axis ticks 1.84:1.
+  own data attribute on the player root. `navChrome` is `'standard' | 'minimal'`:
   - `navChrome: 'minimal'` *removes* the zoom controls, date axis and minimap
     and reclaims their space — 44px of gutter, 18px of axis band, nav height
     106 to 88. This is the part no set of token values could do: fading chrome
@@ -67,6 +62,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   overrides.
 
 ### Changed
+
+- The navigator is quieter by default. The lighter band (`#f2f2f2`) with a
+  hairline top rule, labels with no chip ring, a zoom column with no divider,
+  group bands with no alternating tint, and a lighter marker colour were all
+  previously an opt-in `quiet` treatment. They are the default now, and `quiet`
+  is gone: the difference was one of degree rather than kind, and "less shouty"
+  is a thing a default should simply be rather than a choice to explain. The
+  palette carries its verification with it — `#6e6e6e` is the lightest marker
+  that still clears AA against the band, and the standard navigator measures
+  the same 3.17:1 light / 4.60:1 dark that `quiet` did.
 
 - An unset (or unrecognised) `fontPairing` now resolves to `DEFAULT_PAIRING`
   rather than falling through to the raw token defaults in `base.css`. Those

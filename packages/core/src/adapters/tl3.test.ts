@@ -95,10 +95,10 @@ describe('settings passthrough', () => {
   it('carries a settings block through, since TL3 JSON has none of its own', () => {
     const tl = fromTL3({
       events: [{ start_date: { year: 2000 }, text: { headline: 'x' } }],
-      settings: { language: 'es', theme: 'dark', fontPairing: 'playfair', navChrome: 'quiet', highContrast: true, reverseOrder: true },
+      settings: { language: 'es', theme: 'dark', fontPairing: 'playfair', navChrome: 'minimal', highContrast: true, reverseOrder: true },
     });
     expect(tl.settings).toEqual({
-      language: 'es', theme: 'dark', fontPairing: 'playfair', navChrome: 'quiet', highContrast: true, reverseOrder: true,
+      language: 'es', theme: 'dark', fontPairing: 'playfair', navChrome: 'minimal', highContrast: true, reverseOrder: true,
     });
   });
 

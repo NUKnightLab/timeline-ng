@@ -16,12 +16,11 @@
   const theme = $derived(settings.theme ?? 'auto');
   const reverseOrder = $derived(settings.reverseOrder ?? false);
   const fontPairing = $derived(settings.fontPairing ?? DEFAULT_PAIRING);
-  const navChrome = $derived(settings.navChrome ?? 'full');
+  const navChrome = $derived(settings.navChrome ?? 'standard');
   const highContrast = $derived(settings.highContrast ?? false);
 
   const NAV_CHOICES = [
-    { id: 'full' as const, label: 'Full', hint: 'Zoom controls, date axis and position bar.' },
-    { id: 'quiet' as const, label: 'Quiet', hint: 'Same controls, drawn more lightly.' },
+    { id: 'standard' as const, label: 'Standard', hint: 'Zoom controls, date axis and position bar.' },
     { id: 'minimal' as const, label: 'Minimal', hint: 'Just the track, markers and labels.' },
   ];
 

@@ -15,7 +15,6 @@
    @import must precede every other rule, so all three land before the :root
    and [data-tl-theme] blocks below and out-specify them via .tl-player. */
 @import './pairings.css';
-@import './nav/quiet.css';
 @import './nav/minimal.css';
 @import './contrast.css';
 
@@ -33,10 +32,25 @@
   --tl-color-accent: #d4550e;
   --tl-color-accent-hover: #b5400a;
   --tl-color-border: #dddddd;
-  --tl-color-nav-bg: #e0e0e0;
-  --tl-color-nav-marker: #555555;
-  --tl-color-nav-marker-active: #111111;
-  --tl-color-nav-marker-hover: #333333;
+  /*
+   * Navigator. These were once the 'quiet' nav treatment, kept as an opt-in
+   * alternative; they are the default now because the difference was one of
+   * degree, not of kind — the alternative had no describable purpose beyond
+   * "less shouty", which is a thing a default should just be. The palette is
+   * verified as a set: #6e6e6e is the lightest marker that still clears AA
+   * against the band at 4.55:1.
+   */
+  --tl-color-nav-bg: #f2f2f2;
+  --tl-nav-border-top: 1px solid #e5e5e5;
+  --tl-color-nav-marker: #6e6e6e;
+  --tl-color-nav-marker-active: #333333;
+  --tl-color-nav-marker-hover: #1a1a1a;
+  --tl-nav-label-active-bg: #ffffff;
+  --tl-nav-axis-bg: #ffffff;
+  --tl-nav-axis-border-top: 1px solid #e5e5e5;
+  --tl-nav-axis-tick-color: #949494;
+  --tl-nav-axis-color: #767676;
+  --tl-nav-band-border: 1px solid #e5e5e5;
 
   --tl-radius: 4px;
   --tl-gap: 1rem;
@@ -54,10 +68,17 @@
     --tl-headline-color: #f8f8f8;
     --tl-body-color: #d2d2d2;
     --tl-color-border: #444444;
-    --tl-color-nav-bg: #111111;
-    --tl-color-nav-marker: #aaaaaa;
+    --tl-color-nav-bg: #141414;
+    --tl-nav-border-top: 1px solid #2e2e2e;
+    --tl-color-nav-marker: #9a9a9a;
     --tl-color-nav-marker-active: #ffffff;
-    --tl-color-nav-marker-hover: #cccccc;
+    --tl-color-nav-marker-hover: #e0e0e0;
+    --tl-nav-label-active-bg: #333333;
+    --tl-nav-axis-bg: #0d0d0d;
+    --tl-nav-axis-border-top: 1px solid #2e2e2e;
+    --tl-nav-axis-tick-color: #6b6b6b;
+    --tl-nav-axis-color: #8f8f8f;
+    --tl-nav-band-border: 1px solid #2e2e2e;
   }
 }
 
@@ -69,10 +90,17 @@
   --tl-headline-color: #f8f8f8;
   --tl-body-color: #d2d2d2;
   --tl-color-border: #444444;
-  --tl-color-nav-bg: #111111;
-  --tl-color-nav-marker: #aaaaaa;
+  --tl-color-nav-bg: #141414;
+  --tl-nav-border-top: 1px solid #2e2e2e;
+  --tl-color-nav-marker: #9a9a9a;
   --tl-color-nav-marker-active: #ffffff;
-  --tl-color-nav-marker-hover: #cccccc;
+  --tl-color-nav-marker-hover: #e0e0e0;
+  --tl-nav-label-active-bg: #333333;
+  --tl-nav-axis-bg: #0d0d0d;
+  --tl-nav-axis-border-top: 1px solid #2e2e2e;
+  --tl-nav-axis-tick-color: #6b6b6b;
+  --tl-nav-axis-color: #8f8f8f;
+  --tl-nav-band-border: 1px solid #2e2e2e;
 }
 
 [data-tl-theme="light"] {
@@ -83,10 +111,25 @@
   --tl-headline-color: #111111;
   --tl-body-color: #3d3d3d;
   --tl-color-border: #dddddd;
-  --tl-color-nav-bg: #e0e0e0;
-  --tl-color-nav-marker: #555555;
-  --tl-color-nav-marker-active: #111111;
-  --tl-color-nav-marker-hover: #333333;
+  /*
+   * Navigator. These were once the 'quiet' nav treatment, kept as an opt-in
+   * alternative; they are the default now because the difference was one of
+   * degree, not of kind — the alternative had no describable purpose beyond
+   * "less shouty", which is a thing a default should just be. The palette is
+   * verified as a set: #6e6e6e is the lightest marker that still clears AA
+   * against the band at 4.55:1.
+   */
+  --tl-color-nav-bg: #f2f2f2;
+  --tl-nav-border-top: 1px solid #e5e5e5;
+  --tl-color-nav-marker: #6e6e6e;
+  --tl-color-nav-marker-active: #333333;
+  --tl-color-nav-marker-hover: #1a1a1a;
+  --tl-nav-label-active-bg: #ffffff;
+  --tl-nav-axis-bg: #ffffff;
+  --tl-nav-axis-border-top: 1px solid #e5e5e5;
+  --tl-nav-axis-tick-color: #949494;
+  --tl-nav-axis-color: #767676;
+  --tl-nav-band-border: 1px solid #e5e5e5;
 }
 
 /* ── Reduced motion ─────────────────────────────────────────────────────── */

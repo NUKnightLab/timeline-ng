@@ -216,11 +216,10 @@
         "navChrome": {
           "type": "string",
           "enum": [
-            "full",
-            "quiet",
+            "standard",
             "minimal"
           ],
-          "description": "How prominent the timeline navigator is.\n\n'full' (default) shows every control. 'quiet' keeps all of them but draws them with less ink — no chip borders, no band tints, no gutter divider. 'minimal' removes the zoom controls, the date axis and the zoom minimap altogether, reclaiming the space they occupied."
+          "description": "How prominent the timeline navigator is.\n\n'standard' (default) shows every control. 'minimal' removes the zoom controls, the date axis and the zoom minimap altogether, reclaiming the space they occupied."
         },
         "highContrast": {
           "type": "boolean",

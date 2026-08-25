@@ -94,12 +94,11 @@ export interface TLSettings {
   /**
    * How prominent the timeline navigator is.
    *
-   * 'full' (default) shows every control. 'quiet' keeps all of them but draws
-   * them with less ink — no chip borders, no band tints, no gutter divider.
-   * 'minimal' removes the zoom controls, the date axis and the zoom minimap
-   * altogether, reclaiming the space they occupied.
+   * 'standard' (default) shows every control. 'minimal' removes the zoom
+   * controls, the date axis and the zoom minimap altogether, reclaiming the
+   * space they occupied.
    */
-  navChrome?: 'full' | 'quiet' | 'minimal';
+  navChrome?: 'standard' | 'minimal';
   /**
    * Raise every text and mark to WCAG AAA contrast, with heavier weights and
    * thicker focus rings. Independent of `theme` and of `navChrome`: it applies

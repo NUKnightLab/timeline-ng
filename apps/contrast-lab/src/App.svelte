@@ -7,15 +7,15 @@
 
   const timeline = timelineData as TLTimeline;
 
-  type Nav = 'full' | 'quiet' | 'minimal';
-  const SKINS: Nav[] = ['full', 'quiet', 'minimal'];
+  type Nav = 'standard' | 'minimal';
+  const SKINS: Nav[] = ['standard', 'minimal'];
 
   let mode = $state<'compare' | 'toggle'>('compare');
   let theme = $state<'light' | 'dark' | 'auto'>('light');
-  let solo = $state<Nav>('quiet');
+  let solo = $state<Nav>('minimal');
   /* Which two nav levels face off in compare mode. */
-  let left = $state<Nav>('full');
-  let right = $state<Nav>('quiet');
+  let left = $state<Nav>('standard');
+  let right = $state<Nav>('minimal');
   /* Contrast is a separate axis, so it applies to both panels at once. */
   let highContrast = $state(false);
   /*

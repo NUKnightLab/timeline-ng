@@ -13,11 +13,10 @@
     reverseOrder?: boolean;
     theme?: 'light' | 'dark' | 'auto';
     /**
-     * How prominent the navigator is. 'quiet' keeps every control but draws
-     * it with less ink; 'minimal' removes the zoom controls, date axis and
-     * minimap, reclaiming their space.
+     * How prominent the navigator is. 'minimal' removes the zoom controls,
+     * date axis and minimap, reclaiming their space.
      */
-    navChrome?: 'full' | 'quiet' | 'minimal';
+    navChrome?: 'standard' | 'minimal';
     /** Raise everything to WCAG AAA contrast. Composes with the other axes. */
     highContrast?: boolean;
     /**
@@ -36,7 +35,7 @@
     language = 'en',
     reverseOrder = false,
     theme = 'auto',
-    navChrome = 'full',
+    navChrome = 'standard',
     highContrast = false,
     fontPairing,
     initialIndex = 0,
@@ -126,7 +125,7 @@
   }
 
   const themeAttr: string | undefined = $derived(theme === 'auto' ? undefined : theme);
-  const navAttr: string | undefined = $derived(navChrome === 'full' ? undefined : navChrome);
+  const navAttr: string | undefined = $derived(navChrome === 'standard' ? undefined : navChrome);
 
   /*
    * A pairing is applied as inline custom properties rather than a class, so

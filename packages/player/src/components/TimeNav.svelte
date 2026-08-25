@@ -17,14 +17,14 @@
      * but cannot reclaim the space it occupies, which is the whole reason this
      * is a prop and not a stylesheet.
      */
-    chrome?: 'full' | 'quiet' | 'minimal';
+    chrome?: 'standard' | 'minimal';
     onnavigate: (index: number) => void;
     onstart?: () => void;
     onend?: () => void;
     height?: number;
   }
 
-  let { timeline, activeIndex, language = 'en', compact = false, minimal = false, chrome = 'full', onnavigate, onstart, onend, height = $bindable(0) }: Props = $props();
+  let { timeline, activeIndex, language = 'en', compact = false, minimal = false, chrome = 'standard', onnavigate, onstart, onend, height = $bindable(0) }: Props = $props();
 
   const tl = $derived(getLocale(language));
 
@@ -55,8 +55,6 @@
   /** Zoom controls, date axis and minimap are absent at 'minimal'. */
   const showControls = $derived(!bareChrome);
   const showAxis     = $derived(!bareChrome);
-  /* 'quiet' keeps every control — it only draws them with less ink, which is
-     what separates it from 'minimal'. Only 'minimal' removes anything. */
   const showMinimap  = $derived(!bareChrome);
   const AXIS_H       = $derived(showAxis ? AXIS_H_FULL : 0);
 
@@ -1020,7 +1018,7 @@
     border-bottom: var(--tl-nav-band-border, 1px solid var(--tl-color-border, rgba(0,0,0,0.08)));
     pointer-events: none;
   }
-  .tl-nav__group-band--alt { background: var(--tl-nav-band-alt-bg, rgba(0,0,0,0.03)); }
+  .tl-nav__group-band--alt { background: var(--tl-nav-band-alt-bg, transparent); }
   .tl-nav__group-name {
     position: absolute;
     top: 50%;
@@ -1071,8 +1069,8 @@
     justify-content: center;
     gap: 0;
     z-index: 10;
-    background: var(--tl-nav-gutter-bg, var(--tl-color-nav-bg));
-    border-right: var(--tl-nav-gutter-border, 1px solid var(--tl-color-border, rgba(0,0,0,0.1)));
+    background: var(--tl-nav-gutter-bg, transparent);
+    border-right: var(--tl-nav-gutter-border, none);
   }
 
   .tl-nav__zoom-btn {
@@ -1122,7 +1120,7 @@
      * previous 0.5 the default marker faded to an effective #9b9b9b on the nav
      * band — 2.11:1. 0.7 is the lightest value that clears it in both themes.
      */
-    opacity: var(--tl-nav-leader-opacity, 0.7);
+    opacity: var(--tl-nav-leader-opacity, 0.8);
     pointer-events: none;
     transition: x1 0.3s ease, y1 0.3s ease, x2 0.3s ease, y2 0.3s ease,
                 opacity var(--tl-transition-speed) ease;
@@ -1130,7 +1128,7 @@
 
   .tl-nav__leader--active {
     stroke: var(--tl-nav-mark-active, var(--tl-color-nav-marker-active));
-    opacity: var(--tl-nav-leader-active-opacity, 0.8);
+    opacity: var(--tl-nav-leader-active-opacity, 1);
   }
 
   /* Label buttons */
@@ -1139,9 +1137,9 @@
     transform: translate(-50%, -50%);
     background: var(--tl-nav-label-bg, var(--tl-color-nav-bg));
     border: none;
-    border-radius: var(--tl-nav-label-radius, 3px);
-    box-shadow: var(--tl-nav-label-ring, 0 0 0 1px var(--tl-color-border, rgba(0,0,0,0.12)));
-    padding: var(--tl-nav-label-padding, 1px 4px);
+    border-radius: var(--tl-nav-label-radius, 4px);
+    box-shadow: var(--tl-nav-label-ring, none);
+    padding: var(--tl-nav-label-padding, 2px 5px);
     cursor: pointer;
     color: var(--tl-color-nav-marker);
     font-size: var(--tl-nav-label-size, 0.72rem);
@@ -1193,8 +1191,8 @@
   .tl-nav__label--active {
     color: var(--tl-color-nav-marker-active);
     background: var(--tl-nav-label-active-bg, var(--tl-nav-label-bg, var(--tl-color-nav-bg)));
-    box-shadow: var(--tl-nav-label-active-ring, var(--tl-nav-label-ring, 0 0 0 1px var(--tl-color-border, rgba(0,0,0,0.12))));
-    font-weight: var(--tl-nav-label-active-weight, 600);
+    box-shadow: var(--tl-nav-label-active-ring, none);
+    font-weight: var(--tl-nav-label-active-weight, 700);
     max-width: 130px;
     z-index: 2;
   }
@@ -1260,7 +1258,7 @@
     right: 0;
     height: 1px;
     background: var(--tl-color-nav-marker);
-    opacity: var(--tl-nav-track-opacity, 0.4);
+    opacity: var(--tl-nav-track-opacity, 0.35);
     transform: translateY(-50%);
   }
 
@@ -1356,7 +1354,7 @@
     width: 1px;
     height: calc(var(--tl-axis-track-offset) - 4px);
     background: var(--tl-nav-axis-tick-color, var(--tl-color-nav-marker));
-    opacity: var(--tl-nav-axis-tick-opacity, 0.5);
+    opacity: var(--tl-nav-axis-tick-opacity, 1);
     margin-bottom: 2px;
   }
 
@@ -1377,7 +1375,7 @@
     right: 0;
     height: 4px;
     background: var(--tl-color-nav-marker);
-    opacity: var(--tl-nav-minimap-opacity, 0.15);
+    opacity: var(--tl-nav-minimap-opacity, 0.12);
     z-index: 0;
   }
 

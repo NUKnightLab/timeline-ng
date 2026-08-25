@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   the fallback stack rather than the chosen face.
 
   Regenerate with `pnpm fonts:extract`.
-- `TLSettings.navChrome` (`'full' | 'quiet' | 'minimal'`) and
+- `TLSettings.navChrome` (`'standard' | 'minimal'`) and
   `TLSettings.highContrast`, replacing `TLSettings.skin`. A skin bundled three
   unrelated axes under one name, which is why none of them could be described
   to a user: measured by declaration, `bare` was 100% navigator (its two
