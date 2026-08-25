@@ -5,9 +5,12 @@
   interface Props {
     settings: TLSettings;
     onchange: (patch: Partial<TLSettings>) => void;
+    /** Dismiss the panel. Given its own control so the preview's close button
+        isn't the nearest thing to reach for. */
+    onclose?: () => void;
   }
 
-  let { settings, onchange }: Props = $props();
+  let { settings, onchange, onclose }: Props = $props();
 
   const language = $derived(settings.language ?? 'en');
   const theme = $derived(settings.theme ?? 'auto');
@@ -44,7 +47,12 @@
 </script>
 
 <div class="settings-panel">
-  <h3 class="settings-panel__title">Timeline settings</h3>
+  <div class="settings-panel__header">
+    <h3 class="settings-panel__title">Timeline settings</h3>
+    {#if onclose}
+      <button type="button" class="settings-panel__close" onclick={onclose} aria-label="Close settings">✕</button>
+    {/if}
+  </div>
 
   <div class="field">
     <label class="field-label" for="settings-language">Language</label>
@@ -141,6 +149,39 @@
     display: flex;
     flex-direction: column;
     gap: 1rem;
+  }
+
+  .settings-panel__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  /* Sized past the 24x24 minimum target, since it sits near the preview's own
+     close button and a mis-click costs the whole preview. */
+  .settings-panel__close {
+    flex: 0 0 auto;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    padding: 0;
+    background: none;
+    border: 1px solid #444;
+    border-radius: 2px;
+    color: #9ca3af;
+    font-family: inherit;
+    font-size: 0.7rem;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .settings-panel__close:hover {
+    color: #e5e7eb;
+    border-color: #666;
   }
 
   .settings-panel__title {

@@ -17,6 +17,13 @@
 
 .tl-player[data-tl-nav='minimal'] {
   --tl-color-nav-bg: var(--tl-color-bg, #ffffff);
+  /*
+   * The navigator shares the stage's background here, so without a rule there
+   * is nothing at all separating them — most visible on a white slide, where
+   * the two surfaces are identical. A hairline is the least this can be and
+   * still read as a boundary.
+   */
+  --tl-nav-border-top: 1px solid rgba(0, 0, 0, 0.14);
   --tl-color-nav-marker: #6e6e6e;
   --tl-color-nav-marker-hover: #000000;
 
@@ -42,12 +49,14 @@
 }
 
 .tl-player[data-tl-nav='minimal'][data-tl-theme='dark'] {
+  --tl-nav-border-top: 1px solid rgba(255, 255, 255, 0.18);
   --tl-color-nav-marker: #9a9a9a;
   --tl-color-nav-marker-hover: #ffffff;
 }
 
 @media (prefers-color-scheme: dark) {
   .tl-player[data-tl-nav='minimal']:not([data-tl-theme='light']) {
+    --tl-nav-border-top: 1px solid rgba(255, 255, 255, 0.18);
     --tl-color-nav-marker: #9a9a9a;
     --tl-color-nav-marker-hover: #ffffff;
   }

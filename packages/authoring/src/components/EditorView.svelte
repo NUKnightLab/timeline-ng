@@ -355,8 +355,9 @@
               class:active={showSettingsPanel}
               aria-pressed={showSettingsPanel}
               onclick={() => (showSettingsPanel = !showSettingsPanel)}
-            >⚙ Settings</button>
-            <button class="preview-drawer__close" onclick={() => (showPreview = false)} aria-label="Close preview">✕</button>
+            >⚙ {showSettingsPanel ? 'Hide settings' : 'Settings'}</button>
+            <span class="preview-chrome-sep" aria-hidden="true"></span>
+            <button class="preview-drawer__close" onclick={() => (showPreview = false)} aria-label="Close preview" title="Close preview">✕ Preview</button>
           </div>
         </div>
         <div class="preview-box__stage" class:settings-open={showSettingsPanel}>
@@ -379,7 +380,11 @@
           </div>
           {#if showSettingsPanel}
             <div class="preview-box__settings" transition:fly={{ x: 240, duration: 180 }}>
-              <SettingsPanel {settings} onchange={onsettingschange} />
+              <SettingsPanel
+                {settings}
+                onchange={onsettingschange}
+                onclose={() => (showSettingsPanel = false)}
+              />
             </div>
           {/if}
         </div>
@@ -879,6 +884,20 @@
     align-items: center;
     gap: 0.35rem;
     margin-left: auto;
+  }
+
+  /*
+   * The settings toggle and the preview's close button used to sit adjacent,
+   * and once the settings panel opened beneath it the close button read as
+   * that panel's dismiss control — one mis-click away from losing the whole
+   * preview. The panel now carries its own close, and these two are separated
+   * and labelled so neither is mistaken for the other.
+   */
+  .preview-chrome-sep {
+    width: 1px;
+    align-self: stretch;
+    margin: 0 0.4rem;
+    background: #3a3a3a;
   }
 
   .preview-drawer__close {

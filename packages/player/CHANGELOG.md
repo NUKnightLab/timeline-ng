@@ -100,6 +100,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- `navChrome: 'minimal'` had no boundary between the navigator and the slide.
+  It takes the stage's own background, so on a white slide the two surfaces
+  were identical with nothing between them. It now draws a hairline top rule.
+
 - Hovering an active TimeNav label dropped it to unreadable contrast under the
   high-contrast layer — dark blue on near-black, 1.73:1 in light and 2.16:1 in
   dark, against resting states of 17.40:1 and 21.00:1. `.tl-nav__label:hover`
