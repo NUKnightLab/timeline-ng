@@ -9,38 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- `FONT_PAIRINGS`, `getPairing()` and `coversLanguage()` — the 20 TimelineJS 3
-  font pairings, re-extracted from TL3's own stylesheets and re-resolved
-  against the modern Google Fonts API. A pairing is a set of `--tl-*` token
-  values plus two pieces of metadata: `webfonts` (families a host must serve)
-  and `scripts` (writing systems both faces actually cover). Nothing is
-  loaded by the module itself.
+- **Font pairings.** `FONT_PAIRINGS`, `getPairing()`, `coversLanguage()`,
+  `PAIRING_ALIASES` and the `FontPairing` / `FontPairingId` types. These are
+  TimelineJS 3's font sets, re-extracted from TL3's own stylesheets and
+  re-resolved against the modern Google Fonts API. 19 are offered; TL3 shipped
+  `default` as a byte-identical duplicate of `pt`, so that id survives as an
+  alias rather than a second entry.
 
-  `coversLanguage()` exists so the authoring tool can warn an author whose
-  language falls outside a pairing's coverage — most of these families are
-  Latin and sometimes Cyrillic, so a Japanese or Arabic timeline renders from
-  the fallback stack rather than the chosen face.
+  A pairing is a set of `--tl-*` token values plus two pieces of metadata:
+  `webfonts` (families a host must serve) and `scripts` (writing systems both
+  of its faces actually cover). The module loads nothing itself.
+
+  `coversLanguage()` exists so an authoring tool can warn before publishing:
+  most of these families are Latin and sometimes Cyrillic, so a Japanese or
+  Arabic timeline renders from the fallback stack rather than the chosen face.
 
   Regenerate with `pnpm fonts:extract`.
-- `TLSettings.navChrome` (`'standard' | 'minimal'`) and
-  `TLSettings.highContrast`, replacing `TLSettings.skin`. A skin bundled three
-  unrelated axes under one name, which is why none of them could be described
-  to a user: measured by declaration, `bare` was 100% navigator (its two
-  slide-layout declarations were dead, restating defaults), `quiet` was 25/37
-  navigator plus a text-centring rule left over from an abandoned TimelineJS 3
-  reproduction, and `contrast` was the only coherent one — because it was the
-  only one that mapped to a single axis. The axes are now named separately and
-  compose freely.
-- `TLSettings.fontPairing`, typed as `FontPairingId` so the JSON schema
-  validates against the shipped list without a hand-maintained duplicate.
-- `PAIRING_ALIASES`. TimelineJS 3 shipped `default` as a byte-identical copy of
-  `pt` — the same two faces under a second name — so 19 pairings are offered
-  rather than 20, and `getPairing('default')` resolves to `pt`. `FontPairingId`
-  keeps accepting `'default'`: what a record may name is deliberately a superset
-  of what the picker offers, so an existing record never stops resolving.
 
-- `TLSettings.skin` — selects a named visual skin in the player. Orthogonal to
-  `TLSettings.theme`, which stays a light/dark choice.
+- **Presentation settings.** Three independent axes on `TLSettings`, each
+  composing freely with the others and with `theme`:
+  - `fontPairing` — which faces render. Typed as `FontPairingId`, so the JSON
+    schema validates against the shipped list with no hand-maintained
+    duplicate to drift.
+  - `navChrome` — `'standard'` or `'minimal'`. Minimal drops the zoom
+    controls, date axis and minimap from the navigator entirely.
+  - `highContrast` — raises the player to WCAG AAA.
 
 ### Fixed
 
@@ -48,8 +41,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   such key, so anything present came from a timeline-ng file being read back
   in — which meant the authoring tool's file import silently dropped every
   setting an author had chosen. Downloading a timeline and re-importing it lost
-  language, theme, reverse order, start slide, skin and font pairing. Settings
-  now survive the round trip, field by field, with unrecognised values dropped
+  language, theme, reverse order and start slide. Settings now survive the
+  round trip, validated field by field, with unrecognised values dropped
   rather than passed to the player.
 
 ## [0.3.0] - 2026-07-28

@@ -9,217 +9,123 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- `styles/pairings.css`, generated from `FONT_PAIRINGS` — each pairing's tokens
-  as a `[data-tl-font]` block. Imported before the nav and contrast layers so
-  the cascade reads base defaults < pairing < navChrome < highContrast <
+- **`fontPairing` prop**, applying one of the TimelineJS 3 font pairings from
+  `@knight-lab/timeline-ng-core`. The pairing's tokens ship as
+  `styles/pairings.css`, a generated `[data-tl-font]` block per pairing, so
+  normal cascade rules apply. The player supplies tokens only and never loads
+  font files — whoever mounts it serves the faces named in the pairing's
+  `webfonts`, and an unserved face falls back through the pairing's own stack.
+  An unrecognised id resolves to the default pairing rather than throwing,
+  since a saved record can outlive the pairing it names.
+
+- **`navChrome` prop** (`'standard' | 'minimal'`). Minimal removes the zoom
+  controls, date axis and minimap and reclaims the space they occupied — 44px
+  of gutter and 18px of axis band, nav height 106 to 88. Fading chrome with
+  token values leaves its layout behind, which is why this is a prop.
+
+- **`highContrast` prop**, raising text and marks to WCAG AAA: worst measured
+  case 15.13:1 in light and 15.91:1 in dark. It spans slide and navigator
+  alike and is applied last, so where it disagrees with a pairing or a nav
+  treatment about a colour it wins — an accessibility mode a styling choice
+  could override would not be one.
+
+  The three axes above are orthogonal to each other and to `theme`, and each
+  is a set of token values selected by its own data attribute on the player
+  root. The cascade runs base defaults < pairing < navChrome < highContrast <
   embedder.
 
-- A `fontPairing` prop on `SlidePlayer`, applying a pairing's typography tokens
-  as inline custom properties. The player supplies tokens only and never loads
-  font files — whoever mounts it serves the faces. An unrecognised id is
-  ignored rather than throwing, since a saved record can outlive a pairing.
-
-- `--tl-headline-transform`, so a font pairing can set its headline in caps —
-  five of the TimelineJS 3 pairings do. Defaults to `none`.
-
-- **`navChrome` and `highContrast` props**, replacing the `skin` prop. Three
-  independent axes now, each expressed as token values and each selected by its
-  own data attribute on the player root. `navChrome` is `'standard' | 'minimal'`:
-  - `navChrome: 'minimal'` *removes* the zoom controls, date axis and minimap
-    and reclaims their space — 44px of gutter, 18px of axis band, nav height
-    106 to 88. This is the part no set of token values could do: fading chrome
-    with opacity leaves its layout behind.
-  - `highContrast` raises everything to WCAG AAA, worst case 15.13:1 light and
-    15.91:1 dark. It spans slide and navigator alike and applies last, so where
-    it disagrees with a nav treatment or a pairing about a colour it wins — an
-    accessibility mode a styling choice could override would not be one.
-
-  A skin had bundled these three unrelated axes under one name, which is why
-  none of them could be described to a user. Both new settings are exposed in
-  the authoring tool, and every combination is verified in the contrast-lab app, which
-  measures rendered colours rather than stylesheet values.
-- `--tl-nav-mark-active`, splitting the active *mark* colour (dot, span bar,
-  leader stroke, minimap thumb) out of `--tl-color-nav-marker-active`, which
-  now sets only the active label's text colour. One token previously drove
-  both, which made a light-on-dark active label impossible: inverting the
-  label also turned the active dot white on a white nav and erased it.
-  Defaults to `--tl-color-nav-marker-active`, so existing overrides are
-  unaffected.
+- **A much wider token surface**, so those layers need no component overrides.
+  New: the nav's top border, label chip fill/ring/radius/padding, zoom gutter
+  fill and border, axis strip background, border and tick colour, leader,
+  track and minimap opacities, group band border and tint, marker and button
+  target sizes, `--tl-nav-dot-active-scale`, `--tl-date-transform`,
+  `--tl-headline-transform`, `--tl-headline-color`, `--tl-body-color` and the
+  `--tl-slide-text-only-*` trio.
 - `--tl-focus-ring-width`, `--tl-focus-ring-offset` and `--tl-focus-ring-color`,
   replacing five hardcoded `2px solid var(--tl-color-accent)` declarations
-  across three components. These were previously reachable only by colour, not
-  by weight.
-- `--tl-nav-dot-active-scale` (was a hardcoded `scale(1.4)`) and
-  `--tl-nav-btn-size`, `--tl-nav-dot-target-x`, `--tl-nav-dot-target-y`.
-- A set of `--tl-nav-*` and slide typography tokens covering values that were
-  previously hardcoded — the nav's top border, label chip fill/ring/radius, the
-  zoom gutter's fill and border, axis strip background and tick colour, leader,
-  track and minimap opacities, group band border and tint, plus
-  `--tl-date-transform`, `--tl-headline-color`, `--tl-body-color` and the
-  `--tl-slide-text-only-*` trio. Every default matches the previous hardcoded
-  value, so nothing changes unless a layer or embedder sets them. These exist
-  so each layer can be expressed purely as token values, with no component
-  overrides.
+  across three components. A focus ring's weight and offset were previously
+  unreachable.
+- `--tl-nav-mark-active`, separating the active *mark* colour (dot, span bar,
+  leader stroke, minimap thumb) from `--tl-color-nav-marker-active`, which now
+  sets only the active label's text. One token drove both, which made a
+  light-on-dark active label impossible — inverting the label also turned the
+  active dot white on a white nav and erased it. Defaults to
+  `--tl-color-nav-marker-active`, so existing overrides are unaffected.
 
 ### Changed
 
-- The navigator is quieter by default. The lighter band (`#f2f2f2`) with a
-  hairline top rule, labels with no chip ring, a zoom column with no divider,
-  group bands with no alternating tint, and a lighter marker colour were all
-  previously an opt-in `quiet` treatment. They are the default now, and `quiet`
-  is gone: the difference was one of degree rather than kind, and "less shouty"
-  is a thing a default should simply be rather than a choice to explain. The
-  palette carries its verification with it — `#6e6e6e` is the lightest marker
-  that still clears AA against the band, and the standard navigator measures
-  the same 3.17:1 light / 4.60:1 dark that `quiet` did.
-
-- An unset (or unrecognised) `fontPairing` now resolves to `DEFAULT_PAIRING`
-  rather than falling through to the raw token defaults in `base.css`. Those
-  two paths produced near-identical output by coincidence rather than design.
-  One consequence is visible: with no pairing named, headlines are now Georgia
-  and body copy Helvetica Neue at 17px, where before both were `system-ui` at
-  16px.
-- No layer sets `--tl-font-heading` or `--tl-font-body`. Which faces render is
-  the author's choice, expressed through the font pairing; a layer that pinned
-  the family made picking a typeface do nothing while that layer was on. Layers
-  adjust size, weight and colour — never the family.
-
-- The slide date no longer renders as a bold, uppercase, letter-spaced eyebrow.
-  It was one of the loudest elements on a slide when it should be among the
-  quietest; it is now plain sentence case at reading size (0.9375rem/400),
-  following TimelineJS 3. The previous treatment is still reachable through
-  `--tl-date-size`, `--tl-date-weight`, `--tl-date-tracking` and
-  `--tl-date-transform`.
-- Body copy is now a step lighter than the headline rather than sharing its
-  colour, via new `--tl-headline-color` and `--tl-body-color` defaults
-  (`#111111`/`#3d3d3d` light, `#f8f8f8`/`#d2d2d2` dark; 10.86:1 and 11.51:1
-  for body). Slides with a dark or image background flip both tokens
-  alongside `--tl-color-text`.
-- Slide content is now vertically centred in the stage, matching TimelineJS 3,
+- **Slide content is vertically centred** in the stage, matching TimelineJS 3,
   rather than pinned to the top; media and text columns centre against each
   other too. Centring uses auto block margins rather than
   `justify-content: center`, so a slide taller than the stage still scrolls
   from its true top instead of clipping it out of reach. Set
-  `--tl-slide-valign: 0` for the previous top alignment, and
-  `--tl-slide-media-align: start` for the previous column alignment.
+  `--tl-slide-valign: 0` and `--tl-slide-media-align: start` for the previous
+  behaviour.
+- **The slide date is no longer a bold, uppercase, letter-spaced eyebrow.** It
+  was among the loudest things on a slide when it should be among the
+  quietest; it is now plain sentence case at reading size (0.9375rem/400).
+  Reachable through `--tl-date-size`, `--tl-date-weight`,
+  `--tl-date-tracking` and `--tl-date-transform`.
+- **Body copy is a step lighter than the headline** rather than sharing its
+  colour — `#111111`/`#3d3d3d` light and `#f8f8f8`/`#d2d2d2` dark, measuring
+  10.86:1 and 11.51:1. Slides with a dark or image background flip both.
+- **The navigator is quieter.** A lighter band (`#f2f2f2`, was `#e0e0e0`) with
+  a hairline top rule, labels with no chip ring, a zoom column with no
+  divider, group bands with no alternating tint, and a lighter marker
+  (`#6e6e6e`, was `#555555`) — the lightest that still clears AA against the
+  band, at 4.55:1.
+- **Default typography** is now the `georgia-helvetica` pairing rather than
+  bare `system-ui`: Georgia headlines, Helvetica Neue body at 17px. It is the
+  one pairing built from system fonts, so it needs no downloads and covers
+  every writing system.
+- An active nav label keeps its colour on hover and focus instead of taking
+  the generic hover colour, which is calibrated against the nav background
+  rather than whatever pill the label sits on. The halo, width expansion and
+  raised z-index still supply the feedback; `--tl-nav-label-active-hover` sets
+  a shade if one is wanted.
+- `--tl-nav-marker-size` now means the marker's diameter (12px). It previously
+  sized a content box that had no effect on what was drawn.
 
 ### Fixed
 
-- The active event could end up without a label in the navigator. Labels are
-  placed left to right, so on a crowded timeline the events that come first
-  take the slots and later ones are dropped — including, often, the one being
-  viewed, leaving no indication of where you were. The active event now takes
-  over the slot nearest its own position, dropping that slot's previous
-  occupant instead. The packing geometry is untouched; only ownership of a
-  slot changes, and the two are adjacent by construction so the leader line
-  stays short.
-
-- TimeNav labels piled on top of each other on any timeline whose events
-  cluster, which is most real ones. Three separate causes:
-  - The drawer opened to one row regardless of the data. `layoutMetrics`
-    already computed how many rows the dataset needs, but that number was only
-    used to cap the drag, never to set the initial height. It now seeds it, so
-    a timeline that needs three rows opens with three.
+- **Navigator labels piled on top of each other** on any timeline whose events
+  cluster, which is most real ones. Three causes:
+  - The drawer opened to one row regardless of the data. The row count the
+    dataset needs was already computed, but only used to cap the drag, never
+    to set the initial height. It now seeds it.
   - A label with no free slot was clamped to the right edge, so every label
-    that ran out of room landed on the same spot. Such a label is now dropped
-    instead; its marker still shows the date and still navigates, and zooming
-    in restores the label once there is room. When a label is dropped its
-    marker takes over as the accessible control — otherwise the event would be
-    unreachable by keyboard or screen reader on exactly the crowded timelines
-    where labels get dropped.
+    that ran out of room landed on the same spot. Such a label is now dropped;
+    its marker still shows the date and still navigates, and zooming in
+    restores the label once there is room. A dropped label hands its
+    accessible role to its marker, which is otherwise hidden from assistive
+    tech as a duplicate — without that, events would become unreachable by
+    keyboard on exactly the crowded timelines where labels get dropped.
   - Zoom centred on the middle of the viewport, so a timeline bunched at one
-    end zoomed into empty space — the control was least useful where it was
-    most needed, and it is now the recovery path for a dropped label. Zoom now
-    anchors on the active event whenever that event is on screen.
+    end zoomed into empty space. It now anchors on the active event whenever
+    that event is on screen.
 
-  On a clustered 11-event timeline this goes from 1 row with 45 overlapping
-  label pairs (29 of them at identical positions) to 3 rows with none. The
-  sample 8-event timeline goes from 1 row to 3, also with none.
-
-- `navChrome: 'minimal'` had no boundary between the navigator and the slide.
-  It takes the stage's own background, so on a white slide the two surfaces
-  were identical with nothing between them. It now draws a hairline top rule.
-
-- Hovering an active TimeNav label dropped it to unreadable contrast under the
-  high-contrast layer — dark blue on near-black, 1.73:1 in light and 2.16:1 in
-  dark, against resting states of 17.40:1 and 21.00:1. `.tl-nav__label:hover`
-  is (0,2,0) and outranks `.tl-nav__label--active` at (0,1,0), so hover swapped
-  in `--tl-color-nav-marker-hover` — a colour calibrated against the nav
-  background — while the label kept its own inverted pill. Active labels now
-  hold their colour through hover and focus; the halo, width expansion and
-  raised z-index still provide the feedback. `--tl-nav-label-active-hover` sets
-  a shade matched to whatever pill a layer chose.
-
-- Axis labels ran off the ends of the TimeNav. Each tick is centred on its
-  date, so a label near either edge overflowed the strip and was clipped. An
-  edge treatment that anchors the label's near side to the tick already
-  existed, but was only ever applied to the two synthetic ticks used when no
-  real ones fit — every generated tick stayed centred. It now applies to any
-  tick whose label would overflow, at either end, with the tick mark staying
-  exactly on its date and the text running inward.
-
-- The TimeNav axis line stopped short of the first and last events, leaving a
-  visible gap between the end dot and the line. The line was inset 2% at each
-  end while the marks are positioned across the full 0-100% of the same box,
-  so the extreme dots sat outside it. The inset is a leftover from an earlier
-  layout where it was `margin: 0 2%` on the track itself and moved the marks
-  along with the line; the rewrite kept it on the line alone. The line now
-  spans the full track.
-
-- TimeNav marker dots rendered as vertical ellipses. The dot's visible size had
-  always come from its padding box, not — as the code claimed — from a tiny
-  content box clipped by `background-clip: content-box`: the `background`
-  shorthand declared after it reset `background-clip` back to `border-box`.
-  With uniform padding the result was a circle by accident, so giving the dot a
-  taller hit target for SC 2.5.8 stretched the mark with it. The visible dot is
-  now drawn by a `::before` at a fixed size, independent of the target, and the
-  active state scales that mark rather than the target — growing a target on
-  selection would have let it steal clicks from its neighbours.
-- `--tl-nav-marker-size` now means what its name implies: the dot's diameter,
-  defaulting to 12px. It previously set a content box whose size had no effect
-  on the rendered dot.
-
-- TimeNav zoom/navigation buttons were 28x20px, under WCAG 2.2 SC 2.5.8's
-  24x24 minimum target size. They are now 24x24. The control column needed the
-  extra room, so it now spans the axis band as well as the content area — the
-  axis strip begins at `left: controlGutter`, leaving the gutter's own slice of
-  that band empty — and the start/end buttons drop out when the drawer is too
-  short to stack four controls.
-- TimeNav marker dots had a hit area of roughly 12x12px. Vertical padding now
-  brings it to 12x24. It is deliberately not widened to 24x24: dots are placed
-  by date and can sit a few pixels apart, so 24px-wide targets would occlude
-  each other's centres and make the earlier of two close events unreachable —
-  worse for the users the criterion protects. Where dots are dense the label
-  above is the accessible target; `--tl-nav-dot-target-x` widens them for
-  timelines that are sparse enough to afford it.
-- TimeNav leader lines failed WCAG AA. They were drawn at 0.5 opacity, fading
-  the default marker colour to an effective `#9b9b9b` against the nav band —
-  2.11:1 in light mode and 2.91:1 in dark, against the 3:1 required for
-  non-text that carries meaning (a leader is what ties a label to its point on
-  the track). Default opacity is now 0.7, the lightest value that clears the
-  threshold in both themes; override with `--tl-nav-leader-opacity`.
-- `loadTimeline()` never hydrated `blobRef`-backed media or backgrounds (images
-  uploaded to a PDS rather than linked by URL) into fetchable URLs — only the
-  authoring app did that hydration, for the signed-in user's own drafts. Any
-  read-only playback of an `at://` timeline (embeds, share links) with an
-  uploaded background or event image silently rendered without it. Blob
-  references are now hydrated into `getBlob` URLs using the author's DID and
-  resolved PDS at load time.
-- `TimeNav` group-band labels (e.g. from TL3 `group` fields) were effectively
-  invisible — the label gutter overlapped the zoom-controls column, which sat
-  on top with an opaque background, hiding all but a sliver of each name.
-  Labels now render clear of the controls, and a label too long for the
-  gutter (e.g. "Social Media") floats over the timeline instead of being
-  truncated with an ellipsis.
-- The group with no `group` value could land in the middle of the group
-  list, wherever its first event happened to fall chronologically. It's now
-  always pinned to the last band.
-- Dragging the nav handle down on a grouped timeline could make it *taller*
-  instead of shorter, because grouped rows and the ungrouped fallback layout
-  used different row heights. Shrinking the drawer below the height needed
-  to show one row per group now drops grouping entirely and lays out events
-  like an ungrouped timeline, using as many rows as actually fit — and the
-  fallback height can never exceed the grouped height it replaces.
+  On a clustered 11-event timeline: 1 row with 45 overlapping label pairs, 29
+  of them at identical positions, becomes 3 rows with none.
+- **The active event could have no label at all**, since labels are placed
+  left to right and the earliest events took the available slots. A navigator
+  that cannot show where you are has failed at its main job. The active event
+  now takes the slot nearest its own position and drops that slot's previous
+  occupant instead.
+- **Axis labels ran off both ends** of the navigator. The edge treatment that
+  anchors a label's near side to its tick existed but was only ever applied to
+  two synthetic ticks; it now applies to any tick whose label would overflow.
+- **The axis line stopped short of the first and last events**, leaving a
+  visible gap between the end dot and the line. It was inset 2% at each end
+  while the marks span the full width.
+- **Leader lines failed WCAG AA** at 2.11:1 in light and 2.91:1 in dark,
+  against the 3:1 required for non-text that carries meaning. Default opacity
+  is now 0.7, the lightest that clears both.
+- **Target sizes below WCAG 2.2 SC 2.5.8.** Zoom buttons were 28x20 and are
+  now 24x24; marker hit areas were roughly 12x12 and are now 12x24. Markers
+  are deliberately not widened to 24: they are placed by date and can sit a
+  few pixels apart, so square targets would occlude each other and strand the
+  earlier of two close events — worse for the users the criterion protects.
+  `--tl-nav-dot-target-x` widens them for timelines sparse enough to afford it.
 
 ## [0.3.0] - 2026-07-28
 
