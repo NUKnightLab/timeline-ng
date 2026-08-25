@@ -36,19 +36,28 @@
 </style>
 
 <h1>Appearance</h1>
-<p class="subtitle">Typeface and contrast are separate choices</p>
+<p class="subtitle">Choices about how your timeline looks.</p>
 
 <p>
-  Two settings control how a timeline looks, and they are independent of each
-  other — each answers one question, and any combination is valid. Both are in
-  the settings panel next to the preview, and both can also be set directly in
-  a timeline's <code>settings</code> block.
+  The Timeline NG authoring tool provides a "settings" interface which allows you to make a few choices about how your timeline looks.
+</p>
+<p>
+  More technical users can apply these in a timeline's <code>settings</code> block as well as take a lot more control over a timeline's appearance. See 
+  <a href="https://github.com/NUKnightLab/timeline-ng/tree/main/apps/example-custom-theme" target="_blank" rel="noopener">the example app</a> for more information.
+</p>
+
+<h2>Theme</h2>
+<p>
+  You can choose between "light", "dark", or "auto". "auto" is the default, and
+  follows whatever the reader's own device is set to — so the same timeline
+  appears light to one person and dark to another, matching the rest of what
+  they are reading.
 </p>
 
 <h2>Typeface</h2>
 
 <p>
-  <code>fontPairing</code> chooses a headline face and a body face together.
+  Use the "typeface" menu to choose a headline face and a body face together.
   These pairings are carried over from the classic TimelineJS, so a timeline
   moved across should be able to keep the look it had. Note that you'll have to 
   manually set the typeface after importing, as classic TimelineJS did not store
@@ -56,7 +65,8 @@
 </p>
 
 <p>
-  The <strong>Scripts</strong> column matters if your timeline is not written in
+  The <strong>Scripts</strong> column in the table below matters if your timeline
+  is not written in
   the Latin alphabet. Most of these families cover Latin and sometimes Cyrillic
   and little else. A timeline in a writing system the faces don't cover still
   displays perfectly well — the text falls back to a standard system font,
@@ -69,6 +79,10 @@
   <strong>Georgia + Helvetica Neue</strong> is the default and the one exception:
   it uses fonts already on the reader's device, so it downloads nothing and
   covers every writing system. It is the safe choice rather than the dull one.
+</p>
+
+<p>
+  Casual users can ignore the "setting value" column. That is provided as a reference for more technical creators.
 </p>
 
 <table class="field-table pairing-table">
@@ -96,29 +110,18 @@
   <!-- END GENERATED PAIRINGS -->
 </table>
 
-<div class="note">
-  <p>
-    <strong>If your events bunch together</strong> — many in one decade, or one
-    ancient event and the rest recent — the navigator cannot label all of them
-    without the labels colliding. It shows as many as fit, always including the
-    event you are currently viewing, and leaves the rest as markers on the
-    track. Those markers still work: click one to jump to it. Zooming in
-    (Ctrl or &#8984; + scroll) spreads the events out and the labels reappear.
-  </p>
-</div>
-
 <h2>High contrast</h2>
 
 <p>
-  <code>highContrast</code> raises every piece of text and every marker to the
+  Enabling "high contrast" raises every piece of text and every marker to the
   strictest contrast level in the Web Content Accessibility Guidelines
   (WCAG AAA), uses heavier type, and thickens the outline that shows which
   element has keyboard focus.
 </p>
 
 <p>
-  It applies on top of whichever typeface and navigator setting you have chosen,
-  and it takes precedence over both wherever they disagree about a colour.
+  It applies on top of whichever theme and typeface you have chosen. Where it
+  and the theme disagree about a color, high contrast wins.
 </p>
 
 <div class="note">
@@ -128,5 +131,18 @@
     policies require. High contrast goes beyond that, and is worth turning on if
     you know your audience needs it or if your timeline will be read on projectors
     or in bright light.
+  </p>
+</div>
+
+
+<h2>When events bunch together</h2>
+<div class="note">
+  <p>
+    <strong>Events close together in time</strong> — many in one decade, or one
+    ancient event and the rest recent — the navigator cannot label all of them
+    without the labels colliding. It shows as many as fit, always including the
+    event you are currently viewing, and leaves the rest as markers on the
+    track. Those markers still work: click one to jump to it. Zooming in
+    (Ctrl or &#8984; + scroll) spreads the events out and the labels reappear.
   </p>
 </div>
