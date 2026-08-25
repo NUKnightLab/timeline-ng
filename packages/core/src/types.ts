@@ -92,14 +92,6 @@ export interface TLSettings {
    */
   fontPairing?: FontPairingId;
   /**
-   * How prominent the timeline navigator is.
-   *
-   * 'standard' (default) shows every control. 'minimal' removes the zoom
-   * controls and the date axis altogether, reclaiming the space they
-   * occupied.
-   */
-  navChrome?: 'standard' | 'minimal';
-  /**
    * Raise every text and mark to WCAG AAA contrast, with heavier weights and
    * thicker focus rings. Independent of `theme` and of `navChrome`: it applies
    * over whichever of those is in effect.

@@ -13,8 +13,16 @@
     reverseOrder?: boolean;
     theme?: 'light' | 'dark' | 'auto';
     /**
-     * How prominent the navigator is. 'minimal' removes the zoom controls,
-     * date axis, reclaiming their space.
+     * How prominent the navigator is. 'minimal' removes the zoom controls and
+     * the date axis, reclaiming their space.
+     *
+     * Deliberately NOT part of TLSettings, so it is not something an author
+     * can choose from the authoring tool or set in a timeline record. Most
+     * real timelines are dense enough that the navigator has to drop some
+     * labels, and zooming is how a reader gets them back — so removing the
+     * zoom controls is a choice whose cost an author cannot see when making
+     * it. Kept as a prop for embedders who know their timeline is sparse, and
+     * so the capability survives if a clearer design turns up.
      */
     navChrome?: 'standard' | 'minimal';
     /** Raise everything to WCAG AAA contrast. Composes with the other axes. */

@@ -213,14 +213,6 @@
           "$ref": "#/definitions/FontPairingId",
           "description": "Font pairing, carried forward from TimelineJS 3. Supplies `--tl-font-heading` / `--tl-font-body` and a few matching size and weight tokens; see FONT_PAIRINGS. Defaults to 'georgia-helvetica', the one pairing built from system fonts and therefore the only one that covers every writing system."
         },
-        "navChrome": {
-          "type": "string",
-          "enum": [
-            "standard",
-            "minimal"
-          ],
-          "description": "How prominent the timeline navigator is.\n\n'standard' (default) shows every control. 'minimal' removes the zoom controls and the date axis altogether, reclaiming the space they occupied."
-        },
         "highContrast": {
           "type": "boolean",
           "description": "Raise every text and mark to WCAG AAA contrast, with heavier weights and thicker focus rings. Independent of `theme` and of `navChrome`: it applies over whichever of those is in effect."

@@ -36,13 +36,13 @@
 </style>
 
 <h1>Appearance</h1>
-<p class="subtitle">Typeface, navigator and contrast are three separate choices</p>
+<p class="subtitle">Typeface and contrast are separate choices</p>
 
 <p>
-  Three settings control how a timeline looks, and they are deliberately
-  independent — each answers one question, and any combination is valid. They
-  are all available in the settings panel next to the preview, and all three
-  can also be set directly in a timeline's <code>settings</code> block.
+  Two settings control how a timeline looks, and they are independent of each
+  other — each answers one question, and any combination is valid. Both are in
+  the settings panel next to the preview, and both can also be set directly in
+  a timeline's <code>settings</code> block.
 </p>
 
 <h2>Typeface</h2>
@@ -94,37 +94,14 @@
   <!-- END GENERATED PAIRINGS -->
 </table>
 
-<h2>Navigator</h2>
-
-<p>
-  <code>navChrome</code> controls how much of the timeline navigator — the strip
-  along the bottom — is shown.
-</p>
-
-<table class="field-table">
-  <tr><th>Setting</th><th>Shows</th></tr>
-  <tr>
-    <td><code>"standard"</code></td>
-    <td>The full navigator: event markers and labels, the date axis, zoom
-      controls, and a bar showing which part of the timeline you are looking at.
-      This is the default.</td>
-  </tr>
-  <tr>
-    <td><code>"minimal"</code></td>
-    <td>Just the track, the markers and their labels. The zoom controls, date
-      axis and position bar are removed, and the navigator gets shorter, leaving
-      more room for your slides.</td>
-  </tr>
-</table>
-
 <div class="note">
   <p>
     <strong>If your events bunch together</strong> — many in one decade, or one
     ancient event and the rest recent — the navigator cannot label all of them
     without the labels colliding. It shows as many as fit, always including the
     event you are currently viewing, and leaves the rest as markers on the
-    track. Those markers still work: click one to jump to it. Zooming in spreads
-    the events out and the labels reappear.
+    track. Those markers still work: click one to jump to it. Zooming in
+    (Ctrl or &#8984; + scroll) spreads the events out and the labels reappear.
   </p>
 </div>
 

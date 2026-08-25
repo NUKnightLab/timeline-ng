@@ -16,13 +16,8 @@
   const theme = $derived(settings.theme ?? 'auto');
   const reverseOrder = $derived(settings.reverseOrder ?? false);
   const fontPairing = $derived(settings.fontPairing ?? DEFAULT_PAIRING);
-  const navChrome = $derived(settings.navChrome ?? 'standard');
   const highContrast = $derived(settings.highContrast ?? false);
 
-  const NAV_CHOICES = [
-    { id: 'standard' as const, label: 'Standard', hint: 'Zoom controls, date axis and position bar.' },
-    { id: 'minimal' as const, label: 'Minimal', hint: 'Just the track, markers and labels.' },
-  ];
 
   /*
    * Most of these pairings are Latin, sometimes Cyrillic. A timeline in a
@@ -92,17 +87,6 @@
       <button type="button" class="settings-tab-btn" class:active={theme === 'dark'} onclick={() => onchange({ theme: 'dark' })}>Dark</button>
       <button type="button" class="settings-tab-btn" class:active={theme === 'auto'} onclick={() => onchange({ theme: 'auto' })}>Auto</button>
     </div>
-  </div>
-
-  <div class="field" role="group" aria-label="Timeline navigator">
-    <span class="field-label">Navigator</span>
-    <div class="settings-tabs">
-      {#each NAV_CHOICES as c}
-        <button type="button" class="settings-tab-btn" class:active={navChrome === c.id}
-                onclick={() => onchange({ navChrome: c.id })}>{c.label}</button>
-      {/each}
-    </div>
-    <p class="field-hint">{NAV_CHOICES.find((c) => c.id === navChrome)?.hint}</p>
   </div>
 
   <div class="field field-checkbox">

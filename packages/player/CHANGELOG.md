@@ -19,9 +19,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   since a saved record can outlive the pairing it names.
 
 - **`navChrome` prop** (`'standard' | 'minimal'`). Minimal removes the zoom
-  controls and date axis and reclaims the space they occupied — 44px
-  of gutter and 18px of axis band, nav height 106 to 88. Fading chrome with
-  token values leaves its layout behind, which is why this is a prop.
+  controls and date axis and reclaims the space they occupied — 44px of gutter
+  and 18px of axis band, nav height 106 to 88.
+
+  Deliberately not part of `TLSettings`, so it is not something an author can
+  choose. Most real timelines are dense enough that the navigator must drop
+  some labels, and zooming is how a reader gets them back, so removing the zoom
+  controls has a cost an author cannot see when choosing it. It stays a prop
+  for embedders who know their own timeline is sparse.
 
 - **`highContrast` prop**, raising text and marks to WCAG AAA: worst measured
   case 15.13:1 in light and 15.91:1 in dark. It spans slide and navigator

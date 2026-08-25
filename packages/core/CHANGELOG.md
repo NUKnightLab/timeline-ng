@@ -26,13 +26,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
   Regenerate with `pnpm fonts:extract`.
 
-- **Presentation settings.** Three independent axes on `TLSettings`, each
-  composing freely with the others and with `theme`:
+- **Presentation settings.** Two independent axes on `TLSettings`, composing
+  freely with each other and with `theme`:
   - `fontPairing` — which faces render. Typed as `FontPairingId`, so the JSON
     schema validates against the shipped list with no hand-maintained
     duplicate to drift.
-  - `navChrome` — `'standard'` or `'minimal'`. Minimal drops the zoom
-    controls and date axis from the navigator entirely.
   - `highContrast` — raises the player to WCAG AAA.
 
 - Locale strings `timeline.zoom_hint` and `timeline.zoom_hint_touch`, for the

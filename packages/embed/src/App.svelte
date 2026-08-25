@@ -118,7 +118,6 @@
     {initialIndex}
     language={settings.language}
     theme={settings.theme}
-    navChrome={settings.navChrome}
     highContrast={settings.highContrast}
     fontPairing={settings.fontPairing}
     reverseOrder={settings.reverseOrder}
