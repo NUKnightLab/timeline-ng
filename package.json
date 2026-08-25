@@ -14,7 +14,8 @@
     "contrast-lab": "pnpm --filter @timeline-ng/contrast-lab dev",
     "typecheck": "pnpm -r typecheck",
     "fonts:extract": "node scripts/fonts/extract-tl3-pairings.mjs && node scripts/fonts/generate-pairings.mjs",
-    "fonts:fetch": "node scripts/fonts/fetch-fonts.mjs && node scripts/fonts/fetch-licenses.mjs"
+    "fonts:fetch": "node scripts/fonts/fetch-fonts.mjs && node scripts/fonts/fetch-licenses.mjs",
+    "docs:tokens": "node scripts/docs/generate-token-reference.mjs"
   },
   "devDependencies": {
     "playwright": "^1.61.1",

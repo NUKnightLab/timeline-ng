@@ -133,6 +133,21 @@ if (result.ok) {
   --tl-font-heading: 'Georgia', serif;
   --tl-min-height: 300px;
 }</code></pre>
+<p>
+  This is the route to appearances the settings above don't offer. There are
+  about eighty of these properties, covering color, typography, slide layout
+  and every part of the timeline navigator — the
+  <a href="./docs.html#custom-properties">custom properties reference</a> lists
+  all of them with their defaults. Reading the stylesheet is not a substitute:
+  most of them are not declared in one file, which is why that reference is
+  generated from the player's source.
+</p>
+<p>
+  The <a href="https://github.com/NUKnightLab/timeline-ng/tree/main/apps/example-custom-theme" target="_blank" rel="noopener">example-custom-theme</a>
+  app builds an entire visual identity out of nothing but these properties — no
+  overrides of the player's own rules, which is what lets it keep working as
+  the player changes.
+</p>
 
 <h2>Need help?</h2>
 <p>

@@ -1,0 +1,177 @@
+<title>Custom properties — Timeline NG</title>
+<style>
+  .token-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin: 0 0 1.5rem; }
+  .token-table th, .token-table td {
+    text-align: left; padding: 0.4rem 0.6rem;
+    border-bottom: 1px solid #e5e7eb; vertical-align: top;
+  }
+  .token-table th {
+    color: #6b7280; font-weight: 600; font-size: 0.75rem;
+    text-transform: uppercase; letter-spacing: 0.03em;
+  }
+  .token-table td:first-child { width: 45%; }
+  .token-table code { font-size: 0.95em; background: none; padding: 0; }
+  .token-table td:last-child code { color: #6b7280; }
+  .tok-themed {
+    font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.04em;
+    color: #92400e; background: #fdf1ea; border-radius: 3px;
+    padding: 0.05em 0.3em; margin-left: 0.35em; vertical-align: 1px;
+  }
+  h3 { font-size: 0.95rem; font-weight: 600; margin: 2rem 0 0.5rem; color: #1d1f21; }
+  @media (max-width: 640px) {
+    .token-table td:first-child { width: auto; }
+    .token-table { font-size: 0.8rem; }
+  }
+</style>
+
+<h1>Custom properties</h1>
+<p class="subtitle">Every CSS variable the player reads, and what it defaults to.</p>
+
+<p>
+  The player draws itself entirely from CSS custom properties. Set any of them
+  on the player's container — or any ancestor of it — and the player picks them
+  up. This is the route to appearances the
+  <a href="./docs.html#appearance">Appearance settings</a> don't offer, and it
+  needs no build step and no overriding of the player's own rules:
+</p>
+
+<pre><code>#my-timeline {
+  --tl-color-accent: #0066cc;
+  --tl-font-heading: Georgia, serif;
+  --tl-slide-padding: 3rem;
+}</code></pre>
+
+<p>
+  Because these are ordinary custom properties, everything CSS already does
+  works: set them inside a media query, scope them to one timeline among
+  several, or change them at runtime from JavaScript with
+  <code>element.style.setProperty()</code>.
+</p>
+
+<div class="callout">
+  Properties marked <span class="tok-themed">dark</span> have a separate value
+  in dark mode. Setting one of these yourself replaces it in both modes, so if
+  you want the two to differ you need to say so — usually by setting the
+  property again inside <code>[data-tl-theme="dark"]</code> and a
+  <code>prefers-color-scheme</code> query.
+</div>
+
+<p>
+  The <a href="https://github.com/NUKnightLab/timeline-ng/tree/main/apps/example-custom-theme" target="_blank" rel="noopener">example-custom-theme</a>
+  app builds a complete visual identity out of nothing but this list, which is
+  a good place to see how far it goes.
+</p>
+
+<!-- BEGIN GENERATED TOKENS — written by scripts/docs/generate-token-reference.mjs, do not edit -->
+<h3>Color</h3>
+<table class="field-table token-table">
+  <tr><th>Property</th><th>Default</th></tr>
+  <tr><td><code>--tl-color-accent</code></td><td><code>#d4550e</code></td></tr>
+  <tr><td><code>--tl-color-bg</code> <span class="tok-themed" title="has a separate dark-mode value">dark</span></td><td><code>#ffffff</code></td></tr>
+  <tr><td><code>--tl-color-border</code> <span class="tok-themed" title="has a separate dark-mode value">dark</span></td><td><code>#dddddd</code></td></tr>
+  <tr><td><code>--tl-color-surface</code> <span class="tok-themed" title="has a separate dark-mode value">dark</span></td><td><code>#f5f5f5</code></td></tr>
+  <tr><td><code>--tl-color-text</code> <span class="tok-themed" title="has a separate dark-mode value">dark</span></td><td><code>#111111</code></td></tr>
+  <tr><td><code>--tl-color-text-muted</code> <span class="tok-themed" title="has a separate dark-mode value">dark</span></td><td><code>#555555</code></td></tr>
+</table>
+
+<h3>Typography</h3>
+<table class="field-table token-table">
+  <tr><th>Property</th><th>Default</th></tr>
+  <tr><td><code>--tl-body-color</code> <span class="tok-themed" title="has a separate dark-mode value">dark</span></td><td><code>#3d3d3d</code></td></tr>
+  <tr><td><code>--tl-body-line-height</code></td><td><code>1.65</code></td></tr>
+  <tr><td><code>--tl-body-link-color</code></td><td><code>var(--tl-color-accent)</code></td></tr>
+  <tr><td><code>--tl-body-size</code></td><td><code>1rem</code></td></tr>
+  <tr><td><code>--tl-caption-size</code></td><td><code>0.8rem</code></td></tr>
+  <tr><td><code>--tl-date-color</code></td><td><code>var(--tl-color-text-muted)</code></td></tr>
+  <tr><td><code>--tl-date-size</code></td><td><code>0.9375rem</code></td></tr>
+  <tr><td><code>--tl-date-tracking</code></td><td><code>normal</code></td></tr>
+  <tr><td><code>--tl-date-transform</code></td><td><code>none</code></td></tr>
+  <tr><td><code>--tl-date-weight</code></td><td><code>400</code></td></tr>
+  <tr><td><code>--tl-font-body</code></td><td><code>system-ui, sans-serif</code></td></tr>
+  <tr><td><code>--tl-font-heading</code></td><td><code>system-ui, sans-serif</code></td></tr>
+  <tr><td><code>--tl-headline-color</code> <span class="tok-themed" title="has a separate dark-mode value">dark</span></td><td><code>#111111</code></td></tr>
+  <tr><td><code>--tl-headline-size</code></td><td><code>clamp(1.2rem, 3cqi, 2.5rem)</code></td></tr>
+  <tr><td><code>--tl-headline-transform</code></td><td><code>none</code></td></tr>
+  <tr><td><code>--tl-headline-weight</code></td><td><code>700</code></td></tr>
+</table>
+
+<h3>Slide layout</h3>
+<table class="field-table token-table">
+  <tr><th>Property</th><th>Default</th></tr>
+  <tr><td><code>--tl-slide-max-width</code></td><td><code>1100px</code></td></tr>
+  <tr><td><code>--tl-slide-media-align</code></td><td><code>center</code></td></tr>
+  <tr><td><code>--tl-slide-media-col</code></td><td><code>1fr</code></td></tr>
+  <tr><td><code>--tl-slide-padding</code></td><td><code>2rem</code></td></tr>
+  <tr><td><code>--tl-slide-text-col</code></td><td><code>1fr</code></td></tr>
+  <tr><td><code>--tl-slide-text-only-align</code></td><td><code>left</code></td></tr>
+  <tr><td><code>--tl-slide-text-only-margin</code></td><td><code>0</code></td></tr>
+  <tr><td><code>--tl-slide-text-only-width</code></td><td><code>100%</code></td></tr>
+  <tr><td><code>--tl-slide-text-scrim</code></td><td><code>rgba(0, 0, 0, 0.4)</code></td></tr>
+  <tr><td><code>--tl-slide-valign</code></td><td><code>auto</code></td></tr>
+</table>
+
+<h3>Timeline navigator</h3>
+<table class="field-table token-table">
+  <tr><th>Property</th><th>Default</th></tr>
+  <tr><td><code>--tl-color-nav-bg</code> <span class="tok-themed" title="has a separate dark-mode value">dark</span></td><td><code>#f2f2f2</code></td></tr>
+  <tr><td><code>--tl-color-nav-marker</code> <span class="tok-themed" title="has a separate dark-mode value">dark</span></td><td><code>#6e6e6e</code></td></tr>
+  <tr><td><code>--tl-color-nav-marker-active</code> <span class="tok-themed" title="has a separate dark-mode value">dark</span></td><td><code>#333333</code></td></tr>
+  <tr><td><code>--tl-color-nav-marker-hover</code> <span class="tok-themed" title="has a separate dark-mode value">dark</span></td><td><code>#1a1a1a</code></td></tr>
+  <tr><td><code>--tl-nav-axis-bg</code></td><td><code>transparent</code></td></tr>
+  <tr><td><code>--tl-nav-axis-border-top</code></td><td><code>none</code></td></tr>
+  <tr><td><code>--tl-nav-axis-color</code> <span class="tok-themed" title="has a separate dark-mode value">dark</span></td><td><code>#767676</code></td></tr>
+  <tr><td><code>--tl-nav-axis-size</code></td><td><code>0.65rem</code></td></tr>
+  <tr><td><code>--tl-nav-axis-tick-color</code> <span class="tok-themed" title="has a separate dark-mode value">dark</span></td><td><code>#949494</code></td></tr>
+  <tr><td><code>--tl-nav-axis-tick-opacity</code></td><td><code>1</code></td></tr>
+  <tr><td><code>--tl-nav-band-alt-bg</code></td><td><code>transparent</code></td></tr>
+  <tr><td><code>--tl-nav-band-border</code> <span class="tok-themed" title="has a separate dark-mode value">dark</span></td><td><code>1px solid #e5e5e5</code></td></tr>
+  <tr><td><code>--tl-nav-border-top</code> <span class="tok-themed" title="has a separate dark-mode value">dark</span></td><td><code>1px solid #e5e5e5</code></td></tr>
+  <tr><td><code>--tl-nav-btn-size</code></td><td><code>24px</code></td></tr>
+  <tr><td><code>--tl-nav-dot-active-scale</code></td><td><code>1.4</code></td></tr>
+  <tr><td><code>--tl-nav-dot-target-x</code></td><td><code>6px</code></td></tr>
+  <tr><td><code>--tl-nav-dot-target-y</code></td><td><code>12px</code></td></tr>
+  <tr><td><code>--tl-nav-gutter-bg</code></td><td><code>transparent</code></td></tr>
+  <tr><td><code>--tl-nav-gutter-border</code></td><td><code>none</code></td></tr>
+  <tr><td><code>--tl-nav-height</code></td><td><code>80px</code></td></tr>
+  <tr><td><code>--tl-nav-hint-bg</code></td><td><code>rgba(0, 0, 0, 0.78)</code></td></tr>
+  <tr><td><code>--tl-nav-hint-color</code></td><td><code>#ffffff</code></td></tr>
+  <tr><td><code>--tl-nav-label-active-bg</code> <span class="tok-themed" title="has a separate dark-mode value">dark</span></td><td><code>#ffffff</code></td></tr>
+  <tr><td><code>--tl-nav-label-active-hover</code></td><td><code>var(--tl-color-nav-marker-active)</code></td></tr>
+  <tr><td><code>--tl-nav-label-active-ring</code></td><td><code>none</code></td></tr>
+  <tr><td><code>--tl-nav-label-active-weight</code></td><td><code>700</code></td></tr>
+  <tr><td><code>--tl-nav-label-bg</code></td><td><code>var(--tl-color-nav-bg)</code></td></tr>
+  <tr><td><code>--tl-nav-label-padding</code></td><td><code>2px 5px</code></td></tr>
+  <tr><td><code>--tl-nav-label-radius</code></td><td><code>4px</code></td></tr>
+  <tr><td><code>--tl-nav-label-ring</code></td><td><code>none</code></td></tr>
+  <tr><td><code>--tl-nav-label-size</code></td><td><code>0.72rem</code></td></tr>
+  <tr><td><code>--tl-nav-leader-active-opacity</code></td><td><code>1</code></td></tr>
+  <tr><td><code>--tl-nav-leader-opacity</code></td><td><code>0.8</code></td></tr>
+  <tr><td><code>--tl-nav-mark-active</code></td><td><code>var(--tl-color-nav-marker-active)</code></td></tr>
+  <tr><td><code>--tl-nav-marker-size</code></td><td><code>12px</code></td></tr>
+  <tr><td><code>--tl-nav-track-opacity</code></td><td><code>0.35</code></td></tr>
+</table>
+
+<h3>Media cards</h3>
+<table class="field-table token-table">
+  <tr><th>Property</th><th>Default</th></tr>
+  <tr><td><code>--tl-bsky-card-bg</code></td><td><code>&mdash;</code></td></tr>
+  <tr><td><code>--tl-bsky-card-border</code></td><td><code>&mdash;</code></td></tr>
+  <tr><td><code>--tl-bsky-card-link</code></td><td><code>&mdash;</code></td></tr>
+  <tr><td><code>--tl-bsky-card-muted</code></td><td><code>&mdash;</code></td></tr>
+  <tr><td><code>--tl-bsky-card-text</code></td><td><code>&mdash;</code></td></tr>
+</table>
+
+<h3>Everything else</h3>
+<table class="field-table token-table">
+  <tr><th>Property</th><th>Default</th></tr>
+  <tr><td><code>--tl-btn-bg-hover</code></td><td><code>rgba(0, 0, 0, 0.35)</code></td></tr>
+  <tr><td><code>--tl-btn-size</code></td><td><code>2.5rem</code></td></tr>
+  <tr><td><code>--tl-focus-ring-color</code></td><td><code>var(--tl-color-accent)</code></td></tr>
+  <tr><td><code>--tl-focus-ring-offset</code></td><td><code>2px</code></td></tr>
+  <tr><td><code>--tl-focus-ring-width</code></td><td><code>2px</code></td></tr>
+  <tr><td><code>--tl-gap</code></td><td><code>1rem</code></td></tr>
+  <tr><td><code>--tl-min-height</code></td><td><code>300px</code></td></tr>
+  <tr><td><code>--tl-radius</code></td><td><code>4px</code></td></tr>
+  <tr><td><code>--tl-transition-speed</code></td><td><code>300ms</code></td></tr>
+</table>
+<!-- END GENERATED TOKENS -->
