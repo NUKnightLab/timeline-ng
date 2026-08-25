@@ -1245,6 +1245,15 @@
    * unreachable, which is worse for exactly the users the criterion protects.
    * Where dots are dense the label above is the accessible target;
    * --tl-nav-dot-target-x widens them for timelines sparse enough to afford it.
+   *
+   * A dot at exactly 0% or 100% is half-clipped by the content box, and that
+   * is accepted rather than a bug to fix: a mark sits at its exact date, and
+   * the visible half still reads as "an event starts here". Insetting the
+   * coordinate space to avoid it would move every mark off its date, or
+   * desynchronise dots from the labels, leader lines and axis ticks that share
+   * that space. The axis *labels* are a different matter — those are anchored
+   * at the edges, because a clipped date is unreadable rather than merely
+   * cropped.
    */
   .tl-nav__dot {
     position: absolute;
