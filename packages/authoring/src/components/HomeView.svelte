@@ -442,6 +442,7 @@
           <a href="./docs.html#intro" target="_blank" rel="noopener noreferrer">Getting Started</a>
           <a href="./docs.html#atmosphere" target="_blank" rel="noopener noreferrer">About Atmosphere</a>
           <a href="./docs.html#self-hosting" target="_blank" rel="noopener noreferrer">Self-hosting</a>
+          <a href="./docs.html#appearance" target="_blank" rel="noopener noreferrer">Appearance</a>
           <a href="./docs.html#data-format" target="_blank" rel="noopener noreferrer">Data format</a>
           <a href="./docs.html#media-types" target="_blank" rel="noopener noreferrer">Media types</a>
         </nav>

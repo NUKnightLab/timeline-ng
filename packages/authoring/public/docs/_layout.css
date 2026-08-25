@@ -57,6 +57,14 @@ body {
 
 .docs-nav {
   display: flex;
+  /*
+   * Bottom-aligned, not stretched. These links carry an underline on their
+   * bottom edge, and the header is narrow enough that multi-word items wrap to
+   * two lines. Stretching made every box as tall as the tallest, so a
+   * single-word item like "Appearance" left its text floating at the top with
+   * its underline stranded a line below.
+   */
+  align-items: flex-end;
   gap: 1.25rem;
 }
 .docs-nav a {
