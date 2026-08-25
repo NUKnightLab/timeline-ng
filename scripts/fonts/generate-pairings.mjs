@@ -198,6 +198,34 @@ writeFileSync(
     cssBlocks.join('\n\n') + '\n',
 );
 console.log(`packages/player/src/styles/pairings.css — ${cssBlocks.length} blocks`);
+
+/*
+ * Keep the authoring docs' pairing table in step. It lists every pairing a user
+ * can pick, which is exactly the list generated above — writing it by hand
+ * would guarantee it drifts the first time a pairing is added or dropped.
+ */
+const docsPath = resolve(REPO, 'packages/authoring/public/docs/appearance.html');
+const BEGIN = '<!-- BEGIN GENERATED PAIRINGS';
+const END = '<!-- END GENERATED PAIRINGS -->';
+const docs = readFileSync(docsPath, 'utf8');
+const from = docs.indexOf(BEGIN);
+const to = docs.indexOf(END);
+if (from === -1 || to === -1) {
+  console.warn('  appearance.html: generated-pairings markers missing, table not updated');
+} else {
+  const scriptLabel = p =>
+    p.scripts.includes('system')
+      ? 'All — uses the reader&rsquo;s own system fonts'
+      : p.scripts.filter(x => !x.endsWith('-ext')).join(', ');
+  const rows = out
+    .slice()
+    .sort((a, b) => (a.webfonts.length ? 1 : 0) - (b.webfonts.length ? 1 : 0) || a.label.localeCompare(b.label))
+    .map(p => `  <tr><td>${p.label}</td><td><code>"${p.id}"</code></td><td>${scriptLabel(p)}</td></tr>`)
+    .join('\n');
+  const head = docs.slice(0, docs.indexOf('\n', from) + 1);
+  writeFileSync(docsPath, head + rows + '\n  ' + docs.slice(to));
+  console.log(`packages/authoring/public/docs/appearance.html — ${out.length} pairing rows`);
+}
 console.log(`packages/core/src/fonts.ts — ${out.length} pairings`);
 const sys = out.filter(p => !p.webfonts.length).length;
 console.log(`  ${sys} system-only, ${out.length - sys} needing web fonts`);
