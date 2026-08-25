@@ -246,7 +246,7 @@
     width: 100%;
     max-width: var(--tl-slide-max-width, 1100px);
     /*
-     * Auto block margins centre the content vertically in the stage, matching
+     * Auto block margins center the content vertically in the stage, matching
      * TimelineJS 3. Unlike `justify-content: center` on the scroll container,
      * auto margins collapse to zero once the content overflows, so a long slide
      * still scrolls from its true top instead of clipping it out of reach.
@@ -347,7 +347,7 @@
   }
 
   /*
-   * Text-only slides. TimelineJS 3 narrowed and centred these; the default here
+   * Text-only slides. TimelineJS 3 narrowed and centered these; the default here
    * keeps them full-width and left-aligned. All three tokens default to the
    * no-op value, so a skin opts in by setting them together.
    */

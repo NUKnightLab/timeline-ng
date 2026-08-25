@@ -433,14 +433,14 @@
   });
 
   /*
-   * A tick is centred on its date, so a label near either end overflows the
+   * A tick is centered on its date, so a label near either end overflows the
    * strip and gets clipped by the nav. The edge-start/edge-end treatment
    * anchors the label's near edge to the tick instead, keeping the tick mark
    * exactly on its date while the text runs inward.
    *
    * That treatment already existed but was only ever applied to the two
    * synthetic ticks used when no real ones fit — every generated tick stayed
-   * centred and could run off. Which end a tick needs is a question about
+   * centered and could run off. Which end a tick needs is a question about
    * pixels, not percentages, so it is decided here against the measured width.
    * The label width is estimated from its character count rather than
    * measured: these are short, mostly-digit strings in a tabular face, and
@@ -721,7 +721,7 @@
   /*
    * Zoom around the active event rather than the middle of the viewport.
    *
-   * Centring on the viewport meant that a timeline whose events bunch at one
+   * Centering on the viewport meant that a timeline whose events bunch at one
    * end — most real ones — zoomed straight into empty space, so the controls
    * were least useful exactly where they were most needed. That also matters
    * now that a label with nowhere to go is dropped rather than stacked:
@@ -1318,14 +1318,14 @@
   }
 
   /*
-   * An active label keeps its own colour on hover and focus.
+   * An active label keeps its own color on hover and focus.
    *
    * --tl-color-nav-marker-hover is calibrated against the nav background, but
    * an active label may carry a background of its own — the contrast skin
    * inverts it to a dark pill — and combining the two independently-designed
    * states produced dark blue on near-black, 1.73:1 where the resting state
    * measures 17.40:1. Hover feedback still comes from the halo, the width
-   * expansion and the raised z-index in the rule above; only the colour is
+   * expansion and the raised z-index in the rule above; only the color is
    * held. A skin that wants a hover shade here can set
    * --tl-nav-label-active-hover against whatever pill it chose.
    */
@@ -1424,7 +1424,7 @@
    * The target is deliberately taller than it is wide. The 44px track has
    * vertical room to spare, whereas dots are positioned by date and can sit a
    * few pixels apart (7px in the sample timeline) — 24px-wide targets would
-   * occlude each other's centres and make the earlier of two close events
+   * occlude each other's centers and make the earlier of two close events
    * unreachable, which is worse for exactly the users the criterion protects.
    * Where dots are dense the label above is the accessible target;
    * --tl-nav-dot-target-x widens them for timelines sparse enough to afford it.

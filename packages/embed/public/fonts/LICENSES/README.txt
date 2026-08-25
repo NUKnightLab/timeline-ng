@@ -1,5 +1,5 @@
 Fonts mirrored from fonts.gstatic.com, byte-for-byte, by
-scripts/fonts/fetch-fonts.mjs. Each family's upstream licence follows.
+scripts/fonts/fetch-fonts.mjs. Each family's upstream license follows.
 
 Abril Fatface
   SIL Open Font License 1.1

@@ -7,7 +7,7 @@ function channel(v: number): number {
   return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
 }
 
-/** Parse any CSS colour (including rgb()/rgba()) into 0–255 triplets. */
+/** Parse any CSS color (including rgb()/rgba()) into 0–255 triplets. */
 export function toRgb(css: string): [number, number, number] {
   const m = css.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
   if (m) return [+m[1], +m[2], +m[3]];
@@ -16,7 +16,7 @@ export function toRgb(css: string): [number, number, number] {
   return [0, 2, 4].map(i => parseInt(full.slice(i, i + 2), 16)) as [number, number, number];
 }
 
-/** Alpha in a colour string, defaulting to 1. */
+/** Alpha in a color string, defaulting to 1. */
 export function alphaOf(css: string): number {
   const m = css.match(/rgba\(\d+,\s*\d+,\s*\d+,\s*([\d.]+)\)/);
   return m ? +m[1] : 1;
@@ -33,7 +33,7 @@ export function contrast(fg: string, bg: string): number {
 }
 
 /**
- * Effective colour of `fg` painted at `opacity` over `bg` — the value a
+ * Effective color of `fg` painted at `opacity` over `bg` — the value a
  * partially-transparent mark is actually judged on.
  */
 export function composite(fg: string, bg: string, opacity: number): string {

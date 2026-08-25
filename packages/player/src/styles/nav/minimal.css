@@ -11,7 +11,7 @@
  * rather than a set of token values: painting chrome out with opacity leaves
  * its space behind, which is what the earlier "bare" experiment could only do.
  *
- * What remains here is just the colour treatment for a navigator that sits
+ * What remains here is just the color treatment for a navigator that sits
  * directly on the stage rather than on a band of its own.
  */
 

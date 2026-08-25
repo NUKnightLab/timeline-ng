@@ -25,7 +25,7 @@ unicode-range at all — its default pairing declares 967 KB of TTF against
 
 ```
 pnpm fonts:extract   # re-read TL3's sets, re-resolve against Google Fonts
-pnpm fonts:fetch     # download slices + licences, emit stylesheets
+pnpm fonts:fetch     # download slices + licenses, emit stylesheets
 ```
 
 `fetch-fonts.mjs` skips downloading files already present, but still hashes
@@ -50,13 +50,13 @@ up in the manifest diff where it can be reviewed.
 
 ## Licensing
 
-Committing these files is redistribution, which both licences in use require
+Committing these files is redistribution, which both licenses in use require
 be accompanied by their text and copyright notice. `LICENSES/` holds the
-upstream licence for all 32 families, fetched from the `google/fonts`
+upstream license for all 32 families, fetched from the `google/fonts`
 repository, with `LICENSES/README.txt` as a human-readable index and
 `LICENSES/index.json` as the machine-readable one.
 
 31 families are SIL Open Font License 1.1 or Apache 2.0; Ubuntu is under the
 Ubuntu Font License 1.0. All three permit redistribution. `fetch-licenses.mjs`
-exits non-zero if any family's licence cannot be resolved — an unresolved
+exits non-zero if any family's license cannot be resolved — an unresolved
 family must not ship.

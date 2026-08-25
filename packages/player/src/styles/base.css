@@ -9,7 +9,7 @@
      contrast   AAA everywhere            data-tl-contrast
 
    Contrast is last deliberately. Where it disagrees with a pairing or a nav
-   treatment about a colour it wins, because an accessibility mode a styling
+   treatment about a color it wins, because an accessibility mode a styling
    choice could override would not be one.
 
    @import must precede every other rule, so all three land before the :root

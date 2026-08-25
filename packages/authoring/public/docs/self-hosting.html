@@ -55,7 +55,7 @@ if (result.ok) {
   <li><code>theme</code> — <code>"light"</code>, <code>"dark"</code>, or <code>"auto"</code> (default)</li>
   <li><code>initialIndex</code> — slide number to start on (default: <code>0</code>)</li>
   <li><code>reverseOrder</code> — show events newest-first (default: <code>false</code>)</li>
-  <li><code>fontPairing</code> — headline and body typefaces (default: <code>"georgia-helvetica"</code>). See <a href="./docs.html#appearance">Appearance</a> for the list, and <a href="#fonts">serving the fonts</a> below — the player names the faces but does not load them.</li>
+  <li><code>fontPairing</code> — headline and body typefaces (default: <code>"georgia-helvetica"</code>). See <a href="./docs.html#appearance">Appearance</a> for the list, and <a href="./docs.html#self-hosting/fonts">serving the fonts</a> below — the player names the faces but does not load them.</li>
   <li><code>highContrast</code> — raise text and markers to WCAG&nbsp;AAA (default: <code>false</code>)</li>
 </ul>
 <p>
@@ -95,7 +95,12 @@ if (result.ok) {
     family by name, so any means of providing it works — your own
     <code>@font-face</code> rules, a font service, whatever you already use.
     Check the pairing in <a href="./docs.html#appearance">Appearance</a> for
-    which two families it names.
+    which two families it names. They all come from
+    <a href="https://fonts.google.com" target="_blank" rel="noopener">Google Fonts</a>
+    and are free to use and to redistribute, so you can download them there and
+    serve them from your own site. You can also link Google's hosted
+    stylesheets instead, at the cost of every reader's browser announcing
+    itself to Google — which is why the copies here are served locally.
   </li>
   <li>
     <strong>Copy ours.</strong> The repository mirrors every pairing's fonts as
@@ -113,13 +118,13 @@ if (result.ok) {
   touches the Latin one.
 </p>
 <div class="callout">
-  If you redistribute those font files, their licences travel with them. Each
-  family's licence is in <code>packages/embed/public/fonts/LICENSES/</code>.
+  If you redistribute those font files, their licenses travel with them. Each
+  family's license is in <code>packages/embed/public/fonts/LICENSES/</code>.
 </div>
 
 <h2>6. Styling</h2>
 <p>
-  The player exposes CSS custom properties for theming — colours, typography,
+  The player exposes CSS custom properties for theming — colors, typography,
   spacing, and the navigator's own treatment. Set them on the container or any
   ancestor element:
 </p>

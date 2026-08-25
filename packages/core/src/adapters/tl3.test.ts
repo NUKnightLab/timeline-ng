@@ -102,7 +102,7 @@ describe('settings passthrough', () => {
     });
   });
 
-  it('drops values it does not recognise rather than passing them to the player', () => {
+  it('drops values it does not recognize rather than passing them to the player', () => {
     const tl = fromTL3({
       events: [{ start_date: { year: 2000 } }],
       settings: { theme: 'chartreuse', fontPairing: 'not-a-pairing', initialIndex: -3, reverseOrder: 'yes' },

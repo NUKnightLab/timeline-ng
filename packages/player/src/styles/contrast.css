@@ -7,7 +7,7 @@
  * This is one axis, not a bundle: it spans the slide and the navigator alike
  * because contrast is not a property of either in isolation. It composes with
  * whatever navChrome and font pairing are in effect, and is imported last so
- * that where it disagrees with them about a colour, it wins — an accessibility
+ * that where it disagrees with them about a color, it wins — an accessibility
  * mode that a styling choice could override would not be one.
  *
  * Note that it deliberately restores boundaries that navChrome='quiet'
@@ -18,7 +18,7 @@
  * Writing this is what surfaced three gaps in the token surface, all now
  * closed — it uses each of the tokens it originally could not reach:
  *
- *   1. `--tl-nav-mark-active` separates the active *mark* colour (dot, span
+ *   1. `--tl-nav-mark-active` separates the active *mark* color (dot, span
  *      bar, leader stroke) from `--tl-color-nav-marker-active`, which
  *      now only sets the active label's text. Previously one token drove both,
  *      so inverting the active label to light-on-dark — the natural

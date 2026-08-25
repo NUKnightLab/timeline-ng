@@ -14,7 +14,7 @@ export interface Row {
 /**
  * Walk up from `el` until an opaque background-color is found. A mark's real
  * contrast is against whatever is actually painted behind it, which is often
- * several levels up from the element carrying the colour.
+ * several levels up from the element carrying the color.
  */
 function effectiveBg(el: Element | null): string {
   let node: Element | null = el;
@@ -31,7 +31,7 @@ interface Spec {
   selector: string;
   /** Read from a pseudo-element rather than the element itself. */
   pseudo?: '::before' | '::after';
-  /** Which property carries the mark's colour. */
+  /** Which property carries the mark's color. */
   prop?: 'color' | 'backgroundColor' | 'borderTopColor' | 'stroke';
   /** Element whose background the mark sits on; defaults to the mark's own ancestry. */
   bgFrom?: string;
@@ -74,7 +74,7 @@ export function audit(root: ParentNode): Row[] {
 
     /*
      * Text is judged against its own background — a label chip's fill is
-     * exactly what its text sits on. A mark whose *colour* comes from a
+     * exactly what its text sits on. A mark whose *color* comes from a
      * background or stroke has to start at the parent, or it would be
      * measured against itself.
      */

@@ -1,19 +1,19 @@
 #!/usr/bin/env node
 /**
- * Fetch the upstream licence for every family we mirror.
+ * Fetch the upstream license for every family we mirror.
  *
  * The woff2 files in the fonts directory are byte-for-byte copies of what
  * fonts.gstatic.com serves — committing them to this repo is redistribution,
- * and both licences Google Fonts uses require it to be accompanied by the
- * licence text and copyright notice. The SIL Open Font Licence is explicit:
- * copies of the font, modified or not, must include the licence in full.
+ * and both licenses Google Fonts uses require it to be accompanied by the
+ * license text and copyright notice. The SIL Open Font License is explicit:
+ * copies of the font, modified or not, must include the license in full.
  *
- * Licence is determined by which directory a family lives in upstream:
- *   google/fonts/ofl/<slug>/OFL.txt        SIL Open Font Licence 1.1
+ * License is determined by which directory a family lives in upstream:
+ *   google/fonts/ofl/<slug>/OFL.txt        SIL Open Font License 1.1
  *   google/fonts/apache/<slug>/LICENSE.txt Apache 2.0
- *   google/fonts/ufl/<slug>/UFL.txt        Ubuntu Font Licence 1.0
+ *   google/fonts/ufl/<slug>/UFL.txt        Ubuntu Font License 1.0
  *
- * Writes one licence file per family under <fontsDir>/LICENSES/ plus an
+ * Writes one license file per family under <fontsDir>/LICENSES/ plus an
  * index, and prints any family it could not resolve — an unresolved family
  * must not ship.
  */
@@ -69,12 +69,12 @@ const lines = index.map(e => `${e.family}\n  ${e.license}\n  ${e.copyright}\n  L
 writeFileSync(
   join(OUT, 'README.txt'),
   `Fonts mirrored from fonts.gstatic.com, byte-for-byte, by\n` +
-    `scripts/fonts/fetch-fonts.mjs. Each family's upstream licence follows.\n\n` +
+    `scripts/fonts/fetch-fonts.mjs. Each family's upstream license follows.\n\n` +
     lines.join('\n\n') + '\n',
 );
 writeFileSync(join(OUT, 'index.json'), JSON.stringify(index, null, 2) + '\n');
 
-console.log(`\n${index.length} licences written to ${OUT}`);
+console.log(`\n${index.length} licenses written to ${OUT}`);
 if (unresolved.length) {
   console.error(`\nUNRESOLVED — do not ship these families:\n  ${unresolved.join('\n  ')}`);
   process.exit(1);

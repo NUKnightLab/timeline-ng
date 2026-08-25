@@ -891,7 +891,7 @@
    * and once the settings panel opened beneath it the close button read as
    * that panel's dismiss control — one mis-click away from losing the whole
    * preview. The panel now carries its own close, and these two are separated
-   * and labelled so neither is mistaken for the other.
+   * and labeled so neither is mistaken for the other.
    */
   .preview-chrome-sep {
     width: 1px;

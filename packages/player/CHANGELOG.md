@@ -31,7 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **`highContrast` prop**, raising text and marks to WCAG AAA: worst measured
   case 15.13:1 in light and 15.91:1 in dark. It spans slide and navigator
   alike and is applied last, so where it disagrees with a pairing or a nav
-  treatment about a colour it wins — an accessibility mode a styling choice
+  treatment about a color it wins — an accessibility mode a styling choice
   could override would not be one.
 
   The three axes above are orthogonal to each other and to `theme`, and each
@@ -41,7 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - **A much wider token surface**, so those layers need no component overrides.
   New: the nav's top border, label chip fill/ring/radius/padding, zoom gutter
-  fill and border, axis strip background, border and tick colour, leader,
+  fill and border, axis strip background, border and tick color, leader,
   track opacities, group band border and tint, marker and button
   target sizes, `--tl-nav-dot-active-scale`, `--tl-date-transform`,
   `--tl-headline-transform`, `--tl-headline-color`, `--tl-body-color` and the
@@ -50,7 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   replacing five hardcoded `2px solid var(--tl-color-accent)` declarations
   across three components. A focus ring's weight and offset were previously
   unreachable.
-- `--tl-nav-mark-active`, separating the active *mark* colour (dot, span bar,
+- `--tl-nav-mark-active`, separating the active *mark* color (dot, span bar,
   leader stroke) from `--tl-color-nav-marker-active`, which now
   sets only the active label's text. One token drove both, which made a
   light-on-dark active label impossible — inverting the label also turned the
@@ -75,20 +75,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   appeared on ungrouped timelines. The axis labels already say where you are,
   in words. `--tl-nav-minimap-opacity` is removed with it.
 
-- **Slide content is vertically centred** in the stage, matching TimelineJS 3,
-  rather than pinned to the top; media and text columns centre against each
-  other too. Centring uses auto block margins rather than
+- **Slide content is vertically centered** in the stage, matching TimelineJS 3,
+  rather than pinned to the top; media and text columns center against each
+  other too. Centering uses auto block margins rather than
   `justify-content: center`, so a slide taller than the stage still scrolls
   from its true top instead of clipping it out of reach. Set
   `--tl-slide-valign: 0` and `--tl-slide-media-align: start` for the previous
-  behaviour.
+  behavior.
 - **The slide date is no longer a bold, uppercase, letter-spaced eyebrow.** It
   was among the loudest things on a slide when it should be among the
   quietest; it is now plain sentence case at reading size (0.9375rem/400).
   Reachable through `--tl-date-size`, `--tl-date-weight`,
   `--tl-date-tracking` and `--tl-date-transform`.
 - **Body copy is a step lighter than the headline** rather than sharing its
-  colour — `#111111`/`#3d3d3d` light and `#f8f8f8`/`#d2d2d2` dark, measuring
+  color — `#111111`/`#3d3d3d` light and `#f8f8f8`/`#d2d2d2` dark, measuring
   10.86:1 and 11.51:1. Slides with a dark or image background flip both.
 - **The navigator is quieter.** A lighter band (`#f2f2f2`, was `#e0e0e0`) with
   a hairline top rule, labels with no chip ring, a zoom column with no
@@ -100,8 +100,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   bare `system-ui`: Georgia headlines, Helvetica Neue body at 17px. It is the
   one pairing built from system fonts, so it needs no downloads and covers
   every writing system.
-- An active nav label keeps its colour on hover and focus instead of taking
-  the generic hover colour, which is calibrated against the nav background
+- An active nav label keeps its color on hover and focus instead of taking
+  the generic hover color, which is calibrated against the nav background
   rather than whatever pill the label sits on. The halo, width expansion and
   raised z-index still supply the feedback; `--tl-nav-label-active-hover` sets
   a shade if one is wanted.
@@ -129,7 +129,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
     accessible role to its marker, which is otherwise hidden from assistive
     tech as a duplicate — without that, events would become unreachable by
     keyboard on exactly the crowded timelines where labels get dropped.
-  - Zoom centred on the middle of the viewport, so a timeline bunched at one
+  - Zoom centered on the middle of the viewport, so a timeline bunched at one
     end zoomed into empty space. It now anchors on the active event whenever
     that event is on screen.
 

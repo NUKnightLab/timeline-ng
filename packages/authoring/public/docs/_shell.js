@@ -1,5 +1,12 @@
+/*
+ * The hash is the router here, so a bare in-page anchor like #fonts would be
+ * read as a request for a docs/fonts.html that does not exist. Links within a
+ * page therefore address it as #page/anchor, and the anchor is scrolled to
+ * after the page loads — which also means such a link works pasted cold, not
+ * just clicked from inside the page it points at.
+ */
 async function loadPage() {
-  const page = location.hash.slice(1) || null;
+  const [page, anchor] = (location.hash.slice(1) || '').split('/');
   if (!page) {
     document.getElementById('doc-content').innerHTML = '<p>No document specified.</p>';
     return;
@@ -18,7 +25,10 @@ async function loadPage() {
   }
   document.getElementById('doc-content').innerHTML = frag.body.innerHTML;
   markCurrent(page);
-  window.scrollTo(0, 0);
+
+  const target = anchor && document.getElementById(anchor);
+  if (target) target.scrollIntoView();
+  else window.scrollTo(0, 0);
 }
 
 /* The rail has room to show which page you are on, which the old top row did

@@ -31,9 +31,9 @@
   const shown: Nav[] = $derived(mode === 'compare' ? [left, right] : [solo]);
 
   /*
-   * Re-audit whenever anything that could move a colour changes. Reading is
+   * Re-audit whenever anything that could move a color changes. Reading is
    * deferred a frame so the browser has recalculated style after the attribute
-   * flip, and colour transitions on nav labels have settled.
+   * flip, and color transitions on nav labels have settled.
    */
   $effect(() => {
     void [mode, theme, solo, left, right, highContrast, slideIndex];
