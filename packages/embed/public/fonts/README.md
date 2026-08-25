@@ -28,9 +28,25 @@ pnpm fonts:extract   # re-read TL3's sets, re-resolve against Google Fonts
 pnpm fonts:fetch     # download slices + licences, emit stylesheets
 ```
 
-`fetch-fonts.mjs` skips files already present, so re-running is cheap and only
-picks up what changed. The full provenance of every file — family, weight,
-style, script slice and source URL — is in `scripts/fonts/manifest.json`.
+`fetch-fonts.mjs` skips downloading files already present, but still hashes
+every one of them, so re-running is both cheap and a full integrity check. The
+provenance of every file — family, weight, style, script slice, source URL and
+SHA-256 — is in `scripts/fonts/manifest.json`.
+
+## Integrity
+
+Each file's SHA-256 is pinned in the manifest, recorded the first time the
+bytes were seen. Every later run verifies against it and exits non-zero on a
+mismatch. This is what makes the mirror recoverable rather than merely present:
+without it, a truncated or corrupted file is indistinguishable from a good one,
+and an upstream that has quietly republished looks the same as one that has
+not.
+
+If a check fails, delete the offending file and re-run `pnpm fonts:fetch` to
+restore it from its pinned URL. If upstream genuinely republished the face —
+Google's URLs are versioned, so this should be rare — re-run
+`pnpm fonts:extract` to re-resolve and re-pin, and expect the change to show
+up in the manifest diff where it can be reviewed.
 
 ## Licensing
 

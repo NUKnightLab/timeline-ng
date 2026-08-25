@@ -16,6 +16,13 @@
  * actually uses — a Cyrillic timeline pulls the Cyrillic slice and never
  * touches Latin.
  *
+ * Every file is checked against the SHA-256 recorded in the manifest. That is
+ * what makes the mirror recoverable: without it a corrupted or truncated file
+ * is indistinguishable from a good one, and an upstream that has quietly
+ * changed looks the same as one that has not. A mismatch is an error, not a
+ * warning — a font that is not the font we verified should stop the build
+ * rather than ship.
+ *
  *   node scripts/fonts/fetch-fonts.mjs [outDir]
  *
  * Default outDir is packages/embed/public/fonts. Output is gitignored: it is
@@ -23,6 +30,7 @@
  */
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync, statSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { dirname, resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -33,12 +41,15 @@ const OUT = resolve(REPO, process.argv[2] ?? 'packages/embed/public/fonts');
 const manifest = JSON.parse(readFileSync(resolve(HERE, 'manifest.json'), 'utf8'));
 
 const slug = s => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+const sha256 = buf => createHash('sha256').update(buf).digest('hex');
 const fileFor = (family, f) =>
   `${slug(family)}-${f.weight}${f.style === 'italic' ? 'i' : ''}-${f.script}.woff2`;
 
 mkdirSync(OUT, { recursive: true });
 
-let fetched = 0, cached = 0, bytes = 0;
+let fetched = 0, cached = 0, bytes = 0, pinned = 0;
+const corrupt = [];
+const missing = [];
 
 for (const [id, set] of Object.entries(manifest.sets)) {
   const faces = [];
@@ -48,19 +59,33 @@ for (const [id, set] of Object.entries(manifest.sets)) {
       const name = fileFor(family, f);
       const path = join(OUT, name);
 
+      let buf;
       if (existsSync(path)) {
+        /* Verify what is on disk rather than trusting its presence. */
+        buf = readFileSync(path);
         cached++;
-        bytes += statSync(path).size;
       } else {
         const res = await fetch(f.url);
         if (!res.ok) {
-          console.warn(`  ${id}: ${name} — HTTP ${res.status}`);
+          missing.push(`${name} — HTTP ${res.status} from ${f.url}`);
           continue;
         }
-        const buf = Buffer.from(await res.arrayBuffer());
+        buf = Buffer.from(await res.arrayBuffer());
         writeFileSync(path, buf);
         fetched++;
-        bytes += buf.length;
+      }
+      bytes += buf.length;
+
+      const digest = sha256(buf);
+      if (!f.sha256) {
+        /* First sight of these bytes — pin them. */
+        f.sha256 = digest;
+        pinned++;
+      } else if (digest !== f.sha256) {
+        /* Upstream URLs are versioned (/s/ptsans/v18/…), so different bytes at
+           a pinned URL means the file was republished — not something to accept
+           silently just because the download succeeded. */
+        corrupt.push(`${name} — expected ${f.sha256.slice(0, 12)}…, got ${digest.slice(0, 12)}…`);
       }
 
       faces.push(
@@ -91,3 +116,22 @@ for (const [id, set] of Object.entries(manifest.sets)) {
 console.log(`${OUT}`);
 console.log(`  ${fetched} downloaded, ${cached} already present`);
 console.log(`  ${(bytes / 1024 / 1024).toFixed(1)} MB at rest`);
+
+if (pinned) {
+  writeFileSync(resolve(HERE, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
+  console.log(`  ${pinned} newly pinned in manifest.json`);
+} else if (!corrupt.length) {
+  console.log(`  all ${cached + fetched} verified against manifest.json`);
+}
+
+if (missing.length) {
+  console.error(`\n${missing.length} file(s) could not be fetched:`);
+  for (const m of missing) console.error(`  ${m}`);
+}
+if (corrupt.length) {
+  console.error(`\n${corrupt.length} file(s) failed their SHA-256 check:`);
+  for (const c of corrupt) console.error(`  ${c}`);
+  console.error(`\nDelete the offending file(s) to re-fetch, or if upstream has`);
+  console.error(`legitimately republished, re-run 'pnpm fonts:extract' to re-pin.`);
+}
+if (missing.length || corrupt.length) process.exit(1);

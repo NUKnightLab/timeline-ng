@@ -121,6 +121,8 @@ async function resolveFamily(family, wantItalic) {
         weight: Number(decl(block, 'font-weight') ?? 400),
         style: decl(block, 'font-style') ?? 'normal',
         unicodeRange: decl(block, 'unicode-range'),
+        /* Filled in below — pins the exact bytes this URL served. */
+        sha256: null,
       });
     }
     if (faces.length) return { spec, faces };
