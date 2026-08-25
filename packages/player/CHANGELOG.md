@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   since a saved record can outlive the pairing it names.
 
 - **`navChrome` prop** (`'standard' | 'minimal'`). Minimal removes the zoom
-  controls, date axis and minimap and reclaims the space they occupied — 44px
+  controls and date axis and reclaims the space they occupied — 44px
   of gutter and 18px of axis band, nav height 106 to 88. Fading chrome with
   token values leaves its layout behind, which is why this is a prop.
 
@@ -37,7 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **A much wider token surface**, so those layers need no component overrides.
   New: the nav's top border, label chip fill/ring/radius/padding, zoom gutter
   fill and border, axis strip background, border and tick colour, leader,
-  track and minimap opacities, group band border and tint, marker and button
+  track opacities, group band border and tint, marker and button
   target sizes, `--tl-nav-dot-active-scale`, `--tl-date-transform`,
   `--tl-headline-transform`, `--tl-headline-color`, `--tl-body-color` and the
   `--tl-slide-text-only-*` trio.
@@ -46,13 +46,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   across three components. A focus ring's weight and offset were previously
   unreachable.
 - `--tl-nav-mark-active`, separating the active *mark* colour (dot, span bar,
-  leader stroke, minimap thumb) from `--tl-color-nav-marker-active`, which now
+  leader stroke) from `--tl-color-nav-marker-active`, which now
   sets only the active label's text. One token drove both, which made a
   light-on-dark active label impossible — inverting the label also turned the
   active dot white on a white nav and erased it. Defaults to
   `--tl-color-nav-marker-active`, so existing overrides are unaffected.
 
 ### Changed
+
+- **The navigator no longer hijacks the scroll wheel.** A plain wheel now
+  scrolls the page; zooming takes Ctrl (or ⌘) + wheel, and a trackpad pinch
+  still works since those arrive as ctrl-modified wheel events. Hijacking the
+  wheel meant a reader scrolling an article past an embedded timeline got
+  caught by it — the same reason Google Maps and Mapbox both adopted
+  cooperative gestures. A short overlay appears when someone tries a plain
+  wheel over the navigator, naming the modifier for their platform, and fades
+  after two seconds; it is not standing chrome. New locale strings
+  `timeline.zoom_hint` and `timeline.zoom_hint_touch`.
+
+- The navigator's zoom minimap is gone — the 4px strip along its bottom edge
+  showing which slice of the date range was in view. It was drawn at 0.12
+  opacity, had no click or drag handling, no accessible name, and only
+  appeared on ungrouped timelines. The axis labels already say where you are,
+  in words. `--tl-nav-minimap-opacity` is removed with it.
 
 - **Slide content is vertically centred** in the stage, matching TimelineJS 3,
   rather than pinned to the top; media and text columns centre against each

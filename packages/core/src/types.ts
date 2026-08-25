@@ -95,8 +95,8 @@ export interface TLSettings {
    * How prominent the timeline navigator is.
    *
    * 'standard' (default) shows every control. 'minimal' removes the zoom
-   * controls, the date axis and the zoom minimap altogether, reclaiming the
-   * space they occupied.
+   * controls and the date axis altogether, reclaiming the space they
+   * occupied.
    */
   navChrome?: 'standard' | 'minimal';
   /**

@@ -5,7 +5,7 @@
  * and their labels.
  *
  * Unlike 'quiet', this one removes rather than fades. The zoom controls, the
- * date axis and the zoom minimap are not rendered at all, and TimeNav reclaims
+ * date axis are not rendered at all, and TimeNav reclaims
  * the 44px gutter and 18px axis band they occupied — see the `chrome` prop
  * there. That removal is the whole reason this exists as a structural setting
  * rather than a set of token values: painting chrome out with opacity leaves

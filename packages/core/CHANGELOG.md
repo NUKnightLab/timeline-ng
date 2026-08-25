@@ -32,8 +32,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
     schema validates against the shipped list with no hand-maintained
     duplicate to drift.
   - `navChrome` — `'standard'` or `'minimal'`. Minimal drops the zoom
-    controls, date axis and minimap from the navigator entirely.
+    controls and date axis from the navigator entirely.
   - `highContrast` — raises the player to WCAG AAA.
+
+- Locale strings `timeline.zoom_hint` and `timeline.zoom_hint_touch`, for the
+  cue shown when someone tries to zoom the navigator with a plain scroll.
 
 ### Fixed
 

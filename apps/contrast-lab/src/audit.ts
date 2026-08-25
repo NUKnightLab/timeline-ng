@@ -55,7 +55,6 @@ const SPECS: Spec[] = [
   { label: 'zoom button', selector: '.tl-nav__zoom-btn', required: 4.5 },
   // Decorative: conveys no information the user could otherwise miss.
   { label: 'track rule', selector: '.tl-nav__track', pseudo: '::before', prop: 'backgroundColor', required: 0, useOpacity: true },
-  { label: 'minimap', selector: '.tl-nav__minimap', prop: 'backgroundColor', required: 0, useOpacity: true },
 ];
 
 export function audit(root: ParentNode): Row[] {

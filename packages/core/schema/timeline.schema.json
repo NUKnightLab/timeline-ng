@@ -219,7 +219,7 @@
             "standard",
             "minimal"
           ],
-          "description": "How prominent the timeline navigator is.\n\n'standard' (default) shows every control. 'minimal' removes the zoom controls, the date axis and the zoom minimap altogether, reclaiming the space they occupied."
+          "description": "How prominent the timeline navigator is.\n\n'standard' (default) shows every control. 'minimal' removes the zoom controls and the date axis altogether, reclaiming the space they occupied."
         },
         "highContrast": {
           "type": "boolean",

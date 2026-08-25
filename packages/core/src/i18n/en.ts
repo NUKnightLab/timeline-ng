@@ -18,6 +18,8 @@ const en: TLLocale = {
     'slide.next': 'Next slide',
     'slide.label': 'Slide {index} of {total}',
     'timeline.label': 'Timeline navigation',
+    'timeline.zoom_hint': 'Use {key} + scroll to zoom the timeline',
+    'timeline.zoom_hint_touch': 'Use two fingers to move the timeline',
     'fullscreen.enter': 'Full screen',
     'fullscreen.exit': 'Exit full screen',
   },

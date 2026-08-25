@@ -13,7 +13,7 @@
     /**
      * Author-chosen chrome level, distinct from `compact`/`minimal` above,
      * which are derived from the player's width. 'minimal' removes the zoom
-     * controls, date axis and minimap outright — token values can fade chrome
+     * controls and date axis outright — token values can fade chrome
      * but cannot reclaim the space it occupies, which is the whole reason this
      * is a prop and not a stylesheet.
      */
@@ -52,10 +52,9 @@
 
   // ── Chrome level ─────────────────────────────────────────────────────────
   const bareChrome = $derived(chrome === 'minimal');
-  /** Zoom controls, date axis and minimap are absent at 'minimal'. */
+  /** Zoom controls and the date axis are absent at 'minimal'. */
   const showControls = $derived(!bareChrome);
   const showAxis     = $derived(!bareChrome);
-  const showMinimap  = $derived(!bareChrome);
   const AXIS_H       = $derived(showAxis ? AXIS_H_FULL : 0);
 
   // ── Responsive layout derived from compact/minimal props ─────────────────
@@ -660,10 +659,39 @@
   // horizontal swipe doesn't accidentally zoom. Everything else zooms.
   const HORIZ_DEAD_SLOPE = Math.tan(20 * Math.PI / 180);
 
+  /*
+   * Cooperative gestures: a plain wheel scrolls the page, and zooming needs a
+   * modifier. Hijacking the wheel means a reader scrolling an article past an
+   * embedded timeline gets caught by it, which is why Google Maps and Mapbox
+   * both moved to this pattern rather than because it is more discoverable —
+   * it isn't. The cue below is what pays that back, and it appears only when
+   * someone actually tries the plain wheel, so it costs no standing chrome.
+   */
+  let zoomHint = $state<string | null>(null);
+  let zoomHintTimer: ReturnType<typeof setTimeout> | undefined;
+
+  /* Mac trackpads pinch-zoom by sending wheel events with ctrlKey set, so
+     ctrl doubles as the pinch signal and must be honoured on every platform. */
+  const isApple = typeof navigator !== 'undefined' && /Mac|iP(hone|ad|od)/.test(navigator.platform ?? '');
+  const zoomModifierLabel = $derived(isApple ? '⌘' : 'Ctrl');
+
+  function showZoomHint(message: string) {
+    zoomHint = message;
+    clearTimeout(zoomHintTimer);
+    zoomHintTimer = setTimeout(() => (zoomHint = null), 2000);
+  }
+
   function handleWheel(e: WheelEvent) {
     const adx = Math.abs(e.deltaX);
     const ady = Math.abs(e.deltaY);
     if (adx > 0 && ady < adx * HORIZ_DEAD_SLOPE) return; // too horizontal — ignore
+
+    if (!e.ctrlKey && !e.metaKey) {
+      /* Let the page scroll, and say how to zoom instead. */
+      showZoomHint(getMessage(tl, 'timeline.zoom_hint', { key: zoomModifierLabel }));
+      return;
+    }
+
     e.preventDefault();
     const dy = ady >= adx ? e.deltaY : e.deltaX;
     if (dy === 0) return;
@@ -861,6 +889,10 @@
     onpointercancel={handleGripUp}
   ><span class="tl-nav__grip" aria-hidden="true"></span></button>
 
+  {#if zoomHint}
+    <div class="tl-nav__hint" role="status" aria-live="polite">{zoomHint}</div>
+  {/if}
+
   <!-- Body — sits below the grip strip -->
   <div class="tl-nav__body" style="top: {HANDLE_H}px;">
 
@@ -1009,11 +1041,6 @@
         <span class="tl-nav__axis-label">{label}</span>
       </div>
     {/each}
-    {#if !showGroups && showMinimap}
-      <div class="tl-nav__minimap">
-        <div class="tl-nav__minimap-thumb" style="left: {viewStart}%; width: {viewRange}%;"></div>
-      </div>
-    {/if}
   </div>
   {/if}
 
@@ -1034,6 +1061,34 @@
     -webkit-user-select: none;
     touch-action: none;
     transition: height 0.2s ease;
+  }
+
+  /*
+   * Shown only in response to a plain wheel over the navigator, then it fades.
+   * Deliberately not a permanent legend: the point of cooperative gestures is
+   * to stop the wheel surprising people, not to spend standing space
+   * explaining itself.
+   */
+  .tl-nav__hint {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 30;
+    pointer-events: none;
+    padding: 0.4rem 0.8rem;
+    border-radius: var(--tl-radius, 4px);
+    background: var(--tl-nav-hint-bg, rgba(0, 0, 0, 0.78));
+    color: var(--tl-nav-hint-color, #ffffff);
+    font-size: 0.8rem;
+    line-height: 1.3;
+    white-space: nowrap;
+    animation: tl-nav-hint-in 120ms ease-out;
+  }
+
+  @keyframes tl-nav-hint-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
   }
 
   .tl-sr-only {
@@ -1417,7 +1472,7 @@
     transform: scale(var(--tl-nav-dot-active-scale, 1.4));
   }
 
-  /* Axis ticks — anchored to the bottom of the track, above the minimap */
+  /* Axis ticks — anchored to the bottom of the track */
   .tl-nav__axis-tick {
     position: absolute;
     top: calc(-1 * var(--tl-axis-track-offset) + 2px);
@@ -1458,24 +1513,7 @@
     font-feature-settings: "tnum";
   }
 
-  /* Minimap strip — full width = full data range; thumb = visible viewport */
-  .tl-nav__minimap {
-    position: absolute;
-    bottom: 2px;
-    left: 0;
-    right: 0;
-    height: 4px;
-    background: var(--tl-color-nav-marker);
-    opacity: var(--tl-nav-minimap-opacity, 0.12);
-    z-index: 0;
-  }
 
-  .tl-nav__minimap-thumb {
-    position: absolute;
-    inset-block: 0;
-    background: var(--tl-nav-mark-active, var(--tl-color-nav-marker-active));
-    opacity: 0.7;
-  }
 
   /* Restore pointer cursor on all interactive children */
   .tl-nav__label,

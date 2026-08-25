@@ -19,7 +19,7 @@
  * closed — it uses each of the tokens it originally could not reach:
  *
  *   1. `--tl-nav-mark-active` separates the active *mark* colour (dot, span
- *      bar, leader, minimap thumb) from `--tl-color-nav-marker-active`, which
+ *      bar, leader stroke) from `--tl-color-nav-marker-active`, which
  *      now only sets the active label's text. Previously one token drove both,
  *      so inverting the active label to light-on-dark — the natural
  *      high-contrast treatment — also turned the active dot white on a white
@@ -86,7 +86,6 @@
   --tl-nav-leader-opacity: 1;
   --tl-nav-leader-active-opacity: 1;
   --tl-nav-track-opacity: 1;
-  --tl-nav-minimap-opacity: 0.35;
 
   --tl-nav-band-border: 1px solid #000000;
   --tl-nav-band-alt-bg: transparent;

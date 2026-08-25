@@ -14,7 +14,7 @@
     theme?: 'light' | 'dark' | 'auto';
     /**
      * How prominent the navigator is. 'minimal' removes the zoom controls,
-     * date axis and minimap, reclaiming their space.
+     * date axis, reclaiming their space.
      */
     navChrome?: 'standard' | 'minimal';
     /** Raise everything to WCAG AAA contrast. Composes with the other axes. */
