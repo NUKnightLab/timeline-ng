@@ -136,9 +136,10 @@ function adaptSettings(raw: unknown): TLSettings | undefined {
   if (typeof s['initialIndex'] === 'number' && Number.isFinite(s['initialIndex']) && s['initialIndex'] >= 0) {
     out.initialIndex = s['initialIndex'];
   }
-  if (s['skin'] === 'quiet' || s['skin'] === 'contrast' || s['skin'] === 'bare' || s['skin'] === 'default') {
-    out.skin = s['skin'];
+  if (s['navChrome'] === 'full' || s['navChrome'] === 'quiet' || s['navChrome'] === 'minimal') {
+    out.navChrome = s['navChrome'];
   }
+  if (typeof s['highContrast'] === 'boolean') out.highContrast = s['highContrast'];
   /* Validated against the shipped list — a file can name a pairing we dropped. */
   if (typeof s['fontPairing'] === 'string') {
     const pairing = getPairing(s['fontPairing']);

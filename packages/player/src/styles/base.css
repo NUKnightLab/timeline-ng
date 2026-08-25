@@ -1,19 +1,23 @@
-/* ── Font pairings, then skins ─────────────────────────────────────────────
-   Both are token-only overlays on the player root, selected by a prop that
-   sets a data attribute. Pairings come first deliberately: they carry the
-   same (0,2,0) specificity as skins, so source order decides the tie, and a
-   skin should be able to override a pairing's typography where it has a
-   reason to — the contrast skin's larger, heavier body text, for instance.
+/* ── Layers ────────────────────────────────────────────────────────────────
+   Three independent axes, each selected by a prop that sets a data attribute
+   on the player root, each expressed purely as token values.
 
-   @import must precede every other rule in the file, so a skin's rules land
-   *before* the [data-tl-theme] blocks below rather than after them. Each
-   skin therefore has to out-specify those on its own — see the specificity
-   note in quiet.css. */
+   Order is the precedence, since all of these carry the same (0,2,0):
+
+     pairing    which faces render        data-tl-font
+     navChrome  how loud the nav is       data-tl-nav
+     contrast   AAA everywhere            data-tl-contrast
+
+   Contrast is last deliberately. Where it disagrees with a pairing or a nav
+   treatment about a colour it wins, because an accessibility mode a styling
+   choice could override would not be one.
+
+   @import must precede every other rule, so all three land before the :root
+   and [data-tl-theme] blocks below and out-specify them via .tl-player. */
 @import './pairings.css';
-
-@import './skins/quiet.css';
-@import './skins/contrast.css';
-@import './skins/bare.css';
+@import './nav/quiet.css';
+@import './nav/minimal.css';
+@import './contrast.css';
 
 /* ── Timeline NG — Design Tokens ─────────────────────────────────────────── */
 :root {

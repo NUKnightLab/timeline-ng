@@ -22,6 +22,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   the fallback stack rather than the chosen face.
 
   Regenerate with `pnpm fonts:extract`.
+- `TLSettings.navChrome` (`'full' | 'quiet' | 'minimal'`) and
+  `TLSettings.highContrast`, replacing `TLSettings.skin`. A skin bundled three
+  unrelated axes under one name, which is why none of them could be described
+  to a user: measured by declaration, `bare` was 100% navigator (its two
+  slide-layout declarations were dead, restating defaults), `quiet` was 25/37
+  navigator plus a text-centring rule left over from an abandoned TimelineJS 3
+  reproduction, and `contrast` was the only coherent one — because it was the
+  only one that mapped to a single axis. The axes are now named separately and
+  compose freely.
 - `TLSettings.fontPairing`, typed as `FontPairingId` so the JSON schema
   validates against the shipped list without a hand-maintained duplicate.
 - `PAIRING_ALIASES`. TimelineJS 3 shipped `default` as a byte-identical copy of

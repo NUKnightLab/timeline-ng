@@ -118,7 +118,8 @@
     {initialIndex}
     language={settings.language}
     theme={settings.theme}
-    skin={settings.skin}
+    navChrome={settings.navChrome}
+    highContrast={settings.highContrast}
     fontPairing={settings.fontPairing}
     reverseOrder={settings.reverseOrder}
     autofocus={isTopLevel}

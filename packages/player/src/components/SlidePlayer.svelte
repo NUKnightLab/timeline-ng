@@ -13,11 +13,13 @@
     reverseOrder?: boolean;
     theme?: 'light' | 'dark' | 'auto';
     /**
-     * Named visual skin. Orthogonal to `theme`: a skin restyles the player,
-     * a theme picks its light/dark ground, and every skin supports both.
-     * 'default' applies no overlay.
+     * How prominent the navigator is. 'quiet' keeps every control but draws
+     * it with less ink; 'minimal' removes the zoom controls, date axis and
+     * minimap, reclaiming their space.
      */
-    skin?: 'default' | 'quiet' | 'contrast' | 'bare';
+    navChrome?: 'full' | 'quiet' | 'minimal';
+    /** Raise everything to WCAG AAA contrast. Composes with the other axes. */
+    highContrast?: boolean;
     /**
      * Font pairing id (see FONT_PAIRINGS). Supplies typography tokens only —
      * the player never loads font files. Whoever mounts it is responsible for
@@ -34,7 +36,8 @@
     language = 'en',
     reverseOrder = false,
     theme = 'auto',
-    skin = 'default',
+    navChrome = 'full',
+    highContrast = false,
     fontPairing,
     initialIndex = 0,
     autofocus = false,
@@ -123,7 +126,7 @@
   }
 
   const themeAttr: string | undefined = $derived(theme === 'auto' ? undefined : theme);
-  const skinAttr: string | undefined = $derived(skin === 'default' ? undefined : skin);
+  const navAttr: string | undefined = $derived(navChrome === 'full' ? undefined : navChrome);
 
   /*
    * A pairing is applied as inline custom properties rather than a class, so
@@ -227,7 +230,8 @@
 <section
   class="tl-player"
   data-tl-theme={themeAttr}
-  data-tl-skin={skinAttr}
+  data-tl-nav={navAttr}
+  data-tl-contrast={highContrast ? 'high' : undefined}
   data-tl-font={resolvedPairing?.id}
   onkeydown={handleKeydown}
   tabindex="0"
@@ -284,6 +288,7 @@
     {language}
     {compact}
     {minimal}
+    chrome={navChrome}
     onnavigate={handleNavigation}
     onstart={() => goTo(0)}
     onend={() => goTo(slides.length - 1)}

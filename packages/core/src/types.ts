@@ -92,11 +92,20 @@ export interface TLSettings {
    */
   fontPairing?: FontPairingId;
   /**
-   * Named visual skin — a packaged set of design-token values. Orthogonal to
-   * `theme`: every skin has a light and a dark variant. 'default' (default)
-   * applies no overlay.
+   * How prominent the timeline navigator is.
+   *
+   * 'full' (default) shows every control. 'quiet' keeps all of them but draws
+   * them with less ink — no chip borders, no band tints, no gutter divider.
+   * 'minimal' removes the zoom controls, the date axis and the zoom minimap
+   * altogether, reclaiming the space they occupied.
    */
-  skin?: 'default' | 'quiet' | 'contrast' | 'bare';
+  navChrome?: 'full' | 'quiet' | 'minimal';
+  /**
+   * Raise every text and mark to WCAG AAA contrast, with heavier weights and
+   * thicker focus rings. Independent of `theme` and of `navChrome`: it applies
+   * over whichever of those is in effect.
+   */
+  highContrast?: boolean;
   /** 0-based index of the slide to display first (counting the title slide if present). Defaults to 0. */
   initialIndex?: number;
   /** Show events newest-first. The title slide (if any) always stays first. Defaults to false. */

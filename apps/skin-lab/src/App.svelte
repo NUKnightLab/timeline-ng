@@ -7,15 +7,17 @@
 
   const timeline = timelineData as TLTimeline;
 
-  type Skin = 'default' | 'quiet' | 'contrast' | 'bare';
-  const SKINS: Skin[] = ['default', 'quiet', 'contrast', 'bare'];
+  type Nav = 'full' | 'quiet' | 'minimal';
+  const SKINS: Nav[] = ['full', 'quiet', 'minimal'];
 
   let mode = $state<'compare' | 'toggle'>('compare');
   let theme = $state<'light' | 'dark' | 'auto'>('light');
-  let solo = $state<Skin>('quiet');
-  /* Which two skins face off in compare mode. */
-  let left = $state<Skin>('default');
-  let right = $state<Skin>('quiet');
+  let solo = $state<Nav>('quiet');
+  /* Which two nav levels face off in compare mode. */
+  let left = $state<Nav>('full');
+  let right = $state<Nav>('quiet');
+  /* Contrast is a separate axis, so it applies to both panels at once. */
+  let highContrast = $state(false);
   /*
    * Kept in sync across both players so the comparison is like-for-like.
    * Starts at 1 rather than the title slide, which has no date line and no
@@ -26,7 +28,7 @@
   let frames = $state<Record<string, HTMLElement | undefined>>({});
   let reports = $state<Record<string, Row[]>>({});
 
-  const shown: Skin[] = $derived(mode === 'compare' ? [left, right] : [solo]);
+  const shown: Nav[] = $derived(mode === 'compare' ? [left, right] : [solo]);
 
   /*
    * Re-audit whenever anything that could move a colour changes. Reading is
@@ -34,7 +36,7 @@
    * flip, and colour transitions on nav labels have settled.
    */
   $effect(() => {
-    void [mode, theme, solo, left, right, slideIndex];
+    void [mode, theme, solo, left, right, highContrast, slideIndex];
     const t = setTimeout(() => {
       const next: Record<string, Row[]> = {};
       for (const skin of shown) {
@@ -72,6 +74,11 @@
       </div>
     {/if}
 
+    <div class="group" role="group" aria-label="Contrast">
+      <button class:on={!highContrast} onclick={() => (highContrast = false)}>Normal</button>
+      <button class:on={highContrast} onclick={() => (highContrast = true)}>AAA</button>
+    </div>
+
     <div class="group" role="group" aria-label="Theme">
       {#each ['light', 'dark', 'auto'] as const as t}
         <button class:on={theme === t} onclick={() => (theme = t)}>{t}</button>
@@ -89,7 +96,7 @@
     {#each shown as skin, slot (slot + ':' + skin)}
       <section class="panel">
         <h2 class="panel__title">
-          {skin}
+          nav: {skin}
           {#if reports[skin]}
             <span class="badge" class:badge--fail={failCount(reports[skin]) > 0}>
               {failCount(reports[skin]) === 0
@@ -99,7 +106,7 @@
           {/if}
         </h2>
         <div class="frame" bind:this={frames[skin]}>
-          <SlidePlayer {timeline} {theme} {skin} initialIndex={slideIndex} />
+          <SlidePlayer {timeline} {theme} navChrome={skin} {highContrast} initialIndex={slideIndex} />
         </div>
       </section>
     {/each}
@@ -123,7 +130,7 @@
     <div class="audit__tables" class:audit__tables--split={shown.length > 1}>
       {#each shown as skin, slot (slot + ':' + skin)}
         <table>
-          <caption>{skin}</caption>
+          <caption>nav: {skin}{highContrast ? ' + AAA' : ''}</caption>
           <thead>
             <tr><th>element</th><th>fg</th><th>bg</th><th>ratio</th><th>needs</th><th></th></tr>
           </thead>

@@ -1,0 +1,94 @@
+/*
+ * ── navChrome: quiet ─────────────────────────────────────────────────────
+ *
+ * Every control the full navigator has, drawn with less ink.
+ *
+ * The restraint comes from removing marks, not from lightening them: inactive
+ * labels lose their border ring and take the band's own colour as fill, so
+ * they still occlude the lines behind them without drawing a visible chip;
+ * group bands lose their alternating tint; the zoom column loses its divider.
+ * All of that is free in contrast terms, which matters because lightening is
+ * exactly what made TimelineJS 3's navigator inaccessible — its date measures
+ * 2.10:1 on white and its axis ticks 1.84:1.
+ *
+ * Nav only, on purpose. This file used to be a "skin" that also centred
+ * text-only slides and narrowed the body measure, which had nothing to do
+ * with a quieter navigator — it was left over from an attempt to reproduce
+ * TL3 wholesale. Typography belongs to the font pairing, contrast to
+ * highContrast, and neither belongs here.
+ */
+
+.tl-player[data-tl-nav='quiet'] {
+  --tl-color-nav-bg: #f2f2f2;
+  --tl-nav-border-top: 1px solid #e5e5e5;
+
+  /*
+   * TL3 draws marks at #919191/#737373, which measure 2.50:1 and 2.82:1
+   * against the surfaces they sit on. #6e6e6e is the lightest that still
+   * clears AA at 4.55:1 — barely lighter than the default's #555, which is
+   * the proof that colour alone cannot buy the quiet.
+   */
+  --tl-color-nav-marker: #6e6e6e;
+  --tl-color-nav-marker-active: #333333;
+  --tl-color-nav-marker-hover: #1a1a1a;
+
+  /* Chip fill matches the band, so labels occlude without showing an edge. */
+  --tl-nav-label-bg: #f2f2f2;
+  --tl-nav-label-ring: none;
+  --tl-nav-label-active-bg: #ffffff;
+  --tl-nav-label-active-ring: none;
+  --tl-nav-label-active-weight: 700;
+  --tl-nav-label-radius: 4px;
+  --tl-nav-label-padding: 2px 5px;
+
+  /* TL3's #bfbfbf ticks measure 1.84:1; these clear their thresholds. */
+  --tl-nav-axis-bg: #ffffff;
+  --tl-nav-axis-border-top: 1px solid #e5e5e5;
+  --tl-nav-axis-tick-color: #949494;
+  --tl-nav-axis-tick-opacity: 1;
+  --tl-nav-axis-color: #767676;
+
+  --tl-nav-gutter-bg: transparent;
+  --tl-nav-gutter-border: none;
+
+  /* Leaders carry information, so 3:1 applies; track and minimap do not. */
+  --tl-nav-leader-opacity: 0.8;
+  --tl-nav-leader-active-opacity: 1;
+  --tl-nav-track-opacity: 0.35;
+  --tl-nav-minimap-opacity: 0.12;
+
+  --tl-nav-band-border: 1px solid #e5e5e5;
+  --tl-nav-band-alt-bg: transparent;
+}
+
+.tl-player[data-tl-nav='quiet'][data-tl-theme='dark'] {
+  --tl-color-nav-bg: #141414;
+  --tl-nav-border-top: 1px solid #2e2e2e;
+  --tl-color-nav-marker: #9a9a9a;
+  --tl-color-nav-marker-active: #ffffff;
+  --tl-color-nav-marker-hover: #e0e0e0;
+  --tl-nav-label-bg: #141414;
+  --tl-nav-label-active-bg: #333333;
+  --tl-nav-axis-bg: #0d0d0d;
+  --tl-nav-axis-border-top: 1px solid #2e2e2e;
+  --tl-nav-axis-tick-color: #6b6b6b;
+  --tl-nav-axis-color: #8f8f8f;
+  --tl-nav-band-border: 1px solid #2e2e2e;
+}
+
+@media (prefers-color-scheme: dark) {
+  .tl-player[data-tl-nav='quiet']:not([data-tl-theme='light']) {
+    --tl-color-nav-bg: #141414;
+    --tl-nav-border-top: 1px solid #2e2e2e;
+    --tl-color-nav-marker: #9a9a9a;
+    --tl-color-nav-marker-active: #ffffff;
+    --tl-color-nav-marker-hover: #e0e0e0;
+    --tl-nav-label-bg: #141414;
+    --tl-nav-label-active-bg: #333333;
+    --tl-nav-axis-bg: #0d0d0d;
+    --tl-nav-axis-border-top: 1px solid #2e2e2e;
+    --tl-nav-axis-tick-color: #6b6b6b;
+    --tl-nav-axis-color: #8f8f8f;
+    --tl-nav-band-border: 1px solid #2e2e2e;
+  }
+}

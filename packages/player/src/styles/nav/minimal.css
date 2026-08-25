@@ -1,0 +1,54 @@
+/*
+ * ── navChrome: minimal ───────────────────────────────────────────────────
+ *
+ * The navigator reduced to what it cannot do without: the track, the marks
+ * and their labels.
+ *
+ * Unlike 'quiet', this one removes rather than fades. The zoom controls, the
+ * date axis and the zoom minimap are not rendered at all, and TimeNav reclaims
+ * the 44px gutter and 18px axis band they occupied — see the `chrome` prop
+ * there. That removal is the whole reason this exists as a structural setting
+ * rather than a set of token values: painting chrome out with opacity leaves
+ * its space behind, which is what the earlier "bare" experiment could only do.
+ *
+ * What remains here is just the colour treatment for a navigator that sits
+ * directly on the stage rather than on a band of its own.
+ */
+
+.tl-player[data-tl-nav='minimal'] {
+  --tl-color-nav-bg: var(--tl-color-bg, #ffffff);
+  --tl-color-nav-marker: #6e6e6e;
+  --tl-color-nav-marker-hover: #000000;
+
+  --tl-nav-label-bg: transparent;
+  --tl-nav-label-ring: none;
+  --tl-nav-label-active-bg: transparent;
+  --tl-nav-label-active-ring: none;
+  --tl-nav-label-active-weight: 700;
+  --tl-nav-label-padding: 1px 3px;
+
+  --tl-nav-gutter-bg: transparent;
+  --tl-nav-gutter-border: none;
+
+  /*
+   * 0.8, not the 0.7 default: with no nav band, leaders composite against the
+   * stage's lighter ground, which costs about half a contrast point.
+   */
+  --tl-nav-leader-opacity: 0.8;
+  --tl-nav-track-opacity: 0.15;
+
+  --tl-nav-band-border: none;
+  --tl-nav-band-alt-bg: transparent;
+}
+
+.tl-player[data-tl-nav='minimal'][data-tl-theme='dark'] {
+  --tl-color-nav-marker: #9a9a9a;
+  --tl-color-nav-marker-hover: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  .tl-player[data-tl-nav='minimal']:not([data-tl-theme='light']) {
+    --tl-color-nav-marker: #9a9a9a;
+    --tl-color-nav-marker-hover: #ffffff;
+  }
+}

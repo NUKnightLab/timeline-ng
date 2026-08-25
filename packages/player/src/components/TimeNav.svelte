@@ -10,13 +10,21 @@
     language?: string;
     compact?: boolean;
     minimal?: boolean;
+    /**
+     * Author-chosen chrome level, distinct from `compact`/`minimal` above,
+     * which are derived from the player's width. 'minimal' removes the zoom
+     * controls, date axis and minimap outright — token values can fade chrome
+     * but cannot reclaim the space it occupies, which is the whole reason this
+     * is a prop and not a stylesheet.
+     */
+    chrome?: 'full' | 'quiet' | 'minimal';
     onnavigate: (index: number) => void;
     onstart?: () => void;
     onend?: () => void;
     height?: number;
   }
 
-  let { timeline, activeIndex, language = 'en', compact = false, minimal = false, onnavigate, onstart, onend, height = $bindable(0) }: Props = $props();
+  let { timeline, activeIndex, language = 'en', compact = false, minimal = false, chrome = 'full', onnavigate, onstart, onend, height = $bindable(0) }: Props = $props();
 
   const tl = $derived(getLocale(language));
 
@@ -36,14 +44,24 @@
   const SHIFT_STEP_PX = 12;
   const MIN_RANGE     = 0.1;
   const GROUP_LABEL_H = 20;   // height of each group's label band
-  const AXIS_H        = 18;   // axis strip below the shared track
+  const AXIS_H_FULL   = 18;   // axis strip below the shared track
   const GROUP_GUTTER  = 120;  // px reserved on the left for group name labels (must clear the zoom-controls column)
   const AXIS_CHAR_PX  = 6;    // rough advance width of an axis-label glyph at 0.65rem, tabular
   const ZOOM_GUTTER   = 44;   // px reserved on the left for zoom controls (non-grouped)
   const BTN_SIZE      = 24;   // WCAG 2.2 SC 2.5.8 minimum target: 24x24 CSS px
 
+  // ── Chrome level ─────────────────────────────────────────────────────────
+  const bareChrome = $derived(chrome === 'minimal');
+  /** Zoom controls, date axis and minimap are absent at 'minimal'. */
+  const showControls = $derived(!bareChrome);
+  const showAxis     = $derived(!bareChrome);
+  /* 'quiet' keeps every control — it only draws them with less ink, which is
+     what separates it from 'minimal'. Only 'minimal' removes anything. */
+  const showMinimap  = $derived(!bareChrome);
+  const AXIS_H       = $derived(showAxis ? AXIS_H_FULL : 0);
+
   // ── Responsive layout derived from compact/minimal props ─────────────────
-  const controlGutter = $derived(compact || minimal ? 28 : 44);
+  const controlGutter = $derived(!showControls ? 0 : compact || minimal ? 28 : 44);
 
 
   // ── Viewport state (data-space percentages 0–100) ─────────────────────────
@@ -767,6 +785,7 @@
   <!-- Body — sits below the grip strip -->
   <div class="tl-nav__body" style="top: {HANDLE_H}px;">
 
+  {#if showControls}
   <div class="tl-nav__zoom-controls" style="width: {controlGutter}px; height: {contentHeight + AXIS_H}px;" role="group" aria-label="Timeline controls" onpointerdown={(e) => e.stopPropagation()}>
     {#if displayRows === 0}
       <button class="tl-nav__zoom-btn" onclick={goToStart} aria-label="Go to beginning" title="Beginning">⏮︎</button>
@@ -778,6 +797,7 @@
       {#if !compact && controlSlots >= 4}<button class="tl-nav__zoom-btn" onclick={goToEnd} aria-label="Go to end" title="End">⏭︎</button>{/if}
     {/if}
   </div>
+  {/if}
 
   <!-- Group label bands — full width, gutter holds the group name -->
   {#if showGroups}
@@ -884,6 +904,7 @@
     </div>
   </div>
 
+  {#if showAxis}
   <div
     class="tl-nav__axis-strip"
     style="left: {showGroups ? GROUP_GUTTER : controlGutter}px; height: {AXIS_H}px; --tl-axis-track-offset: {Math.round(TRACK_AREA / 2)}px;"
@@ -899,12 +920,13 @@
         <span class="tl-nav__axis-label">{label}</span>
       </div>
     {/each}
-    {#if !showGroups}
+    {#if !showGroups && showMinimap}
       <div class="tl-nav__minimap">
         <div class="tl-nav__minimap-thumb" style="left: {viewStart}%; width: {viewRange}%;"></div>
       </div>
     {/if}
   </div>
+  {/if}
 
   </div><!-- end tl-nav__body -->
 </nav>

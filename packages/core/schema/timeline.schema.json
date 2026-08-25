@@ -213,15 +213,18 @@
           "$ref": "#/definitions/FontPairingId",
           "description": "Font pairing, carried forward from TimelineJS 3. Supplies `--tl-font-heading` / `--tl-font-body` and a few matching size and weight tokens; see FONT_PAIRINGS. Defaults to 'georgia-helvetica', the one pairing built from system fonts and therefore the only one that covers every writing system."
         },
-        "skin": {
+        "navChrome": {
           "type": "string",
           "enum": [
-            "default",
+            "full",
             "quiet",
-            "contrast",
-            "bare"
+            "minimal"
           ],
-          "description": "Named visual skin — a packaged set of design-token values. Orthogonal to `theme`: every skin has a light and a dark variant. 'default' (default) applies no overlay."
+          "description": "How prominent the timeline navigator is.\n\n'full' (default) shows every control. 'quiet' keeps all of them but draws them with less ink — no chip borders, no band tints, no gutter divider. 'minimal' removes the zoom controls, the date axis and the zoom minimap altogether, reclaiming the space they occupied."
+        },
+        "highContrast": {
+          "type": "boolean",
+          "description": "Raise every text and mark to WCAG AAA contrast, with heavier weights and thicker focus rings. Independent of `theme` and of `navChrome`: it applies over whichever of those is in effect."
         },
         "initialIndex": {
           "type": "number",

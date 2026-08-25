@@ -10,8 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Added
 
 - `styles/pairings.css`, generated from `FONT_PAIRINGS` — each pairing's tokens
-  as a `[data-tl-font]` block. Imported before the skins so the cascade reads
-  base defaults < pairing < skin < embedder.
+  as a `[data-tl-font]` block. Imported before the nav and contrast layers so
+  the cascade reads base defaults < pairing < navChrome < highContrast <
+  embedder.
 
 - A `fontPairing` prop on `SlidePlayer`, applying a pairing's typography tokens
   as inline custom properties. The player supplies tokens only and never loads
@@ -21,37 +22,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - `--tl-headline-transform`, so a font pairing can set its headline in caps —
   five of the TimelineJS 3 pairings do. Defaults to `none`.
 
-- **Skins.** A `skin` prop on `SlidePlayer` (and a matching `settings.skin`
-  field) selects a named, token-only visual overlay. It sets `data-tl-skin`
-  on the player root, alongside — and orthogonal to — `data-tl-theme`: a skin
-  restyles the player, a theme picks its light/dark ground, and every skin
-  supports both. Three ship:
-  - `quiet` — a low-attention treatment, for embedders who find the default
-    nav too assertive. Typography and proportion follow TimelineJS 3; the
-    colours deliberately do not, since TL3's own values fail WCAG AA in
-    several places (its date is 2.10:1 on white, its axis ticks 1.84:1). The
-    restraint comes from removing ink — no chip rings, no band tints, no
-    gutter divider — rather than from lightening it, because lightening is
-    precisely what made TL3 inaccessible. It is not a TL3 reproduction and
-    does not claim to be: TL3's marker is a thumbnail-bearing card hung from
-    a drop line, ours is a text chip on a leader, and no token reaches
-    silhouette.
-  - `contrast` — targets WCAG AAA (7:1) for all text and pushes non-text well
-    past 3:1; worst measured case is 15.13:1 in light, 15.91:1 in dark.
-  - `bare` — the nav reduced as far as tokens can reduce it.
+- **`navChrome` and `highContrast` props**, replacing the `skin` prop. Three
+  independent axes now, each expressed as token values and each selected by its
+  own data attribute on the player root:
+  - `navChrome: 'quiet'` keeps every navigator control but draws it with less
+    ink — no chip rings, no band tints, no gutter divider. The restraint comes
+    from removing marks rather than lightening them, because lightening is what
+    made TimelineJS 3's navigator inaccessible: its date measures 2.10:1 on
+    white and its axis ticks 1.84:1.
+  - `navChrome: 'minimal'` *removes* the zoom controls, date axis and minimap
+    and reclaims their space — 44px of gutter, 18px of axis band, nav height
+    106 to 88. This is the part no set of token values could do: fading chrome
+    with opacity leaves its layout behind.
+  - `highContrast` raises everything to WCAG AAA, worst case 15.13:1 light and
+    15.91:1 dark. It spans slide and navigator alike and applies last, so where
+    it disagrees with a nav treatment or a pairing about a colour it wins — an
+    accessibility mode a styling choice could override would not be one.
 
-  All three are verified in the `skin-lab` app, which measures rendered
-  colours rather than stylesheet values.
+  A skin had bundled these three unrelated axes under one name, which is why
+  none of them could be described to a user. Both new settings are exposed in
+  the authoring tool, and every combination is verified in the lab app, which
+  measures rendered colours rather than stylesheet values.
 - `--tl-nav-mark-active`, splitting the active *mark* colour (dot, span bar,
   leader stroke, minimap thumb) out of `--tl-color-nav-marker-active`, which
   now sets only the active label's text colour. One token previously drove
   both, which made a light-on-dark active label impossible: inverting the
   label also turned the active dot white on a white nav and erased it.
-  Defaults to `--tl-color-nav-marker-active`, so existing skins are unaffected.
+  Defaults to `--tl-color-nav-marker-active`, so existing overrides are
+  unaffected.
 - `--tl-focus-ring-width`, `--tl-focus-ring-offset` and `--tl-focus-ring-color`,
   replacing five hardcoded `2px solid var(--tl-color-accent)` declarations
-  across three components. A skin could previously change a focus ring's
-  colour but not its weight.
+  across three components. These were previously reachable only by colour, not
+  by weight.
 - `--tl-nav-dot-active-scale` (was a hardcoded `scale(1.4)`) and
   `--tl-nav-btn-size`, `--tl-nav-dot-target-x`, `--tl-nav-dot-target-y`.
 - A set of `--tl-nav-*` and slide typography tokens covering values that were
@@ -60,8 +62,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   track and minimap opacities, group band border and tint, plus
   `--tl-date-transform`, `--tl-headline-color`, `--tl-body-color` and the
   `--tl-slide-text-only-*` trio. Every default matches the previous hardcoded
-  value, so nothing changes unless a skin or embedder sets them. These exist so
-  a skin can be expressed purely as token values, with no component overrides.
+  value, so nothing changes unless a layer or embedder sets them. These exist
+  so each layer can be expressed purely as token values, with no component
+  overrides.
 
 ### Changed
 
@@ -71,10 +74,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   One consequence is visible: with no pairing named, headlines are now Georgia
   and body copy Helvetica Neue at 17px, where before both were `system-ui` at
   16px.
-- Skins no longer set `--tl-font-heading` or `--tl-font-body`. Which faces
-  render is the author's choice, expressed through the font pairing; a skin
-  that pinned the family made picking a typeface do nothing while that skin
-  was on. Skins adjust size, weight and colour — never the family.
+- No layer sets `--tl-font-heading` or `--tl-font-body`. Which faces render is
+  the author's choice, expressed through the font pairing; a layer that pinned
+  the family made picking a typeface do nothing while that layer was on. Layers
+  adjust size, weight and colour — never the family.
 
 - The slide date no longer renders as a bold, uppercase, letter-spaced eyebrow.
   It was one of the loudest elements on a slide when it should be among the
@@ -98,14 +101,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Fixed
 
 - Hovering an active TimeNav label dropped it to unreadable contrast under the
-  `contrast` skin — dark blue on near-black, 1.73:1 in light mode and 2.16:1 in
+  high-contrast layer — dark blue on near-black, 1.73:1 in light and 2.16:1 in
   dark, against resting states of 17.40:1 and 21.00:1. `.tl-nav__label:hover`
   is (0,2,0) and outranks `.tl-nav__label--active` at (0,1,0), so hover swapped
   in `--tl-color-nav-marker-hover` — a colour calibrated against the nav
   background — while the label kept its own inverted pill. Active labels now
   hold their colour through hover and focus; the halo, width expansion and
-  raised z-index still provide the feedback. A skin can set
-  `--tl-nav-label-active-hover` for a shade matched to its own pill.
+  raised z-index still provide the feedback. `--tl-nav-label-active-hover` sets
+  a shade matched to whatever pill a layer chose.
 
 - Axis labels ran off the ends of the TimeNav. Each tick is centred on its
   date, so a label near either edge overflowed the strip and was clipped. An
