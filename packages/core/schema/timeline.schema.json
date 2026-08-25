@@ -254,10 +254,9 @@
         "playfair-faunaone",
         "roboto-megrim",
         "rufina-sintony",
-        "unicaone-vollkorn",
-        "default"
+        "unicaone-vollkorn"
       ],
-      "description": "Every id TLSettings.fontPairing accepts. This is deliberately a superset of the ids in FONT_PAIRINGS: what a record may *name* includes aliases, while what the UI *offers* does not. See PAIRING_ALIASES."
+      "description": "Every id TLSettings.fontPairing accepts."
     },
     "TLOgImage": {
       "type": "object",

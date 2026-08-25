@@ -11,12 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- **Font pairings.** `FONT_PAIRINGS`, `getPairing()`, `coversLanguage()`,
-  `PAIRING_ALIASES` and the `FontPairing` / `FontPairingId` types. These are
-  TimelineJS 3's font sets, re-extracted from TL3's own stylesheets and
-  re-resolved against the modern Google Fonts API. 19 are offered; TL3 shipped
-  `default` as a byte-identical duplicate of `pt`, so that id survives as an
-  alias rather than a second entry.
+- **Font pairings.** `FONT_PAIRINGS`, `getPairing()`, `coversLanguage()` and
+  the `FontPairing` / `FontPairingId` types. These are TimelineJS 3's font
+  sets, re-extracted from TL3's own stylesheets and re-resolved against the
+  modern Google Fonts API. 19 of TL3's 20 are offered — its `default` set was a
+  byte-identical duplicate of its `pt` set, so only `pt` is carried forward.
 
   A pairing is a set of `--tl-*` token values plus two pieces of metadata:
   `webfonts` (families a host must serve) and `scripts` (writing systems both

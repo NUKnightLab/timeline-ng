@@ -31,11 +31,7 @@ export interface FontPairing {
   tokens: Record<string, string>;
 }
 
-/**
- * Every id TLSettings.fontPairing accepts. This is deliberately a superset of
- * the ids in FONT_PAIRINGS: what a record may *name* includes aliases, while
- * what the UI *offers* does not. See PAIRING_ALIASES.
- */
+/** Every id TLSettings.fontPairing accepts. */
 export type FontPairingId =
   | 'georgia-helvetica'
   | 'pt'
@@ -55,8 +51,7 @@ export type FontPairingId =
   | 'playfair-faunaone'
   | 'roboto-megrim'
   | 'rufina-sintony'
-  | 'unicaone-vollkorn'
-  | 'default';
+  | 'unicaone-vollkorn';
 
 export const FONT_PAIRINGS: FontPairing[] = [
   {
@@ -466,17 +461,9 @@ export const FONT_PAIRINGS: FontPairing[] = [
 
 export const DEFAULT_PAIRING: FontPairingId = 'georgia-helvetica';
 
-/**
- * Ids that resolve to another pairing. TimelineJS 3 shipped `default` as a
- * duplicate of `pt` — the same two faces under a second name — so records
- * naming it still resolve, but it is not offered as a separate choice.
- */
-export const PAIRING_ALIASES: Record<string, FontPairingId> = { default: 'pt' };
-
 export function getPairing(id: string | undefined): FontPairing | undefined {
   if (!id) return undefined;
-  const resolved = PAIRING_ALIASES[id] ?? id;
-  return FONT_PAIRINGS.find(p => p.id === resolved);
+  return FONT_PAIRINGS.find(p => p.id === id);
 }
 
 /**
