@@ -667,7 +667,14 @@
     e.preventDefault();
     const dy = ady >= adx ? e.deltaY : e.deltaX;
     if (dy === 0) return;
-    const gutter = showGroups ? GROUP_GUTTER : ZOOM_GUTTER;
+    /*
+     * Must be the gutter actually in use, not the constant. controlGutter is
+     * 44 normally but 28 when compact and 0 when the zoom controls are gone
+     * altogether, so using ZOOM_GUTTER here anchored the zoom up to 44px left
+     * of the pointer — worst in navChrome='minimal', which is precisely where
+     * the wheel is the only way to zoom at all.
+     */
+    const gutter = showGroups ? GROUP_GUTTER : controlGutter;
     const rect       = (e.currentTarget as Element).getBoundingClientRect();
     const cursorFrac = Math.max(0, Math.min(1, (e.clientX - rect.left - gutter) / timelineWidth));
     const cursorData = viewStart + cursorFrac * viewRange;

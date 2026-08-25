@@ -89,6 +89,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Wheel-zoom in the navigator anchored up to 44px left of the pointer. It
+  computed the cursor's position against the constant gutter width rather than
+  the gutter actually in use, which is narrower when the player is compact and
+  zero when `navChrome: 'minimal'` removes the zoom controls — so the error was
+  worst in the mode where the wheel is the only way to zoom, and it compounded
+  with every step. The point under the pointer now stays under the pointer.
+
 - **Navigator labels piled on top of each other** on any timeline whose events
   cluster, which is most real ones. Three causes:
   - The drawer opened to one row regardless of the data. The row count the
