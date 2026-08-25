@@ -37,14 +37,30 @@ body {
   letter-spacing: 0.02em;
 }
 
-.docs-header {
+/*
+ * Rail layout. The nav was a row of links across the top, which forced
+ * multi-word items to wrap inside a 680px header and gave no room to show
+ * which page you were on. A rail has room for both, and it grows without
+ * reflowing as pages are added.
+ *
+ * Close stays top-left, where it was and where people look for it.
+ */
+.docs-shell {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 680px);
+  gap: 2.5rem;
+  justify-content: center;
+  padding: 1.5rem 1rem 0;
+}
+
+.docs-rail {
+  /* Follows long pages down rather than scrolling away. */
+  position: sticky;
+  top: 1.5rem;
+  align-self: start;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 2rem;
-  max-width: 680px;
-  margin: 0 auto;
-  padding: 1.25rem 1rem 0;
+  flex-direction: column;
+  gap: 1.25rem;
 }
 
 .docs-brand {
@@ -52,31 +68,42 @@ body {
   font-size: 0.85rem;
   color: #df4e13;
   text-decoration: none;
+  border-bottom: none;
 }
 .docs-brand:hover { color: #b93e0d; text-decoration: underline; }
 
 .docs-nav {
   display: flex;
-  /*
-   * Bottom-aligned, not stretched. These links carry an underline on their
-   * bottom edge, and the header is narrow enough that multi-word items wrap to
-   * two lines. Stretching made every box as tall as the tallest, so a
-   * single-word item like "Appearance" left its text floating at the top with
-   * its underline stranded a line below.
-   */
-  align-items: flex-end;
-  gap: 1.25rem;
+  flex-direction: column;
 }
+
 .docs-nav a {
   font-size: 0.875rem;
+  line-height: 1.35;
   color: #6b7280;
   text-decoration: none;
+  /* Orangeline underlines bare links with a background-image gradient, not a
+     border or text-decoration, so neither of those turns it off. The rail
+     marks state with a rule on the leading edge instead. */
+  background-image: none;
+  border-bottom: none;
+  padding: 0.4rem 0.75rem;
+  border-left: 2px solid transparent;
 }
-.docs-nav a:hover { color: #1d1f21; }
+.docs-nav a:hover {
+  color: #1d1f21;
+  border-left-color: #d8d8d4;
+}
+
+.docs-nav a[aria-current='page'] {
+  color: #1d1f21;
+  font-weight: 600;
+  border-left-color: #df4e13;
+}
 
 .page {
   max-width: 680px;
-  margin: 1.5rem auto 0;
+  margin: 0;
   background: #fff;
   border: 1px solid #e5e7eb;
   border-radius: 6px;
@@ -152,10 +179,37 @@ a:hover { color: #b93e0d; }
 .app-name { font-weight: 600; color: #111; }
 .app-desc { color: #6b7280; font-size: 0.9rem; }
 
+/* Below the two-column threshold the rail becomes a scrollable strip above
+   the content, which keeps every page one tap away without stealing width. */
+@media (max-width: 940px) {
+  .docs-shell {
+    grid-template-columns: minmax(0, 680px);
+    gap: 1rem;
+  }
+  .docs-rail {
+    position: static;
+    gap: 0.75rem;
+  }
+  .docs-nav {
+    flex-direction: row;
+    gap: 0.25rem;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+  .docs-nav a {
+    white-space: nowrap;
+    border-left: none;
+    border-bottom: 2px solid transparent;
+    padding: 0.35rem 0.5rem;
+  }
+  .docs-nav a:hover { border-left: none; border-bottom-color: #d8d8d4; }
+  .docs-nav a[aria-current='page'] { border-left: none; border-bottom-color: #df4e13; }
+}
+
 @media (max-width: 640px) {
   .app-navbar { justify-content: space-between; }
   .navbar-divider { display: none; }
   .navbar-title { font-size: 0.8rem; }
-  .page { padding: 1.75rem 1.25rem; margin-top: 1rem; }
-  .docs-header { flex-wrap: wrap; gap: 0.75rem 1.5rem; padding-top: 1rem; }
+  .page { padding: 1.75rem 1.25rem; }
+  .docs-shell { padding-top: 1rem; }
 }

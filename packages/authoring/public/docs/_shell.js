@@ -17,7 +17,18 @@ async function loadPage() {
     document.head.appendChild(style.cloneNode(true));
   }
   document.getElementById('doc-content').innerHTML = frag.body.innerHTML;
+  markCurrent(page);
   window.scrollTo(0, 0);
+}
+
+/* The rail has room to show which page you are on, which the old top row did
+   not. aria-current carries it to assistive tech as well as to the styling. */
+function markCurrent(page) {
+  for (const a of document.querySelectorAll('.docs-nav a')) {
+    const target = a.getAttribute('href').split('#')[1];
+    if (target === page) a.setAttribute('aria-current', 'page');
+    else a.removeAttribute('aria-current');
+  }
 }
 
 loadPage();
