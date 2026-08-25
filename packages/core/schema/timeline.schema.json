@@ -209,6 +209,14 @@
           ],
           "description": "Color theme. 'auto' (default) follows the viewer's OS/browser preference."
         },
+        "fontPairing": {
+          "$ref": "#/definitions/FontPairingId",
+          "description": "Font pairing, carried forward from TimelineJS 3. Supplies `--tl-font-heading` / `--tl-font-body` and a few matching size and weight tokens; see FONT_PAIRINGS. Defaults to 'georgia-helvetica', the one pairing built from system fonts and therefore the only one that covers every writing system."
+        },
+        "highContrast": {
+          "type": "boolean",
+          "description": "Raise every text and mark to WCAG AAA contrast, with heavier weights and thicker focus rings. Independent of `theme` and of `navChrome`: it applies over whichever of those is in effect."
+        },
         "initialIndex": {
           "type": "number",
           "description": "0-based index of the slide to display first (counting the title slide if present). Defaults to 0."
@@ -224,6 +232,32 @@
       },
       "additionalProperties": false,
       "description": "Timeline-level playback/display configuration. All fields optional; omitted = player default."
+    },
+    "FontPairingId": {
+      "type": "string",
+      "enum": [
+        "georgia-helvetica",
+        "pt",
+        "ubuntu",
+        "oldstandard",
+        "abril-droidsans",
+        "amatic-andika",
+        "bevan-pontanosans",
+        "bitter-raleway",
+        "clicker-garamond",
+        "dancing-ledger",
+        "fjalla-average",
+        "lustria-lato",
+        "medula-lato",
+        "opensans-gentiumbook",
+        "playfair",
+        "playfair-faunaone",
+        "roboto-megrim",
+        "rufina-sintony",
+        "unicaone-vollkorn",
+        "default"
+      ],
+      "description": "Every id TLSettings.fontPairing accepts. This is deliberately a superset of the ids in FONT_PAIRINGS: what a record may *name* includes aliases, while what the UI *offers* does not. See PAIRING_ALIASES."
     },
     "TLOgImage": {
       "type": "object",

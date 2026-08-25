@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { SlidePlayer, loadTimeline } from '@knight-lab/timeline-ng';
   import '@knight-lab/timeline-ng/styles.css';
+  import { getPairing, DEFAULT_PAIRING } from '@knight-lab/timeline-ng-core';
   import type { TLTimeline } from '@knight-lab/timeline-ng-core';
 
   // Auto-focus is only appropriate when this page IS the destination the user
@@ -38,6 +39,41 @@
     theme: 'auto' as const,
     reverseOrder: false,
     ...(timeline?.settings ?? {}),
+  });
+
+  /*
+   * Load the chosen pairing's faces from this origin. The files are mirrored
+   * into public/fonts by scripts/fonts/fetch-fonts.mjs, so no request goes to
+   * Google, and each stylesheet keeps Google's per-script unicode-range
+   * declarations — the browser fetches only the slices this timeline's text
+   * actually uses.
+   *
+   * Only pairings with `webfonts` get a stylesheet; the system-font pairing
+   * has nothing to load. The link is swapped rather than accumulated, because
+   * in preview mode the pairing changes every time the author picks a new one.
+   */
+  const FONT_LINK_ID = 'tl-font-pairing';
+
+  $effect(() => {
+    /* Resolve exactly as the player does, so the stylesheet always matches
+       the tokens actually applied. */
+    const pairing = getPairing(settings.fontPairing) ?? getPairing(DEFAULT_PAIRING);
+    const existing = document.getElementById(FONT_LINK_ID);
+
+    if (!pairing || pairing.webfonts.length === 0) {
+      existing?.remove();
+      return;
+    }
+
+    const href = new URL(`./fonts/${pairing.id}.css`, document.baseURI).href;
+    if (existing instanceof HTMLLinkElement && existing.href === href) return;
+
+    existing?.remove();
+    const link = document.createElement('link');
+    link.id = FONT_LINK_ID;
+    link.rel = 'stylesheet';
+    link.href = href;
+    document.head.appendChild(link);
   });
 
   onMount(() => {
@@ -82,6 +118,8 @@
     {initialIndex}
     language={settings.language}
     theme={settings.theme}
+    highContrast={settings.highContrast}
+    fontPairing={settings.fontPairing}
     reverseOrder={settings.reverseOrder}
     autofocus={isTopLevel}
   />

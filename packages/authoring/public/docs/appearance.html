@@ -1,0 +1,162 @@
+<title>Appearance — Timeline NG</title>
+<style>
+  .field-table {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+    margin: 0 0 1.5rem;
+  }
+  .field-table th, .field-table td {
+    text-align: left;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid #e5e7eb;
+    vertical-align: top;
+  }
+  .field-table th { color: #6b7280; font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.03em; }
+  .pairing-table td:first-child { width: 34%; }
+  .pairing-table td:nth-child(2) { width: 22%; }
+  .pairing-table code { font-size: 0.85em; }
+  /*
+   * Orangeline owns .note — it supplies the grey fill, the rounded corner, the
+   * orange "Note:" prefix and 1rem of padding. This used to override the
+   * padding and add a left border, which killed the inset and drew a rule
+   * invisible against the fill. So it inherits Orangeline's box now and
+   * changes only two things it gets wrong for body copy:
+   *
+   *   its #9c9c9c text measures 2.41:1 on that fill, which fails AA — an
+   *   awkward thing for a page explaining contrast settings — and
+   *
+   *   italics are fine for a line but tiring for a paragraph.
+   */
+  .note {
+    color: #4b5563;      /* 6.63:1 on Orangeline's #f0f0f0 */
+    font-style: normal;
+    font-size: 0.9rem;
+    line-height: 1.55;
+  }
+  .note p:last-child { margin-bottom: 0; }
+
+  @media (max-width: 640px) {
+    .field-table, .field-table tbody, .field-table tr, .field-table th, .field-table td {
+      display: block;
+      width: auto;
+    }
+    .field-table tr:has(th) { display: none; }
+    .field-table td { border: none; padding: 0.15rem 0; }
+    .field-table tr { border-bottom: 1px solid #e5e7eb; padding: 0.6rem 0; }
+  }
+</style>
+
+<h1>Appearance</h1>
+<p class="subtitle">Choices about how your timeline looks.</p>
+
+<p>
+  The Timeline NG authoring tool provides a "settings" interface which allows you to make a few choices about how your timeline looks.
+</p>
+<p>
+  More technical users can apply these in a timeline's <code>settings</code> block as well as take a lot more control over a timeline's appearance. See 
+  <a href="https://github.com/NUKnightLab/timeline-ng/tree/main/apps/example-custom-theme" target="_blank" rel="noopener">the example app</a> for more information.
+</p>
+
+<h2>Theme</h2>
+<p>
+  You can choose between "light", "dark", or "auto". "auto" is the default, and
+  follows whatever the reader's own device is set to — so the same timeline
+  appears light to one person and dark to another, matching the rest of what
+  they are reading.
+</p>
+
+<h2>High contrast</h2>
+
+<p>
+  Enabling "high contrast" raises every piece of text and every marker to the
+  strictest contrast level in the Web Content Accessibility Guidelines
+  (WCAG AAA), uses heavier type, and thickens the outline that shows which
+  element has keyboard focus.
+</p>
+
+<p>
+  It applies on top of your other appearance choices rather than replacing
+  them, so it works with any theme and any typeface. Where it and the theme
+  disagree about a color, high contrast wins.
+</p>
+
+<div class="note">
+  <p>
+    Turning this off does not mean your timeline is inaccessible. The normal
+    appearance already meets WCAG AA, which is the level most accessibility
+    policies require. High contrast goes beyond that, and is worth turning on if
+    you know your audience needs it or if your timeline will be read on projectors
+    or in bright light.
+  </p>
+</div>
+
+
+<h2>When events bunch together</h2>
+<div class="note">
+  <p>
+    <strong>Events close together in time</strong> — many in one decade, or one
+    ancient event and the rest recent — the navigator cannot label all of them
+    without the labels colliding. It shows as many as fit, always including the
+    event you are currently viewing, and leaves the rest as markers on the
+    track. Those markers still work: click one to jump to it. Zooming in
+    (Ctrl or &#8984; + scroll) spreads the events out and the labels reappear.
+  </p>
+</div>
+
+<h2>Typeface</h2>
+
+<p>
+  Use the "typeface" menu to choose a headline face and a body face together.
+  These pairings are carried over from the classic TimelineJS, so a timeline
+  moved across should be able to keep the look it had. Note that you'll have to 
+  manually set the typeface after importing, as classic TimelineJS did not store
+  typeface settings in the spreadsheet.
+</p>
+
+<p>
+  The <strong>Scripts</strong> column in the table below matters if your timeline
+  is not written in
+  the Latin alphabet. Most of these families cover Latin and sometimes Cyrillic
+  and little else. A timeline in a writing system the faces don't cover still
+  displays perfectly well — the text falls back to a standard system font,
+  character by character — but it won't look like the pairing you picked. The
+  settings panel warns you when your timeline's language falls outside the
+  pairing's coverage.
+</p>
+
+<p>
+  <strong>Georgia + Helvetica Neue</strong> is the default and the one exception:
+  it uses fonts already on the reader's device, so it downloads nothing and
+  covers every writing system. It is the safe choice rather than the dull one.
+</p>
+
+<p>
+  Casual users can ignore the "setting value" column. That is provided as a reference for more technical creators.
+</p>
+
+<table class="field-table pairing-table">
+  <tr><th>Pairing</th><th>Setting value</th><th>Scripts</th></tr>
+  <!-- BEGIN GENERATED PAIRINGS — written by scripts/fonts/generate-pairings.mjs, do not edit -->
+  <tr><td>Georgia + Helvetica Neue</td><td><code>"georgia-helvetica"</code></td><td>All — uses the reader&rsquo;s own system fonts</td></tr>
+  <tr><td>Abril Fatface + Noto Sans</td><td><code>"abril-droidsans"</code></td><td>latin</td></tr>
+  <tr><td>Amatic SC + Andika</td><td><code>"amatic-andika"</code></td><td>cyrillic, latin, vietnamese</td></tr>
+  <tr><td>Bevan + Pontano Sans</td><td><code>"bevan-pontanosans"</code></td><td>latin</td></tr>
+  <tr><td>Bitter + Raleway</td><td><code>"bitter-raleway"</code></td><td>cyrillic, latin, vietnamese</td></tr>
+  <tr><td>Clicker Script + EB Garamond</td><td><code>"clicker-garamond"</code></td><td>latin</td></tr>
+  <tr><td>Dancing Script + Ledger</td><td><code>"dancing-ledger"</code></td><td>latin</td></tr>
+  <tr><td>Fjalla One + Average Sans</td><td><code>"fjalla-average"</code></td><td>latin</td></tr>
+  <tr><td>Lustria + Lato</td><td><code>"lustria-lato"</code></td><td>latin</td></tr>
+  <tr><td>Medula One + Lato</td><td><code>"medula-lato"</code></td><td>latin</td></tr>
+  <tr><td>Megrim + Roboto Slab</td><td><code>"roboto-megrim"</code></td><td>latin</td></tr>
+  <tr><td>Old Standard TT + Old Standard TT</td><td><code>"oldstandard"</code></td><td>cyrillic, latin, vietnamese</td></tr>
+  <tr><td>Open Sans + Gentium Book Plus</td><td><code>"opensans-gentiumbook"</code></td><td>cyrillic, greek, latin, vietnamese</td></tr>
+  <tr><td>Playfair Display + Fauna One</td><td><code>"playfair-faunaone"</code></td><td>latin</td></tr>
+  <tr><td>Playfair Display SC + Playfair Display</td><td><code>"playfair"</code></td><td>cyrillic, latin, vietnamese</td></tr>
+  <tr><td>PT Sans Narrow + PT Serif</td><td><code>"pt"</code></td><td>cyrillic, latin</td></tr>
+  <tr><td>Rufina + Sintony</td><td><code>"rufina-sintony"</code></td><td>latin</td></tr>
+  <tr><td>Ubuntu + Ubuntu</td><td><code>"ubuntu"</code></td><td>cyrillic, greek, latin</td></tr>
+  <tr><td>Unica One + Vollkorn</td><td><code>"unicaone-vollkorn"</code></td><td>latin, vietnamese</td></tr>
+  <!-- END GENERATED PAIRINGS -->
+</table>

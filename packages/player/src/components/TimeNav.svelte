@@ -10,13 +10,21 @@
     language?: string;
     compact?: boolean;
     minimal?: boolean;
+    /**
+     * Author-chosen chrome level, distinct from `compact`/`minimal` above,
+     * which are derived from the player's width. 'minimal' removes the zoom
+     * controls and date axis outright — token values can fade chrome
+     * but cannot reclaim the space it occupies, which is the whole reason this
+     * is a prop and not a stylesheet.
+     */
+    chrome?: 'standard' | 'minimal';
     onnavigate: (index: number) => void;
     onstart?: () => void;
     onend?: () => void;
     height?: number;
   }
 
-  let { timeline, activeIndex, language = 'en', compact = false, minimal = false, onnavigate, onstart, onend, height = $bindable(0) }: Props = $props();
+  let { timeline, activeIndex, language = 'en', compact = false, minimal = false, chrome = 'standard', onnavigate, onstart, onend, height = $bindable(0) }: Props = $props();
 
   const tl = $derived(getLocale(language));
 
@@ -36,12 +44,22 @@
   const SHIFT_STEP_PX = 12;
   const MIN_RANGE     = 0.1;
   const GROUP_LABEL_H = 20;   // height of each group's label band
-  const AXIS_H        = 18;   // axis strip below the shared track
+  const AXIS_H_FULL   = 18;   // axis strip below the shared track
   const GROUP_GUTTER  = 120;  // px reserved on the left for group name labels (must clear the zoom-controls column)
+  const AXIS_CHAR_PX  = 6;    // rough advance width of an axis-label glyph at 0.65rem, tabular
   const ZOOM_GUTTER   = 44;   // px reserved on the left for zoom controls (non-grouped)
+  const BTN_SIZE      = 24;   // WCAG 2.2 SC 2.5.8 minimum target: 24x24 CSS px
+
+  // ── Chrome level ─────────────────────────────────────────────────────────
+  const bareChrome = $derived(chrome === 'minimal');
+  /** Zoom controls and the date axis are absent at 'minimal'. */
+  const showControls = $derived(!bareChrome);
+  const showAxis     = $derived(!bareChrome);
+  const AXIS_H       = $derived(showAxis ? AXIS_H_FULL : 0);
 
   // ── Responsive layout derived from compact/minimal props ─────────────────
-  const controlGutter = $derived(compact || minimal ? 28 : 44);
+  const controlGutter = $derived(!showControls ? 0 : compact || minimal ? 28 : 44);
+
 
   // ── Viewport state (data-space percentages 0–100) ─────────────────────────
   let viewStart       = $state(0);
@@ -158,6 +176,8 @@
     screenWidthPct: number | null;
     row: number;
     labelCenterPct: number;
+    /** True when no non-overlapping slot exists; the dot stands in for it. */
+    labelHidden: boolean;
     groupIdx: number;
   }
 
@@ -190,7 +210,7 @@
     const stepPct     = SHIFT_STEP_PX / timelineWidth * 100;
     const maxShiftPct = SHIFT_MAX_PX  / timelineWidth * 100;
 
-    const labelMap = new Map<number, { row: number; centerPct: number }>();
+    const labelMap = new Map<number, { row: number; centerPct: number; hidden?: boolean }>();
 
     if (showGroups) {
       // Per-group label allocation — 1 row per group band
@@ -246,15 +266,58 @@
         for (let row = 1; row < visRows; row++) {
           if (rowRight[row] < rowRight[bestRow]) bestRow = row;
         }
-        const packedPct = Math.min(100 - halfPct, rowRight[bestRow] + gapPct + halfPct);
+        const packedPct = rowRight[bestRow] + gapPct + halfPct;
+        if (packedPct > 100 - halfPct) {
+          /*
+           * Nowhere left to put it. This used to clamp to the right edge, which
+           * meant every label that ran out of room landed on the same spot and
+           * stacked into something unreadable — worst on the timelines that
+           * need help most, where events bunch at one end. Hiding the label is
+           * the honest outcome: the dot still marks the date and still
+           * navigates, and zooming in spreads the events out until the label
+           * has room to come back.
+           */
+          labelMap.set(ev.index, { row: bestRow, centerPct: naturalPct, hidden: true });
+          continue;
+        }
         rowRight[bestRow] = packedPct + halfPct;
         labelMap.set(ev.index, { row: bestRow, centerPct: packedPct });
       }
     }
 
+    /*
+     * Guarantee the active event a label.
+     *
+     * Placement runs left to right, so on a crowded timeline the events that
+     * happen to come first take the available slots and everything after them
+     * is dropped — including, quite often, the one being viewed. A navigator
+     * that cannot show you where you are has failed at its main job.
+     *
+     * Rather than disturb the packing, the active event takes over the slot
+     * nearest its own position and the previous occupant is dropped instead.
+     * The geometry is untouched; only ownership changes. The two are close
+     * together by construction, so the leader line stays short.
+     */
+    const activeEntry = labelMap.get(activeIndex);
+    if (activeEntry?.hidden) {
+      const activeAt = activeEntry.centerPct;
+      let nearest: number | null = null;
+      let nearestDist = Infinity;
+      for (const [index, entry] of labelMap) {
+        if (entry.hidden || index === activeIndex) continue;
+        const dist = Math.abs(entry.centerPct - activeAt);
+        if (dist < nearestDist) { nearestDist = dist; nearest = index; }
+      }
+      if (nearest !== null) {
+        const slot = labelMap.get(nearest)!;
+        labelMap.set(activeIndex, { row: slot.row, centerPct: slot.centerPct });
+        labelMap.set(nearest, { row: slot.row, centerPct: slot.centerPct, hidden: true });
+      }
+    }
+
     return projected.map(ev => {
-      const { row, centerPct } = labelMap.get(ev.index) ?? { row: 0, centerPct: ev.screenPct };
-      return { ...ev, row, labelCenterPct: centerPct };
+      const entry = labelMap.get(ev.index) ?? { row: 0, centerPct: ev.screenPct };
+      return { ...ev, row: entry.row, labelCenterPct: entry.centerPct, labelHidden: entry.hidden === true };
     });
   });
 
@@ -369,6 +432,35 @@
     ];
   });
 
+  /*
+   * A tick is centered on its date, so a label near either end overflows the
+   * strip and gets clipped by the nav. The edge-start/edge-end treatment
+   * anchors the label's near edge to the tick instead, keeping the tick mark
+   * exactly on its date while the text runs inward.
+   *
+   * That treatment already existed but was only ever applied to the two
+   * synthetic ticks used when no real ones fit — every generated tick stayed
+   * centered and could run off. Which end a tick needs is a question about
+   * pixels, not percentages, so it is decided here against the measured width.
+   * The label width is estimated from its character count rather than
+   * measured: these are short, mostly-digit strings in a tabular face, and
+   * an estimate that errs toward anchoring costs nothing but a slightly
+   * early switch.
+   */
+  const clampedAxisTicks = $derived.by(() => {
+    const width = timelineWidth;
+    if (width <= 0) return axisTicks;
+
+    return axisTicks.map(tick => {
+      if (tick.edge) return tick;
+      const halfLabel = (tick.label.length * AXIS_CHAR_PX) / 2;
+      const x = (tick.screenPct / 100) * width;
+      if (x - halfLabel < 0) return { ...tick, edge: 'start' as const };
+      if (x + halfLabel > width) return { ...tick, edge: 'end' as const };
+      return tick;
+    });
+  });
+
   // ── Group band layout ─────────────────────────────────────────────────────
   interface GroupBand {
     label: string;
@@ -387,22 +479,6 @@
   let displayRows = $state(1);
   let userAdjustedRows = $state(false);
   let lastLayoutSignature = $state<string | null>(null);
-
-  // Compact mode should default closed, but once the viewer opens/closes the drawer
-  // manually we preserve that choice instead of forcing rows again. Re-seed whenever
-  // compact mode or the group structure changes (e.g. a new timeline is loaded).
-  $effect(() => {
-    const isCompact = compact;
-    const signature = `${isCompact}:${groupRowsNeeded}`;
-    const priorSignature = untrack(() => lastLayoutSignature);
-    const hasUserAdjustedRows = untrack(() => userAdjustedRows);
-    lastLayoutSignature = signature;
-
-    if (hasUserAdjustedRows) return;
-    if (priorSignature === null || priorSignature !== signature) {
-      displayRows = isCompact ? 0 : Math.max(1, groupThresholdRows);
-    }
-  });
 
   // Stable layout metrics — computed from the full dataset, not the viewport,
   // so the nav height doesn't jump during pan/zoom.
@@ -430,6 +506,32 @@
     }
     maxLabelRows = Math.max(maxLabelRows, groupThresholdRows);
     return { maxLabelRows };
+  });
+
+  /*
+   * Compact mode defaults closed; otherwise the drawer opens to as many rows
+   * as the data actually needs, which layoutMetrics already works out from the
+   * full dataset. It previously opened to one row regardless, so a timeline
+   * whose events cluster — most real ones — rendered every label into a single
+   * row and piled them on top of each other. The row count was being computed
+   * and then used only to cap the drag.
+   *
+   * Once the viewer drags the drawer themselves that choice is preserved
+   * instead of being overridden. Re-seeds when compact mode or the group
+   * structure changes, e.g. a new timeline is loaded.
+   */
+  $effect(() => {
+    const isCompact = compact;
+    const needed = layoutMetrics.maxLabelRows;
+    const signature = `${isCompact}:${groupRowsNeeded}:${needed}`;
+    const priorSignature = untrack(() => lastLayoutSignature);
+    const hasUserAdjustedRows = untrack(() => userAdjustedRows);
+    lastLayoutSignature = signature;
+
+    if (hasUserAdjustedRows) return;
+    if (priorSignature === null || priorSignature !== signature) {
+      displayRows = isCompact ? 0 : Math.max(1, groupThresholdRows, needed);
+    }
   });
 
   // Track Y position responds to displayRows, not the dataset maximum.
@@ -460,6 +562,14 @@
   );
 
   const navHeight = $derived(HANDLE_H + contentHeight + AXIS_H);
+  /*
+   * How many 24px controls the gutter can stack. The column is allowed to run
+   * the full height of the drawer *including* the axis band: the axis strip
+   * starts at `left: controlGutter`, so the gutter's own slice of that band is
+   * empty and free to borrow. Without it four buttons (96px) would not fit the
+   * 80px content area at the default height.
+   */
+  const controlSlots = $derived(Math.floor((contentHeight + AXIS_H) / BTN_SIZE));
   $effect(() => {
     height = navHeight;
   });
@@ -549,14 +659,50 @@
   // horizontal swipe doesn't accidentally zoom. Everything else zooms.
   const HORIZ_DEAD_SLOPE = Math.tan(20 * Math.PI / 180);
 
+  /*
+   * Cooperative gestures: a plain wheel scrolls the page, and zooming needs a
+   * modifier. Hijacking the wheel means a reader scrolling an article past an
+   * embedded timeline gets caught by it, which is why Google Maps and Mapbox
+   * both moved to this pattern rather than because it is more discoverable —
+   * it isn't. The cue below is what pays that back, and it appears only when
+   * someone actually tries the plain wheel, so it costs no standing chrome.
+   */
+  let zoomHint = $state<string | null>(null);
+  let zoomHintTimer: ReturnType<typeof setTimeout> | undefined;
+
+  /* Mac trackpads pinch-zoom by sending wheel events with ctrlKey set, so
+     ctrl doubles as the pinch signal and must be honoured on every platform. */
+  const isApple = typeof navigator !== 'undefined' && /Mac|iP(hone|ad|od)/.test(navigator.platform ?? '');
+  const zoomModifierLabel = $derived(isApple ? '⌘' : 'Ctrl');
+
+  function showZoomHint(message: string) {
+    zoomHint = message;
+    clearTimeout(zoomHintTimer);
+    zoomHintTimer = setTimeout(() => (zoomHint = null), 2000);
+  }
+
   function handleWheel(e: WheelEvent) {
     const adx = Math.abs(e.deltaX);
     const ady = Math.abs(e.deltaY);
     if (adx > 0 && ady < adx * HORIZ_DEAD_SLOPE) return; // too horizontal — ignore
+
+    if (!e.ctrlKey && !e.metaKey) {
+      /* Let the page scroll, and say how to zoom instead. */
+      showZoomHint(getMessage(tl, 'timeline.zoom_hint', { key: zoomModifierLabel }));
+      return;
+    }
+
     e.preventDefault();
     const dy = ady >= adx ? e.deltaY : e.deltaX;
     if (dy === 0) return;
-    const gutter = showGroups ? GROUP_GUTTER : ZOOM_GUTTER;
+    /*
+     * Must be the gutter actually in use, not the constant. controlGutter is
+     * 44 normally but 28 when compact and 0 when the zoom controls are gone
+     * altogether, so using ZOOM_GUTTER here anchored the zoom up to 44px left
+     * of the pointer — worst in navChrome='minimal', which is precisely where
+     * the wheel is the only way to zoom at all.
+     */
+    const gutter = showGroups ? GROUP_GUTTER : controlGutter;
     const rect       = (e.currentTarget as Element).getBoundingClientRect();
     const cursorFrac = Math.max(0, Math.min(1, (e.clientX - rect.left - gutter) / timelineWidth));
     const cursorData = viewStart + cursorFrac * viewRange;
@@ -572,8 +718,27 @@
 
   function resetView() { viewStart = 0; viewEnd = 100; }
 
+  /*
+   * Zoom around the active event rather than the middle of the viewport.
+   *
+   * Centering on the viewport meant that a timeline whose events bunch at one
+   * end — most real ones — zoomed straight into empty space, so the controls
+   * were least useful exactly where they were most needed. That also matters
+   * now that a label with nowhere to go is dropped rather than stacked:
+   * zooming is how you get it back, so it has to land somewhere with events.
+   */
+  function zoomAnchor(): number {
+    const viewCenter = (viewStart + viewEnd) / 2;
+    const active = baseEvents.find(e => e.index === activeIndex);
+    if (!active) return viewCenter;
+    /* Only follow it while it is actually on screen; the pan-to-active effect
+       is what brings it there in the first place. */
+    if (active.dataPct < viewStart || active.dataPct > viewEnd) return viewCenter;
+    return active.dataPct;
+  }
+
   function zoomIn() {
-    const center = (viewStart + viewEnd) / 2;
+    const center = zoomAnchor();
     const newRange = Math.max(MIN_RANGE, viewRange / 1.5);
     viewStart = Math.max(0, center - newRange / 2);
     viewEnd   = Math.min(100, viewStart + newRange);
@@ -581,7 +746,7 @@
   }
 
   function zoomOut() {
-    const center = (viewStart + viewEnd) / 2;
+    const center = zoomAnchor();
     const newRange = Math.min(100, viewRange * 1.5);
     viewStart = Math.max(0, center - newRange / 2);
     viewEnd   = Math.min(100, viewStart + newRange);
@@ -724,20 +889,26 @@
     onpointercancel={handleGripUp}
   ><span class="tl-nav__grip" aria-hidden="true"></span></button>
 
+  {#if zoomHint}
+    <div class="tl-nav__hint" role="status" aria-live="polite">{zoomHint}</div>
+  {/if}
+
   <!-- Body — sits below the grip strip -->
   <div class="tl-nav__body" style="top: {HANDLE_H}px;">
 
-  <div class="tl-nav__zoom-controls" style="width: {controlGutter}px; height: {contentHeight}px;" role="group" aria-label="Timeline controls" onpointerdown={(e) => e.stopPropagation()}>
+  {#if showControls}
+  <div class="tl-nav__zoom-controls" style="width: {controlGutter}px; height: {contentHeight + AXIS_H}px;" role="group" aria-label="Timeline controls" onpointerdown={(e) => e.stopPropagation()}>
     {#if displayRows === 0}
       <button class="tl-nav__zoom-btn" onclick={goToStart} aria-label="Go to beginning" title="Beginning">⏮︎</button>
       <button class="tl-nav__zoom-btn" onclick={goToEnd} aria-label="Go to end" title="End">⏭︎</button>
     {:else}
-      {#if !compact}<button class="tl-nav__zoom-btn" onclick={goToStart} aria-label="Go to beginning" title="Beginning">⏮︎</button>{/if}
+      {#if !compact && controlSlots >= 4}<button class="tl-nav__zoom-btn" onclick={goToStart} aria-label="Go to beginning" title="Beginning">⏮︎</button>{/if}
       <button class="tl-nav__zoom-btn" onclick={zoomIn}  aria-label="Zoom in"  title="Zoom in"  disabled={viewRange <= MIN_RANGE}>+</button>
       <button class="tl-nav__zoom-btn" onclick={zoomOut} aria-label="Zoom out" title="Zoom out" disabled={!isZoomed}>−</button>
-      {#if !compact}<button class="tl-nav__zoom-btn" onclick={goToEnd} aria-label="Go to end" title="End">⏭︎</button>{/if}
+      {#if !compact && controlSlots >= 4}<button class="tl-nav__zoom-btn" onclick={goToEnd} aria-label="Go to end" title="End">⏭︎</button>{/if}
     {/if}
   </div>
+  {/if}
 
   <!-- Group label bands — full width, gutter holds the group name -->
   {#if showGroups}
@@ -767,7 +938,7 @@
     {#if displayRows > 0}
     <!-- Leader lines — hit area + visual -->
     <svg class="tl-nav__leaders" aria-hidden="true">
-      {#each positioned as ev}
+      {#each positioned.filter(e => !e.labelHidden) as ev}
         {@const x1=`${ev.labelCenterPct}%`}
         {@const y1=absRowBottomY(ev)}
         {@const x2=`${ev.screenPct}%`}
@@ -791,7 +962,7 @@
     </svg>
 
     <!-- Label buttons (primary keyboard / screen-reader targets) -->
-    {#each positioned as ev}
+    {#each positioned.filter(e => !e.labelHidden) as ev}
       {@const isActive = ev.index === activeIndex}
       <button
         class="tl-nav__label"
@@ -814,12 +985,20 @@
     <div class="tl-nav__track" style="top: {sharedTrackTop}px; height: {TRACK_AREA}px;">
       {#each positioned as ev}
         {#if !ev.isDuration}
+            <!-- The label is normally this event's accessible control, so the
+                 mark is hidden from assistive tech to avoid duplicating it.
+                 When the label had nowhere to go, the mark takes that role
+                 instead — otherwise the event would be unreachable by keyboard
+                 or screen reader precisely on the crowded timelines where the
+                 label gets dropped. -->
           <button
             class="tl-nav__dot"
             class:tl-nav__dot--active={ev.index === activeIndex}
             style="left: {ev.screenPct}%;"
-            tabindex="-1"
-            aria-hidden="true"
+            tabindex={ev.labelHidden ? 0 : -1}
+            aria-hidden={ev.labelHidden ? undefined : 'true'}
+            aria-label={ev.labelHidden ? ev.ariaLabel : undefined}
+            aria-current={ev.labelHidden && ev.index === activeIndex ? 'true' : undefined}
             onpointerdown={(e) => e.stopPropagation()}
             onclick={() => onnavigate(ev.index)}
           ></button>
@@ -833,8 +1012,10 @@
             class="tl-nav__span-bar"
             class:tl-nav__span-bar--active={ev.index === activeIndex}
             style="left: {ev.screenStartPct}%; width: {bracketWidthPct(ev.screenWidthPct!)};"
-            tabindex="-1"
-            aria-hidden="true"
+            tabindex={ev.labelHidden ? 0 : -1}
+            aria-hidden={ev.labelHidden ? undefined : 'true'}
+            aria-label={ev.labelHidden ? ev.ariaLabel : undefined}
+            aria-current={ev.labelHidden && ev.index === activeIndex ? 'true' : undefined}
             onpointerdown={(e) => e.stopPropagation()}
             onclick={() => onnavigate(ev.index)}
           ></button>
@@ -844,12 +1025,13 @@
     </div>
   </div>
 
+  {#if showAxis}
   <div
     class="tl-nav__axis-strip"
     style="left: {showGroups ? GROUP_GUTTER : controlGutter}px; height: {AXIS_H}px; --tl-axis-track-offset: {Math.round(TRACK_AREA / 2)}px;"
     aria-hidden="true"
   >
-    {#each axisTicks as { screenPct, label, edge }}
+    {#each clampedAxisTicks as { screenPct, label, edge }}
       <div
         class="tl-nav__axis-tick"
         class:tl-nav__axis-tick--edge-start={edge === 'start'}
@@ -859,12 +1041,8 @@
         <span class="tl-nav__axis-label">{label}</span>
       </div>
     {/each}
-    {#if !showGroups}
-      <div class="tl-nav__minimap">
-        <div class="tl-nav__minimap-thumb" style="left: {viewStart}%; width: {viewRange}%;"></div>
-      </div>
-    {/if}
   </div>
+  {/if}
 
   </div><!-- end tl-nav__body -->
 </nav>
@@ -872,6 +1050,7 @@
 <style>
   .tl-nav {
     background: var(--tl-color-nav-bg);
+    border-top: var(--tl-nav-border-top, none);
     position: absolute;
     bottom: 0;
     left: 0;
@@ -882,6 +1061,34 @@
     -webkit-user-select: none;
     touch-action: none;
     transition: height 0.2s ease;
+  }
+
+  /*
+   * Shown only in response to a plain wheel over the navigator, then it fades.
+   * Deliberately not a permanent legend: the point of cooperative gestures is
+   * to stop the wheel surprising people, not to spend standing space
+   * explaining itself.
+   */
+  .tl-nav__hint {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 30;
+    pointer-events: none;
+    padding: 0.4rem 0.8rem;
+    border-radius: var(--tl-radius, 4px);
+    background: var(--tl-nav-hint-bg, rgba(0, 0, 0, 0.78));
+    color: var(--tl-nav-hint-color, #ffffff);
+    font-size: 0.8rem;
+    line-height: 1.3;
+    white-space: nowrap;
+    animation: tl-nav-hint-in 120ms ease-out;
+  }
+
+  @keyframes tl-nav-hint-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
   }
 
   .tl-sr-only {
@@ -914,8 +1121,8 @@
     touch-action: none;
   }
   .tl-nav__handle:focus-visible {
-    outline: 2px solid var(--tl-color-accent);
-    outline-offset: -2px;
+    outline: var(--tl-focus-ring-width, 2px) solid var(--tl-focus-ring-color, var(--tl-color-accent));
+    outline-offset: calc(-1 * var(--tl-focus-ring-width, 2px));
   }
   .tl-nav__grip {
     width: 32px;
@@ -954,10 +1161,10 @@
     position: absolute;
     left: 0;
     right: 0;
-    border-bottom: 1px solid var(--tl-color-border, rgba(0,0,0,0.08));
+    border-bottom: var(--tl-nav-band-border, 1px solid var(--tl-color-border, rgba(0,0,0,0.08)));
     pointer-events: none;
   }
-  .tl-nav__group-band--alt { background: rgba(0,0,0,0.03); }
+  .tl-nav__group-band--alt { background: var(--tl-nav-band-alt-bg, transparent); }
   .tl-nav__group-name {
     position: absolute;
     top: 50%;
@@ -989,6 +1196,8 @@
     position: absolute;
     right: 0;
     bottom: 0;
+    background: var(--tl-nav-axis-bg, transparent);
+    border-top: var(--tl-nav-axis-border-top, none);
     padding-bottom: 4px;
     overflow: visible;
     z-index: 2;
@@ -1004,18 +1213,19 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 1px;
+    gap: 0;
     z-index: 10;
-    background: var(--tl-color-nav-bg);
-    border-right: 1px solid var(--tl-color-border, rgba(0,0,0,0.1));
+    background: var(--tl-nav-gutter-bg, transparent);
+    border-right: var(--tl-nav-gutter-border, none);
   }
 
   .tl-nav__zoom-btn {
     background: none;
     border: none;
     padding: 0;
-    width: 28px;
-    height: 20px;
+    /* 24x24 is WCAG 2.2 SC 2.5.8's minimum target size; it was 28x20. */
+    width: var(--tl-nav-btn-size, 24px);
+    height: var(--tl-nav-btn-size, 24px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1050,26 +1260,32 @@
   .tl-nav__leader {
     stroke: var(--tl-color-nav-marker);
     stroke-width: 1;
-    opacity: 0.5;
+    /*
+     * A leader line is what associates a label with its point on the track, so
+     * it carries information and is held to WCAG's 3:1 for non-text. At the
+     * previous 0.5 the default marker faded to an effective #9b9b9b on the nav
+     * band — 2.11:1. 0.7 is the lightest value that clears it in both themes.
+     */
+    opacity: var(--tl-nav-leader-opacity, 0.8);
     pointer-events: none;
     transition: x1 0.3s ease, y1 0.3s ease, x2 0.3s ease, y2 0.3s ease,
                 opacity var(--tl-transition-speed) ease;
   }
 
   .tl-nav__leader--active {
-    stroke: var(--tl-color-nav-marker-active);
-    opacity: 0.8;
+    stroke: var(--tl-nav-mark-active, var(--tl-color-nav-marker-active));
+    opacity: var(--tl-nav-leader-active-opacity, 1);
   }
 
   /* Label buttons */
   .tl-nav__label {
     position: absolute;
     transform: translate(-50%, -50%);
-    background: var(--tl-color-nav-bg);
+    background: var(--tl-nav-label-bg, var(--tl-color-nav-bg));
     border: none;
-    border-radius: 3px;
-    box-shadow: 0 0 0 1px var(--tl-color-border, rgba(0,0,0,0.12));
-    padding: 1px 4px;
+    border-radius: var(--tl-nav-label-radius, 4px);
+    box-shadow: var(--tl-nav-label-ring, none);
+    padding: var(--tl-nav-label-padding, 2px 5px);
     cursor: pointer;
     color: var(--tl-color-nav-marker);
     font-size: var(--tl-nav-label-size, 0.72rem);
@@ -1096,14 +1312,33 @@
   }
 
   .tl-nav__label:focus-visible {
-    outline: 2px solid var(--tl-color-accent);
-    outline-offset: 2px;
+    outline: var(--tl-focus-ring-width, 2px) solid var(--tl-focus-ring-color, var(--tl-color-accent));
+    outline-offset: var(--tl-focus-ring-offset, 2px);
     border-radius: 2px;
+  }
+
+  /*
+   * An active label keeps its own color on hover and focus.
+   *
+   * --tl-color-nav-marker-hover is calibrated against the nav background, but
+   * an active label may carry a background of its own — the contrast skin
+   * inverts it to a dark pill — and combining the two independently-designed
+   * states produced dark blue on near-black, 1.73:1 where the resting state
+   * measures 17.40:1. Hover feedback still comes from the halo, the width
+   * expansion and the raised z-index in the rule above; only the color is
+   * held. A skin that wants a hover shade here can set
+   * --tl-nav-label-active-hover against whatever pill it chose.
+   */
+  .tl-nav__label--active:hover,
+  .tl-nav__label--active:focus-visible {
+    color: var(--tl-nav-label-active-hover, var(--tl-color-nav-marker-active));
   }
 
   .tl-nav__label--active {
     color: var(--tl-color-nav-marker-active);
-    font-weight: 600;
+    background: var(--tl-nav-label-active-bg, var(--tl-nav-label-bg, var(--tl-color-nav-bg)));
+    box-shadow: var(--tl-nav-label-active-ring, none);
+    font-weight: var(--tl-nav-label-active-weight, 700);
     max-width: 130px;
     z-index: 2;
   }
@@ -1140,10 +1375,10 @@
   }
   .tl-nav__span-bar:hover { opacity: 0.75; }
   .tl-nav__span-bar--active {
-    border-color: var(--tl-color-nav-marker-active);
+    border-color: var(--tl-nav-mark-active, var(--tl-color-nav-marker-active));
     opacity: 1;
   }
-  .tl-nav__span-bar--active::before { background: var(--tl-color-nav-marker-active); }
+  .tl-nav__span-bar--active::before { background: var(--tl-nav-mark-active, var(--tl-color-nav-marker-active)); }
 
   /* Track area */
   .tl-nav__track {
@@ -1152,43 +1387,92 @@
     right: 0;
   }
 
+  /*
+   * The axis line spans the full track, because that is the space the marks
+   * are positioned in: dots sit at 0-100% of this box, so an inset line left
+   * the first and last dots floating off the end of it.
+   *
+   * The 2% inset here is a leftover from an earlier layout where it was
+   * `margin: 0 2%` on the track itself, insetting the marks along with the
+   * line. The rewrite kept the inset on the line alone.
+   */
   .tl-nav__track::before {
     content: '';
     position: absolute;
     top: 50%;
-    left: 2%;
-    right: 2%;
+    left: 0;
+    right: 0;
     height: 1px;
     background: var(--tl-color-nav-marker);
-    opacity: 0.4;
+    opacity: var(--tl-nav-track-opacity, 0.35);
     transform: translateY(-50%);
   }
 
   /* Point-event dots — padding + background-clip extends the hit area without changing the visual */
+  /*
+   * The element is the hit target; ::before is the visible dot. They are kept
+   * separate so the target can be sized for WCAG 2.2 SC 2.5.8 without the mark
+   * changing shape.
+   *
+   * This used to be one box, relying on `background-clip: content-box` to keep
+   * the paint inside a 0.25px content box — except the `background` shorthand
+   * that followed reset background-clip to border-box, so the painted dot was
+   * really the padding box all along. It stayed round only because the padding
+   * happened to be uniform; giving it a taller target turned it into an
+   * ellipse.
+   *
+   * The target is deliberately taller than it is wide. The 44px track has
+   * vertical room to spare, whereas dots are positioned by date and can sit a
+   * few pixels apart (7px in the sample timeline) — 24px-wide targets would
+   * occlude each other's centers and make the earlier of two close events
+   * unreachable, which is worse for exactly the users the criterion protects.
+   * Where dots are dense the label above is the accessible target;
+   * --tl-nav-dot-target-x widens them for timelines sparse enough to afford it.
+   *
+   * A dot at exactly 0% or 100% is half-clipped by the content box, and that
+   * is accepted rather than a bug to fix: a mark sits at its exact date, and
+   * the visible half still reads as "an event starts here". Insetting the
+   * coordinate space to avoid it would move every mark off its date, or
+   * desynchronise dots from the labels, leader lines and axis ticks that share
+   * that space. The axis *labels* are a different matter — those are anchored
+   * at the edges, because a clipped date is unreadable rather than merely
+   * cropped.
+   */
   .tl-nav__dot {
-    transition: left 0.3s ease,
-                transform var(--tl-transition-speed) ease,
-                background var(--tl-transition-speed) ease;
     position: absolute;
     top: 50%;
-    width: var(--tl-nav-marker-size, .25px);
-    height: var(--tl-nav-marker-size, .25px);
-    box-sizing: content-box;
-    padding: 6px;
-    background-clip: content-box;
+    width: calc(var(--tl-nav-dot-target-x, 6px) * 2);
+    height: calc(var(--tl-nav-dot-target-y, 12px) * 2);
+    padding: 0;
+    border: none;
+    background: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform: translate(-50%, -50%);
+    cursor: pointer;
+    transition: left 0.3s ease;
+  }
+
+  .tl-nav__dot::before {
+    content: '';
+    display: block;
+    width: var(--tl-nav-marker-size, 12px);
+    height: var(--tl-nav-marker-size, 12px);
     border-radius: 50%;
     background: var(--tl-color-nav-marker);
-    transform: translate(-50%, -50%);
-    border: none;
-    cursor: pointer;
+    transition: transform var(--tl-transition-speed) ease,
+                background var(--tl-transition-speed) ease;
   }
 
-  .tl-nav__dot--active {
-    background: var(--tl-color-nav-marker-active);
-    transform: translate(-50%, -50%) scale(1.4);
+  /* Scale the mark, not the target — growing the hit area on selection would
+     make it steal clicks from its neighbours. */
+  .tl-nav__dot--active::before {
+    background: var(--tl-nav-mark-active, var(--tl-color-nav-marker-active));
+    transform: scale(var(--tl-nav-dot-active-scale, 1.4));
   }
 
-  /* Axis ticks — anchored to the bottom of the track, above the minimap */
+  /* Axis ticks — anchored to the bottom of the track */
   .tl-nav__axis-tick {
     position: absolute;
     top: calc(-1 * var(--tl-axis-track-offset) + 2px);
@@ -1215,38 +1499,21 @@
     display: block;
     width: 1px;
     height: calc(var(--tl-axis-track-offset) - 4px);
-    background: var(--tl-color-nav-marker);
-    opacity: 0.5;
+    background: var(--tl-nav-axis-tick-color, var(--tl-color-nav-marker));
+    opacity: var(--tl-nav-axis-tick-opacity, 1);
     margin-bottom: 2px;
   }
 
   .tl-nav__axis-label {
     display: block;
-    font-size: 0.65rem;
-    color: var(--tl-color-text-muted);
+    font-size: var(--tl-nav-axis-size, 0.65rem);
+    color: var(--tl-nav-axis-color, var(--tl-color-text-muted));
     white-space: nowrap;
     line-height: 1;
     font-feature-settings: "tnum";
   }
 
-  /* Minimap strip — full width = full data range; thumb = visible viewport */
-  .tl-nav__minimap {
-    position: absolute;
-    bottom: 2px;
-    left: 0;
-    right: 0;
-    height: 4px;
-    background: var(--tl-color-nav-marker);
-    opacity: 0.15;
-    z-index: 0;
-  }
 
-  .tl-nav__minimap-thumb {
-    position: absolute;
-    inset-block: 0;
-    background: var(--tl-color-nav-marker-active);
-    opacity: 0.7;
-  }
 
   /* Restore pointer cursor on all interactive children */
   .tl-nav__label,

@@ -55,18 +55,99 @@ if (result.ok) {
   <li><code>theme</code> — <code>"light"</code>, <code>"dark"</code>, or <code>"auto"</code> (default)</li>
   <li><code>initialIndex</code> — slide number to start on (default: <code>0</code>)</li>
   <li><code>reverseOrder</code> — show events newest-first (default: <code>false</code>)</li>
+  <li><code>fontPairing</code> — headline and body typefaces (default: <code>"georgia-helvetica"</code>). See <a href="./docs.html#appearance">Appearance</a> for the list, and <a href="./docs.html#self-hosting/fonts">serving the fonts</a> below — the player names the faces but does not load them.</li>
+  <li><code>highContrast</code> — raise text and markers to WCAG&nbsp;AAA (default: <code>false</code>)</li>
 </ul>
-
-<h2>5. Styling</h2>
 <p>
-  The player exposes CSS custom properties for theming. Set them on the container or
-  any ancestor element:
+  <code>SlidePlayer</code> also takes one prop that is not part of the timeline
+  data format, because it is a decision for whoever is embedding rather than
+  for whoever wrote the timeline:
+</p>
+<ul>
+  <li><code>navChrome</code> — <code>"standard"</code> (default) or <code>"minimal"</code>, which removes the navigator's zoom controls and date axis and reclaims that space.</li>
+</ul>
+<div class="callout">
+  <strong>Before reaching for <code>minimal</code>:</strong> when events sit close
+  together the navigator cannot label all of them, and zooming is how a reader
+  gets the missing labels back. On a densely dated timeline, removing the zoom
+  controls takes that away. It is a good fit for a timeline whose events are
+  well spread out, and a poor one otherwise.
+</div>
+
+<h2 id="fonts">5. Serving the fonts</h2>
+<p>
+  A font pairing sets CSS custom properties naming a headline face and a body
+  face — it does not download anything. That is deliberate: which font service
+  you use, and whether you use one at all, is your decision to make on your own
+  pages. If a named face is not available, the browser falls back through the
+  rest of the pairing's stack, so the timeline still reads correctly; it just
+  won't look like the pairing you chose.
+</p>
+<p>So there are three ways to go:</p>
+<ul>
+  <li>
+    <strong>Use the default and serve nothing.</strong>
+    <code>georgia-helvetica</code> is built from fonts already present on the
+    reader's device. It needs no downloads and covers every writing system.
+  </li>
+  <li>
+    <strong>Load the families yourself.</strong> The pairing only asks for a
+    family by name, so any means of providing it works — your own
+    <code>@font-face</code> rules, a font service, whatever you already use.
+    Check the pairing in <a href="./docs.html#appearance">Appearance</a> for
+    which two families it names. They all come from
+    <a href="https://fonts.google.com" target="_blank" rel="noopener">Google Fonts</a>
+    and are free to use and to redistribute, so you can download them there and
+    serve them from your own site. You can also link Google's hosted
+    stylesheets instead, at the cost of every reader's browser announcing
+    itself to Google — which is why the copies here are served locally.
+  </li>
+  <li>
+    <strong>Copy ours.</strong> The repository mirrors every pairing's fonts as
+    <code>woff2</code>, with one stylesheet per pairing, under
+    <code>packages/embed/public/fonts/</code>. Copy the
+    <code>&lt;pairing&gt;.css</code> file and the <code>.woff2</code> files it
+    references into the same directory in your own assets, and link it:
+  </li>
+</ul>
+<pre><code>&lt;link rel="stylesheet" href="/fonts/playfair-faunaone.css"&gt;</code></pre>
+<p>
+  Those stylesheets keep each family's per-script <code>unicode-range</code>
+  declarations, so a browser downloads only the scripts your timeline's text
+  actually uses — a Cyrillic timeline fetches the Cyrillic slice and never
+  touches the Latin one.
+</p>
+<div class="callout">
+  If you redistribute those font files, their licenses travel with them. Each
+  family's license is in <code>packages/embed/public/fonts/LICENSES/</code>.
+</div>
+
+<h2>6. Styling</h2>
+<p>
+  The player exposes CSS custom properties for theming — colors, typography,
+  spacing, and the navigator's own treatment. Set them on the container or any
+  ancestor element:
 </p>
 <pre><code>#my-timeline {
   --tl-color-accent: #0066cc;
   --tl-font-heading: 'Georgia', serif;
-  --tl-stage-min-height: 300px;
+  --tl-min-height: 300px;
 }</code></pre>
+<p>
+  This is the route to appearances the settings above don't offer. There are
+  about eighty of these properties, covering color, typography, slide layout
+  and every part of the timeline navigator — the
+  <a href="./docs.html#custom-properties">custom properties reference</a> lists
+  all of them with their defaults. Reading the stylesheet is not a substitute:
+  most of them are not declared in one file, which is why that reference is
+  generated from the player's source.
+</p>
+<p>
+  The <a href="https://github.com/NUKnightLab/timeline-ng/tree/main/apps/example-custom-theme" target="_blank" rel="noopener">example-custom-theme</a>
+  app builds an entire visual identity out of nothing but these properties — no
+  overrides of the player's own rules, which is what lets it keep working as
+  the player changes.
+</p>
 
 <h2>Need help?</h2>
 <p>

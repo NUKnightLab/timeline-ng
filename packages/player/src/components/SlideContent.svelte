@@ -205,8 +205,8 @@
   }
 
   .tl-slide:focus-visible {
-    outline: 2px solid var(--tl-color-accent);
-    outline-offset: -2px;
+    outline: var(--tl-focus-ring-width, 2px) solid var(--tl-focus-ring-color, var(--tl-color-accent));
+    outline-offset: calc(-1 * var(--tl-focus-ring-width, 2px));
   }
 
   .tl-slide--active {
@@ -219,6 +219,14 @@
   .tl-slide--dark-bg {
     --tl-color-text: #f0f0f0;
     --tl-color-text-muted: #cccccc;
+    /*
+     * Headline and body carry their own tokens now, so they have to be flipped
+     * here too — inheriting --tl-color-text is no longer enough, and a slide
+     * with a dark or image background would otherwise keep light-mode body
+     * copy on a dark ground.
+     */
+    --tl-headline-color: #ffffff;
+    --tl-body-color: #e8e8e8;
   }
 
   /* When slide has an image background, scrim the text column for readability */
@@ -234,10 +242,17 @@
     display: grid;
     grid-template-columns: 1fr;
     gap: var(--tl-gap);
-    align-items: start;
+    align-items: var(--tl-slide-media-align, center);
     width: 100%;
     max-width: var(--tl-slide-max-width, 1100px);
-    margin: 0 auto;
+    /*
+     * Auto block margins center the content vertically in the stage, matching
+     * TimelineJS 3. Unlike `justify-content: center` on the scroll container,
+     * auto margins collapse to zero once the content overflows, so a long slide
+     * still scrolls from its true top instead of clipping it out of reach.
+     * Set --tl-slide-valign: 0 to pin content to the top instead.
+     */
+    margin: var(--tl-slide-valign, auto) auto;
   }
 
   /* Two-column only when media is present — explicit class avoids :has() */
@@ -298,12 +313,18 @@
     gap: 0.75rem;
   }
 
+  /*
+   * The date used to render as a bold, uppercase, letter-spaced eyebrow, which
+   * made it one of the loudest things on the slide — it should be the
+   * quietest. Plain sentence case at reading size, following TimelineJS 3.
+   * The old treatment is still reachable through the tokens.
+   */
   .tl-slide__date {
     font-family: var(--tl-font-body);
-    font-size: var(--tl-date-size, 0.8rem);
-    font-weight: var(--tl-date-weight, 600);
-    letter-spacing: var(--tl-date-tracking, 0.08em);
-    text-transform: uppercase;
+    font-size: var(--tl-date-size, 0.9375rem);
+    font-weight: var(--tl-date-weight, 400);
+    letter-spacing: var(--tl-date-tracking, normal);
+    text-transform: var(--tl-date-transform, none);
     color: var(--tl-date-color, var(--tl-color-text-muted));
     margin: 0;
   }
@@ -312,7 +333,9 @@
     font-family: var(--tl-font-heading);
     font-size: var(--tl-headline-size, clamp(1.2rem, 3cqi, 2.5rem));
     font-weight: var(--tl-headline-weight, 700);
-    color: var(--tl-color-text);
+    /* Five of the TimelineJS 3 font pairings set their headline in caps. */
+    text-transform: var(--tl-headline-transform, none);
+    color: var(--tl-headline-color, var(--tl-color-text));
     margin: 0;
     line-height: 1.2;
   }
@@ -320,7 +343,18 @@
   .tl-slide__body {
     font-size: var(--tl-body-size, 1rem);
     line-height: var(--tl-body-line-height, 1.65);
-    color: var(--tl-color-text);
+    color: var(--tl-body-color, var(--tl-color-text));
+  }
+
+  /*
+   * Text-only slides. TimelineJS 3 narrowed and centered these; the default here
+   * keeps them full-width and left-aligned. All three tokens default to the
+   * no-op value, so a skin opts in by setting them together.
+   */
+  .tl-slide__inner:not(.tl-slide__inner--has-media) .tl-slide__text {
+    text-align: var(--tl-slide-text-only-align, left);
+    max-width: var(--tl-slide-text-only-width, 100%);
+    margin-inline: var(--tl-slide-text-only-margin, 0);
   }
 
   /*

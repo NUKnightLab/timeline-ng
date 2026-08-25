@@ -17,6 +17,8 @@ const es: TLLocale = {
     'slide.prev': 'Diapositiva anterior',
     'slide.next': 'Diapositiva siguiente',
     'slide.label': 'Diapositiva {index} de {total}',
+    'timeline.zoom_hint': 'Usa {key} + desplazamiento para acercar la línea de tiempo',
+    'timeline.zoom_hint_touch': 'Usa dos dedos para mover la línea de tiempo',
     'timeline.label': 'Navegación de la línea de tiempo',
     'fullscreen.enter': 'Pantalla completa',
     'fullscreen.exit': 'Salir de pantalla completa',

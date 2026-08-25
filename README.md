@@ -2,7 +2,7 @@
 
 A modern rebuild of [Knight Lab TimelineJS](https://timeline.knightlab.com/) as a Svelte 5 monorepo. An experiment in vibe coding and the AT protocol.
 
-For general information and our TimelineNG authoring tool, visit https://timeline.knightlab.com/ng/
+For general information and our Timeline NG authoring tool, visit https://timeline.knightlab.com/ng/
 
 ## Requirements
 

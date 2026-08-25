@@ -1,20 +1,52 @@
 <script lang="ts">
-  import type { TLSettings } from '@knight-lab/timeline-ng-core';
+  import { FONT_PAIRINGS, DEFAULT_PAIRING, getPairing, coversLanguage } from '@knight-lab/timeline-ng-core';
+  import type { TLSettings, FontPairingId } from '@knight-lab/timeline-ng-core';
 
   interface Props {
     settings: TLSettings;
     onchange: (patch: Partial<TLSettings>) => void;
+    /** Dismiss the panel. Given its own control so the preview's close button
+        isn't the nearest thing to reach for. */
+    onclose?: () => void;
   }
 
-  let { settings, onchange }: Props = $props();
+  let { settings, onchange, onclose }: Props = $props();
 
   const language = $derived(settings.language ?? 'en');
   const theme = $derived(settings.theme ?? 'auto');
   const reverseOrder = $derived(settings.reverseOrder ?? false);
+  const fontPairing = $derived(settings.fontPairing ?? DEFAULT_PAIRING);
+  const highContrast = $derived(settings.highContrast ?? false);
+
+
+  /*
+   * Most of these pairings are Latin, sometimes Cyrillic. A timeline in a
+   * script the faces don't cover still renders — from the fallback stack,
+   * per character — but it won't look like what the author picked, and
+   * finding that out after publishing is the bad version of this.
+   */
+  const coverageWarning = $derived.by(() => {
+    const pairing = getPairing(fontPairing);
+    if (!pairing || coversLanguage(pairing, language)) return null;
+    return `${pairing.label} doesn't include glyphs for this timeline's language. Text will fall back to a system font.`;
+  });
+
+  /* System-font pairings load nothing and cover every script — worth saying. */
+  const sortedPairings = $derived(
+    [...FONT_PAIRINGS].sort((a, b) => {
+      const sys = (p: typeof a) => (p.webfonts.length === 0 ? 0 : 1);
+      return sys(a) - sys(b) || a.label.localeCompare(b.label);
+    }),
+  );
 </script>
 
 <div class="settings-panel">
-  <h3 class="settings-panel__title">Timeline settings</h3>
+  <div class="settings-panel__header">
+    <h3 class="settings-panel__title">Timeline settings</h3>
+    {#if onclose}
+      <button type="button" class="settings-panel__close" onclick={onclose} aria-label="Close settings">✕</button>
+    {/if}
+  </div>
 
   <div class="field">
     <label class="field-label" for="settings-language">Language</label>
@@ -28,6 +60,26 @@
     </select>
   </div>
 
+  <div class="field">
+    <label class="field-label" for="settings-font">Typeface</label>
+    <select
+      id="settings-font"
+      value={fontPairing}
+      onchange={(e) => onchange({ fontPairing: (e.target as HTMLSelectElement).value as FontPairingId })}
+    >
+      {#each sortedPairings as p (p.id)}
+        <option value={p.id}>
+          {p.label}{p.webfonts.length === 0 ? ' — system' : ''}
+        </option>
+      {/each}
+    </select>
+    {#if coverageWarning}
+      <p class="field-warning" role="status">{coverageWarning}</p>
+    {:else}
+      <p class="field-hint">Headline and body faces, carried over from the classic TimelineJS.</p>
+    {/if}
+  </div>
+
   <div class="field" role="group" aria-label="Theme">
     <span class="field-label">Theme</span>
     <div class="settings-tabs">
@@ -35,6 +87,18 @@
       <button type="button" class="settings-tab-btn" class:active={theme === 'dark'} onclick={() => onchange({ theme: 'dark' })}>Dark</button>
       <button type="button" class="settings-tab-btn" class:active={theme === 'auto'} onclick={() => onchange({ theme: 'auto' })}>Auto</button>
     </div>
+  </div>
+
+  <div class="field field-checkbox">
+    <label class="field-checkbox-label">
+      <input
+        type="checkbox"
+        checked={highContrast}
+        onchange={(e) => onchange({ highContrast: (e.target as HTMLInputElement).checked })}
+      />
+      High contrast
+    </label>
+    <p class="field-hint">Raises text and markers to the strictest contrast level (WCAG AAA).</p>
   </div>
 
   <div class="field field-checkbox">
@@ -51,6 +115,13 @@
 </div>
 
 <style>
+  .field-warning {
+    margin: 0.35rem 0 0;
+    font-size: 0.8rem;
+    line-height: 1.4;
+    color: #f0b429;
+  }
+
   .settings-panel {
     height: 100%;
     overflow-y: auto;
@@ -61,6 +132,39 @@
     display: flex;
     flex-direction: column;
     gap: 1rem;
+  }
+
+  .settings-panel__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  /* Sized past the 24x24 minimum target, since it sits near the preview's own
+     close button and a mis-click costs the whole preview. */
+  .settings-panel__close {
+    flex: 0 0 auto;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    padding: 0;
+    background: none;
+    border: 1px solid #444;
+    border-radius: 2px;
+    color: #9ca3af;
+    font-family: inherit;
+    font-size: 0.7rem;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .settings-panel__close:hover {
+    color: #e5e7eb;
+    border-color: #666;
   }
 
   .settings-panel__title {

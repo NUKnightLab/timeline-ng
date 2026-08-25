@@ -90,3 +90,38 @@ describe('fromTL3', () => {
     expect(tl.events[1].text?.headline).toBe('Cold War ends');
   });
 });
+
+describe('settings passthrough', () => {
+  it('carries a settings block through, since TL3 JSON has none of its own', () => {
+    const tl = fromTL3({
+      events: [{ start_date: { year: 2000 }, text: { headline: 'x' } }],
+      settings: { language: 'es', theme: 'dark', fontPairing: 'playfair', highContrast: true, reverseOrder: true },
+    });
+    expect(tl.settings).toEqual({
+      language: 'es', theme: 'dark', fontPairing: 'playfair', highContrast: true, reverseOrder: true,
+    });
+  });
+
+  it('drops values it does not recognize rather than passing them to the player', () => {
+    const tl = fromTL3({
+      events: [{ start_date: { year: 2000 } }],
+      settings: { theme: 'chartreuse', fontPairing: 'not-a-pairing', initialIndex: -3, reverseOrder: 'yes' },
+    });
+    expect(tl.settings).toBeUndefined();
+  });
+
+  it('leaves settings absent for a genuine TL3 file', () => {
+    const tl = fromTL3({ events: [{ start_date: { year: 2000 } }] });
+    expect(tl.settings).toBeUndefined();
+  });
+});
+
+describe('font pairing aliases', () => {
+  it("resolves TL3's 'default' to the identical 'pt' pairing", () => {
+    const tl = fromTL3({
+      events: [{ start_date: { year: 2000 } }],
+      settings: { fontPairing: 'default' },
+    });
+    expect(tl.settings?.fontPairing).toBe('pt');
+  });
+});

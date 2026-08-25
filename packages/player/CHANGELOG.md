@@ -7,30 +7,156 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-08-25
+
+### Added
+
+- **`fontPairing` prop**, applying one of the TimelineJS 3 font pairings from
+  `@knight-lab/timeline-ng-core`. The pairing's tokens ship as
+  `styles/pairings.css`, a generated `[data-tl-font]` block per pairing, so
+  normal cascade rules apply. The player supplies tokens only and never loads
+  font files — whoever mounts it serves the faces named in the pairing's
+  `webfonts`, and an unserved face falls back through the pairing's own stack.
+  An unrecognised id resolves to the default pairing rather than throwing,
+  since a saved record can outlive the pairing it names.
+
+- **`navChrome` prop** (`'standard' | 'minimal'`). Minimal removes the zoom
+  controls and date axis and reclaims the space they occupied — 44px of gutter
+  and 18px of axis band, nav height 106 to 88.
+
+  Deliberately not part of `TLSettings`, so it is not something an author can
+  choose. Most real timelines are dense enough that the navigator must drop
+  some labels, and zooming is how a reader gets them back, so removing the zoom
+  controls has a cost an author cannot see when choosing it. It stays a prop
+  for embedders who know their own timeline is sparse.
+
+- **`highContrast` prop**, raising text and marks to WCAG AAA: worst measured
+  case 15.13:1 in light and 15.91:1 in dark. It spans slide and navigator
+  alike and is applied last, so where it disagrees with a pairing or a nav
+  treatment about a color it wins — an accessibility mode a styling choice
+  could override would not be one.
+
+  The three axes above are orthogonal to each other and to `theme`, and each
+  is a set of token values selected by its own data attribute on the player
+  root. The cascade runs base defaults < pairing < navChrome < highContrast <
+  embedder.
+
+- **A much wider token surface**, so those layers need no component overrides.
+  New: the nav's top border, label chip fill/ring/radius/padding, zoom gutter
+  fill and border, axis strip background, border and tick color, leader,
+  track opacities, group band border and tint, marker and button
+  target sizes, `--tl-nav-dot-active-scale`, `--tl-date-transform`,
+  `--tl-headline-transform`, `--tl-headline-color`, `--tl-body-color` and the
+  `--tl-slide-text-only-*` trio.
+- `--tl-focus-ring-width`, `--tl-focus-ring-offset` and `--tl-focus-ring-color`,
+  replacing five hardcoded `2px solid var(--tl-color-accent)` declarations
+  across three components. A focus ring's weight and offset were previously
+  unreachable.
+- `--tl-nav-mark-active`, separating the active *mark* color (dot, span bar,
+  leader stroke) from `--tl-color-nav-marker-active`, which now
+  sets only the active label's text. One token drove both, which made a
+  light-on-dark active label impossible — inverting the label also turned the
+  active dot white on a white nav and erased it. Defaults to
+  `--tl-color-nav-marker-active`, so existing overrides are unaffected.
+
+### Changed
+
+- **The navigator no longer hijacks the scroll wheel.** A plain wheel now
+  scrolls the page; zooming takes Ctrl (or ⌘) + wheel, and a trackpad pinch
+  still works since those arrive as ctrl-modified wheel events. Hijacking the
+  wheel meant a reader scrolling an article past an embedded timeline got
+  caught by it — the same reason Google Maps and Mapbox both adopted
+  cooperative gestures. A short overlay appears when someone tries a plain
+  wheel over the navigator, naming the modifier for their platform, and fades
+  after two seconds; it is not standing chrome. New locale strings
+  `timeline.zoom_hint` and `timeline.zoom_hint_touch`.
+
+- The navigator's zoom minimap is gone — the 4px strip along its bottom edge
+  showing which slice of the date range was in view. It was drawn at 0.12
+  opacity, had no click or drag handling, no accessible name, and only
+  appeared on ungrouped timelines. The axis labels already say where you are,
+  in words.
+
+- **Slide content is vertically centered** in the stage, matching TimelineJS 3,
+  rather than pinned to the top; media and text columns center against each
+  other too. Centering uses auto block margins rather than
+  `justify-content: center`, so a slide taller than the stage still scrolls
+  from its true top instead of clipping it out of reach. Set
+  `--tl-slide-valign: 0` and `--tl-slide-media-align: start` for the previous
+  behavior.
+- **The slide date is no longer a bold, uppercase, letter-spaced eyebrow.** It
+  was among the loudest things on a slide when it should be among the
+  quietest; it is now plain sentence case at reading size (0.9375rem/400).
+  Reachable through `--tl-date-size`, `--tl-date-weight`,
+  `--tl-date-tracking` and `--tl-date-transform`.
+- **Body copy is a step lighter than the headline** rather than sharing its
+  color — `#111111`/`#3d3d3d` light and `#f8f8f8`/`#d2d2d2` dark, measuring
+  10.86:1 and 11.51:1. Slides with a dark or image background flip both.
+- **The navigator is quieter.** A lighter band (`#f2f2f2`, was `#e0e0e0`) with
+  a hairline top rule, labels with no chip ring, a zoom column with no
+  divider, group bands with no alternating tint, and a lighter marker
+  (`#6e6e6e`, was `#555555`) — the lightest that still clears AA against the
+  band, at 4.55:1. The date axis keeps sitting directly on the band, with no
+  strip of its own.
+- **Default typography** is now the `georgia-helvetica` pairing rather than
+  bare `system-ui`: Georgia headlines, Helvetica Neue body at 17px. It is the
+  one pairing built from system fonts, so it needs no downloads and covers
+  every writing system.
+- An active nav label keeps its color on hover and focus instead of taking
+  the generic hover color, which is calibrated against the nav background
+  rather than whatever pill the label sits on. The halo, width expansion and
+  raised z-index still supply the feedback; `--tl-nav-label-active-hover` sets
+  a shade if one is wanted.
+- `--tl-nav-marker-size` now means the marker's diameter (12px). It previously
+  sized a content box that had no effect on what was drawn.
+
 ### Fixed
 
-- `loadTimeline()` never hydrated `blobRef`-backed media or backgrounds (images
-  uploaded to a PDS rather than linked by URL) into fetchable URLs — only the
-  authoring app did that hydration, for the signed-in user's own drafts. Any
-  read-only playback of an `at://` timeline (embeds, share links) with an
-  uploaded background or event image silently rendered without it. Blob
-  references are now hydrated into `getBlob` URLs using the author's DID and
-  resolved PDS at load time.
-- `TimeNav` group-band labels (e.g. from TL3 `group` fields) were effectively
-  invisible — the label gutter overlapped the zoom-controls column, which sat
-  on top with an opaque background, hiding all but a sliver of each name.
-  Labels now render clear of the controls, and a label too long for the
-  gutter (e.g. "Social Media") floats over the timeline instead of being
-  truncated with an ellipsis.
-- The group with no `group` value could land in the middle of the group
-  list, wherever its first event happened to fall chronologically. It's now
-  always pinned to the last band.
-- Dragging the nav handle down on a grouped timeline could make it *taller*
-  instead of shorter, because grouped rows and the ungrouped fallback layout
-  used different row heights. Shrinking the drawer below the height needed
-  to show one row per group now drops grouping entirely and lays out events
-  like an ungrouped timeline, using as many rows as actually fit — and the
-  fallback height can never exceed the grouped height it replaces.
+- Wheel-zoom in the navigator anchored up to 44px left of the pointer. It
+  computed the cursor's position against the constant gutter width rather than
+  the gutter actually in use, which is narrower when the player is compact and
+  zero when `navChrome: 'minimal'` removes the zoom controls — so the error was
+  worst in the mode where the wheel is the only way to zoom, and it compounded
+  with every step. The point under the pointer now stays under the pointer.
+
+- **Navigator labels piled on top of each other** on any timeline whose events
+  cluster, which is most real ones. Three causes:
+  - The drawer opened to one row regardless of the data. The row count the
+    dataset needs was already computed, but only used to cap the drag, never
+    to set the initial height. It now seeds it.
+  - A label with no free slot was clamped to the right edge, so every label
+    that ran out of room landed on the same spot. Such a label is now dropped;
+    its marker still shows the date and still navigates, and zooming in
+    restores the label once there is room. A dropped label hands its
+    accessible role to its marker, which is otherwise hidden from assistive
+    tech as a duplicate — without that, events would become unreachable by
+    keyboard on exactly the crowded timelines where labels get dropped.
+  - Zoom centered on the middle of the viewport, so a timeline bunched at one
+    end zoomed into empty space. It now anchors on the active event whenever
+    that event is on screen.
+
+  On a clustered 11-event timeline: 1 row with 45 overlapping label pairs, 29
+  of them at identical positions, becomes 3 rows with none.
+- **The active event could have no label at all**, since labels are placed
+  left to right and the earliest events took the available slots. A navigator
+  that cannot show where you are has failed at its main job. The active event
+  now takes the slot nearest its own position and drops that slot's previous
+  occupant instead.
+- **Axis labels ran off both ends** of the navigator. The edge treatment that
+  anchors a label's near side to its tick existed but was only ever applied to
+  two synthetic ticks; it now applies to any tick whose label would overflow.
+- **The axis line stopped short of the first and last events**, leaving a
+  visible gap between the end dot and the line. It was inset 2% at each end
+  while the marks span the full width.
+- **Leader lines failed WCAG AA** at 2.11:1 in light and 2.91:1 in dark,
+  against the 3:1 required for non-text that carries meaning. Default opacity
+  is now 0.7, the lightest that clears both.
+- **Target sizes below WCAG 2.2 SC 2.5.8.** Zoom buttons were 28x20 and are
+  now 24x24; marker hit areas were roughly 12x12 and are now 12x24. Markers
+  are deliberately not widened to 24: they are placed by date and can sit a
+  few pixels apart, so square targets would occlude each other and strand the
+  earlier of two close events — worse for the users the criterion protects.
+  `--tl-nav-dot-target-x` widens them for timelines sparse enough to afford it.
 
 ## [0.3.0] - 2026-07-28
 
@@ -127,7 +253,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 Initial public release. Earlier history predates this changelog; see
 `git log` for detail.
 
-[Unreleased]: https://github.com/NUKnightLab/timeline-ng/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/NUKnightLab/timeline-ng/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/NUKnightLab/timeline-ng/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/NUKnightLab/timeline-ng/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/NUKnightLab/timeline-ng/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/NUKnightLab/timeline-ng/compare/v0.1.0...v0.2.0

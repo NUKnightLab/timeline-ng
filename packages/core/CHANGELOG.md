@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-08-25
+
+### Added
+
+- **Font pairings.** `FONT_PAIRINGS`, `getPairing()`, `coversLanguage()`,
+  `PAIRING_ALIASES` and the `FontPairing` / `FontPairingId` types. These are
+  TimelineJS 3's font sets, re-extracted from TL3's own stylesheets and
+  re-resolved against the modern Google Fonts API. 19 are offered; TL3 shipped
+  `default` as a byte-identical duplicate of `pt`, so that id survives as an
+  alias rather than a second entry.
+
+  A pairing is a set of `--tl-*` token values plus two pieces of metadata:
+  `webfonts` (families a host must serve) and `scripts` (writing systems both
+  of its faces actually cover). The module loads nothing itself.
+
+  `coversLanguage()` exists so an authoring tool can warn before publishing:
+  most of these families are Latin and sometimes Cyrillic, so a Japanese or
+  Arabic timeline renders from the fallback stack rather than the chosen face.
+
+  Regenerate with `pnpm fonts:extract`.
+
+- **Presentation settings.** Two independent axes on `TLSettings`, composing
+  freely with each other and with `theme`:
+  - `fontPairing` — which faces render. Typed as `FontPairingId`, so the JSON
+    schema validates against the shipped list with no hand-maintained
+    duplicate to drift.
+  - `highContrast` — raises the player to WCAG AAA.
+
+- Locale strings `timeline.zoom_hint` and `timeline.zoom_hint_touch`, for the
+  cue shown when someone tries to zoom the navigator with a plain scroll.
+
+### Fixed
+
+- `fromTL3()` discarded any `settings` block. TimelineJS 3's own JSON has no
+  such key, so anything present came from a timeline-ng file being read back
+  in — which meant the authoring tool's file import silently dropped every
+  setting an author had chosen. Downloading a timeline and re-importing it lost
+  language, theme, reverse order and start slide. Settings now survive the
+  round trip, validated field by field, with unrecognised values dropped
+  rather than passed to the player.
+
 ## [0.3.0] - 2026-07-28
 
 ### Added
@@ -59,7 +100,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 Initial public release. Earlier history predates this changelog; see
 `git log` for detail.
 
-[Unreleased]: https://github.com/NUKnightLab/timeline-ng/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/NUKnightLab/timeline-ng/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/NUKnightLab/timeline-ng/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/NUKnightLab/timeline-ng/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/NUKnightLab/timeline-ng/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/NUKnightLab/timeline-ng/compare/v0.1.0...v0.2.0

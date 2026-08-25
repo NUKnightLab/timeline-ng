@@ -1,3 +1,5 @@
+import type { FontPairingId } from './fonts.ts';
+
 /**
  * Variable-resolution date. Only `year` is required.
  * Negative year = BCE. Values may be outside JS Date range (cosmological scale).
@@ -81,6 +83,20 @@ export interface TLSettings {
   language?: string;
   /** Color theme. 'auto' (default) follows the viewer's OS/browser preference. */
   theme?: 'light' | 'dark' | 'auto';
+  /**
+   * Font pairing, carried forward from TimelineJS 3. Supplies
+   * `--tl-font-heading` / `--tl-font-body` and a few matching size and weight
+   * tokens; see FONT_PAIRINGS. Defaults to 'georgia-helvetica', the one
+   * pairing built from system fonts and therefore the only one that covers
+   * every writing system.
+   */
+  fontPairing?: FontPairingId;
+  /**
+   * Raise every text and mark to WCAG AAA contrast, with heavier weights and
+   * thicker focus rings. Independent of `theme` and of `navChrome`: it applies
+   * over whichever of those is in effect.
+   */
+  highContrast?: boolean;
   /** 0-based index of the slide to display first (counting the title slide if present). Defaults to 0. */
   initialIndex?: number;
   /** Show events newest-first. The title slide (if any) always stays first. Defaults to false. */

@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
   import type { TLTimeline, TLEvent } from '@knight-lab/timeline-ng-core';
-  import { getLocale, getMessage } from '@knight-lab/timeline-ng-core';
+  import { getLocale, getMessage, getPairing, DEFAULT_PAIRING } from '@knight-lab/timeline-ng-core';
+  import type { FontPairingId } from '@knight-lab/timeline-ng-core';
   import SlideContent from './SlideContent.svelte';
   import TimeNav from './TimeNav.svelte';
   import '../styles/base.css';
@@ -11,6 +12,28 @@
     language?: string;
     reverseOrder?: boolean;
     theme?: 'light' | 'dark' | 'auto';
+    /**
+     * How prominent the navigator is. 'minimal' removes the zoom controls and
+     * the date axis, reclaiming their space.
+     *
+     * Deliberately NOT part of TLSettings, so it is not something an author
+     * can choose from the authoring tool or set in a timeline record. Most
+     * real timelines are dense enough that the navigator has to drop some
+     * labels, and zooming is how a reader gets them back — so removing the
+     * zoom controls is a choice whose cost an author cannot see when making
+     * it. Kept as a prop for embedders who know their timeline is sparse, and
+     * so the capability survives if a clearer design turns up.
+     */
+    navChrome?: 'standard' | 'minimal';
+    /** Raise everything to WCAG AAA contrast. Composes with the other axes. */
+    highContrast?: boolean;
+    /**
+     * Font pairing id (see FONT_PAIRINGS). Supplies typography tokens only —
+     * the player never loads font files. Whoever mounts it is responsible for
+     * serving the faces the pairing names in `webfonts`; if they aren't
+     * served, the pairing's fallback stack renders instead.
+     */
+    fontPairing?: FontPairingId;
     initialIndex?: number;
     autofocus?: boolean;
   }
@@ -20,6 +43,9 @@
     language = 'en',
     reverseOrder = false,
     theme = 'auto',
+    navChrome = 'standard',
+    highContrast = false,
+    fontPairing,
     initialIndex = 0,
     autofocus = false,
   }: Props = $props();
@@ -107,6 +133,23 @@
   }
 
   const themeAttr: string | undefined = $derived(theme === 'auto' ? undefined : theme);
+  const navAttr: string | undefined = $derived(navChrome === 'standard' ? undefined : navChrome);
+
+  /*
+   * A pairing is applied as inline custom properties rather than a class, so
+   * it lands on the element itself and outranks every :root and [data-tl-*]
+   * block without needing a stylesheet of its own. An unrecognised id is
+   * ignored rather than throwing — a record can outlive the pairing it names.
+   */
+  /*
+   * Unset — or naming a pairing that no longer exists — resolves to
+   * DEFAULT_PAIRING rather than falling through to the raw token defaults in
+   * base.css. Those two paths produced almost-identical output by coincidence
+   * rather than by design, which is the kind of thing that quietly diverges.
+   * One path now, and data-tl-font always reports what actually applied.
+   */
+  const resolvedPairing = $derived(getPairing(fontPairing) ?? getPairing(DEFAULT_PAIRING));
+
 
   const tl = $derived(getLocale(language));
 
@@ -194,6 +237,9 @@
 <section
   class="tl-player"
   data-tl-theme={themeAttr}
+  data-tl-nav={navAttr}
+  data-tl-contrast={highContrast ? 'high' : undefined}
+  data-tl-font={resolvedPairing?.id}
   onkeydown={handleKeydown}
   tabindex="0"
   aria-label={timeline.title?.text?.headline ?? getMessage(tl, 'timeline.label')}
@@ -249,6 +295,7 @@
     {language}
     {compact}
     {minimal}
+    chrome={navChrome}
     onnavigate={handleNavigation}
     onstart={() => goTo(0)}
     onend={() => goTo(slides.length - 1)}
@@ -269,8 +316,8 @@
   }
 
   .tl-player:focus-visible {
-    outline: 2px solid var(--tl-color-accent);
-    outline-offset: -2px;
+    outline: var(--tl-focus-ring-width, 2px) solid var(--tl-focus-ring-color, var(--tl-color-accent));
+    outline-offset: calc(-1 * var(--tl-focus-ring-width, 2px));
   }
 
   .tl-player__stage {
@@ -315,7 +362,7 @@
 
   .tl-player__btn:hover:not(:disabled) { background: var(--tl-btn-bg-hover, rgba(0, 0, 0, 0.35)); }
   .tl-player__btn:disabled             { opacity: 0; pointer-events: none; }
-  .tl-player__btn:focus-visible        { outline: 2px solid var(--tl-color-accent); outline-offset: -2px; }
+  .tl-player__btn:focus-visible        { outline: var(--tl-focus-ring-width, 2px) solid var(--tl-focus-ring-color, var(--tl-color-accent)); outline-offset: calc(-1 * var(--tl-focus-ring-width, 2px)); }
 
   /* The base .tl-player rule's `position: relative` is author CSS, which beats the
      UA stylesheet's `:fullscreen { position: fixed }` regardless of specificity —
