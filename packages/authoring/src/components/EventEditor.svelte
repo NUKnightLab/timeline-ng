@@ -443,9 +443,22 @@
   let bodyRte = $state<{ commit: () => void } | null>(null);
   let captionRte = $state<{ commit: () => void } | null>(null);
   let creditRte = $state<{ commit: () => void } | null>(null);
+  // Did the most recent pointerdown land inside the open inline editor? A
+  // focusout with no relatedTarget is ambiguous: it means either "clicked
+  // something unfocusable outside" (close the editor) or "the control that had
+  // focus was disabled or removed by our own re-render" (keep it open). The
+  // last pointerdown target is what tells the two apart.
   let pointerDownInsideOpenEditor = false;
-  let pointerDownInsideOpenEditorReset: ReturnType<typeof setTimeout> | null = null;
   let filePickerActive = false;
+
+  $effect(() => {
+    // Capture phase at the document runs before the panel's own bubbling
+    // pointerdown handler, so a click inside ends up setting the flag back to
+    // true and only clicks outside leave it false.
+    const clear = () => { pointerDownInsideOpenEditor = false; };
+    document.addEventListener('pointerdown', clear, true);
+    return () => document.removeEventListener('pointerdown', clear, true);
+  });
 
   function handleFileLabelClick() {
     filePickerActive = true;
@@ -586,21 +599,18 @@
   }
 
   function focusLeftEditor(event: FocusEvent): boolean {
-    if (pointerDownInsideOpenEditor || filePickerActive) return false;
+    if (filePickerActive) return false;
     const current = event.currentTarget as HTMLElement | null;
+    if (!current) return false;
     const next = event.relatedTarget as Node | null;
-    return !!current && (!next || !current.contains(next));
+    // Focus landed somewhere concrete — Tab, or a click on another control.
+    if (next) return !current.contains(next);
+    // Focus went nowhere. Trust the last pointerdown instead.
+    return !pointerDownInsideOpenEditor;
   }
 
   function markPointerDownInsideOpenEditor() {
     pointerDownInsideOpenEditor = true;
-    if (pointerDownInsideOpenEditorReset !== null) {
-      clearTimeout(pointerDownInsideOpenEditorReset);
-    }
-    pointerDownInsideOpenEditorReset = setTimeout(() => {
-      pointerDownInsideOpenEditor = false;
-      pointerDownInsideOpenEditorReset = null;
-    }, 0);
   }
 
   function handleMediaEditorFocusOut(event: FocusEvent) {

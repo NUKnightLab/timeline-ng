@@ -2,8 +2,9 @@ import { BrowserOAuthClient } from '@atproto/oauth-client-browser';
 import type { OAuthSession } from '@atproto/oauth-client-browser';
 import { Agent } from '@atproto/api';
 import type { ATProtoBlobRef, TLEvent, TLMedia, TLSettings, TLTimeline } from '@knight-lab/timeline-ng-core';
-import { collections } from './collections.ts';
-import type { CollectionDef } from './collections.ts';
+import { collections, harvestSearchText, mergeSearchText } from './collections.ts';
+import type { CollectionDef, ContextIndex, RecordRow } from './collections.ts';
+import { clearMediaCache } from './mediaCache.ts';
 import { stripHtml } from './text.ts';
 
 // ── Config ──────────────────────────────────────────────────────────────────
@@ -106,6 +107,11 @@ async function _resolveProfile(session: OAuthSession, agent: Agent): Promise<voi
 
 // ── Public API ───────────────────────────────────────────────────────────────
 
+/** DID of the signed-in user, or null. Used to scope browser-local caches. */
+export function getCurrentDid(): string | null {
+  return _state.status === 'signed-in' ? _state.session.sub : null;
+}
+
 export function clearAuthError(): void {
   if (_state.status === 'error') _state = { status: 'idle' };
 }
@@ -145,6 +151,7 @@ export async function signIn(handle: string, restoreView: 'home' | 'editor' = 'e
 export async function signOut(): Promise<void> {
   if (_state.status !== 'signed-in') return;
   const { session } = _state;
+  clearMediaCache(session.sub);
   _state = { status: 'idle' };
   _availableCollections = [];
   try {
@@ -285,7 +292,36 @@ export type CollectionMediaItem = {
   label?: string;
   prefill?: { caption?: string; credit?: string };
   webUrl?: string;
+  /** Lowercased blob of every searchable string in the source record. */
+  searchText?: string;
 };
+
+/** Max records enumerated per collection, so a huge repo can't hang the browser. */
+export const MAX_COLLECTION_RECORDS = 3000;
+
+const LIST_PAGE_SIZE = 100; // listRecords caps at 100
+
+function toMediaItem(
+  def: CollectionDef,
+  uri: string,
+  value: unknown,
+  handle: string,
+): CollectionMediaItem | null {
+  const media = def.extractMedia(value);
+  if (!media) return null;
+  const label = def.extractLabel?.(value) ?? undefined;
+  const prefill = def.extractPrefill?.(value) ?? undefined;
+  const webUrl = def.webUrl?.(uri, handle) ?? undefined;
+  return {
+    uri,
+    nsid: def.nsid,
+    media,
+    label,
+    prefill,
+    webUrl,
+    searchText: harvestSearchText(value, def.label),
+  };
+}
 
 export async function getCollectionItem(uri: string): Promise<CollectionMediaItem | null> {
   if (_state.status !== 'signed-in') return null;
@@ -300,16 +336,7 @@ export async function getCollectionItem(uri: string): Promise<CollectionMediaIte
   const handle = _state.handle;
   try {
     const resp = await agent.com.atproto.repo.getRecord({ repo, collection: nsid, rkey });
-    const media = def.extractMedia(resp.data.value);
-    if (!media) return null;
-    return {
-      uri,
-      nsid,
-      media,
-      label: def.extractLabel?.(resp.data.value) ?? undefined,
-      prefill: def.extractPrefill?.(resp.data.value) ?? undefined,
-      webUrl: def.webUrl?.(uri, handle) ?? undefined,
-    };
+    return toMediaItem(def, uri, resp.data.value, handle);
   } catch {
     return null;
   }
@@ -327,19 +354,129 @@ export async function listCollectionMedia(
   const resp = await agent.com.atproto.repo.listRecords({
     repo: agent.assertDid,
     collection: nsid,
-    limit: 24,
+    limit: LIST_PAGE_SIZE,
     cursor,
   });
   const items = resp.data.records.flatMap(r => {
-    const media = def.extractMedia(r.value);
-    if (!media) return [];
-    const uri = r.uri as string;
-    const label = def.extractLabel?.(r.value) ?? undefined;
-    const prefill = def.extractPrefill?.(r.value) ?? undefined;
-    const webUrl = def.webUrl?.(uri, handle) ?? undefined;
-    return [{ uri, nsid, media, label, prefill, webUrl }];
+    const item = toMediaItem(def, r.uri as string, r.value, handle);
+    return item ? [item] : [];
   });
   return { items, cursor: resp.data.cursor };
+}
+
+/** Enumerate a whole collection as raw records, for context joins. */
+async function listAllRecords(
+  nsid: string,
+  shouldContinue?: () => boolean,
+): Promise<RecordRow[]> {
+  if (_state.status !== 'signed-in') return [];
+  const { agent } = _state;
+  const rows: RecordRow[] = [];
+  let cursor: string | undefined;
+
+  for (;;) {
+    if (shouldContinue && !shouldContinue()) break;
+    const resp = await agent.com.atproto.repo.listRecords({
+      repo: agent.assertDid,
+      collection: nsid,
+      limit: LIST_PAGE_SIZE,
+      cursor,
+    });
+    for (const r of resp.data.records) rows.push({ uri: r.uri as string, value: r.value });
+    cursor = resp.data.cursor;
+    if (!cursor || rows.length >= MAX_COLLECTION_RECORDS) break;
+  }
+
+  return rows;
+}
+
+/**
+ * Enumerate a collection's `contextCollections` and join them into a per-media
+ * ContextIndex. Best-effort: any failure just means less searchable text.
+ */
+async function fetchCollectionContext(
+  def: CollectionDef,
+  shouldContinue?: () => boolean,
+): Promise<ContextIndex | null> {
+  if (!def.contextCollections?.length || !def.buildContext) return null;
+  try {
+    const pairs = await Promise.all(
+      def.contextCollections.map(async nsid =>
+        [nsid, await listAllRecords(nsid, shouldContinue)] as const
+      )
+    );
+    if (shouldContinue && !shouldContinue()) return null;
+    return def.buildContext(Object.fromEntries(pairs));
+  } catch {
+    return null;
+  }
+}
+
+function applyContext(items: CollectionMediaItem[], index: ContextIndex): CollectionMediaItem[] {
+  return items.map(item => {
+    const ctx = index.get(item.uri);
+    if (!ctx) return item;
+    return {
+      ...item,
+      searchText: mergeSearchText(item.searchText ?? '', ctx.text),
+      // The record's own label wins; context only fills a gap.
+      label: item.label ?? ctx.label,
+    };
+  });
+}
+
+/**
+ * Walk every page of a collection. The repo browser filters client-side, so it
+ * needs the whole collection rather than a page at a time; pages are handed to
+ * `onPage` as they land so the grid can fill in while later pages are still in
+ * flight. Any `contextCollections` are enumerated concurrently and folded in at
+ * the end, so context text costs latency but not time-to-first-thumbnail. Pass
+ * `shouldContinue` to abandon the walk when the user switches collections.
+ */
+export async function fetchAllCollectionMedia(
+  nsid: string,
+  opts: {
+    onPage?: (items: CollectionMediaItem[]) => void;
+    shouldContinue?: () => boolean;
+  } = {},
+): Promise<{ items: CollectionMediaItem[]; truncated: boolean; aborted: boolean }> {
+  const def = collections.find(c => c.nsid === nsid);
+  const contextPromise = def
+    ? fetchCollectionContext(def, opts.shouldContinue)
+    : Promise.resolve(null);
+  // The media walk is what the user is waiting on; never let a context failure
+  // surface as an unhandled rejection while it's in flight.
+  contextPromise.catch(() => null);
+
+  const all: CollectionMediaItem[] = [];
+  let cursor: string | undefined;
+  let truncated = false;
+
+  for (;;) {
+    if (opts.shouldContinue && !opts.shouldContinue()) {
+      return { items: all, truncated, aborted: true };
+    }
+    const page = await listCollectionMedia(nsid, cursor);
+    all.push(...page.items);
+    if (page.items.length) opts.onPage?.(page.items);
+    cursor = page.cursor;
+    if (!cursor) break;
+    if (all.length >= MAX_COLLECTION_RECORDS) {
+      truncated = true;
+      break;
+    }
+  }
+
+  const context = await contextPromise;
+  if (opts.shouldContinue && !opts.shouldContinue()) {
+    return { items: all, truncated, aborted: true };
+  }
+
+  return {
+    items: context ? applyContext(all, context) : all,
+    truncated,
+    aborted: false,
+  };
 }
 
 export type TimelineListItem = {

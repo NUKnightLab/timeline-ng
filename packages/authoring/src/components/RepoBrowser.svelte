@@ -1,8 +1,13 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import type { CollectionDef } from '../lib/collections.ts';
   import { collections as allCollections } from '../lib/collections.ts';
   import type { CollectionMediaItem } from '../lib/atproto.svelte.ts';
-  import { listCollectionMedia, getCollectionItem, blobUrl, extractCid, getAuthState } from '../lib/atproto.svelte.ts';
+  import {
+    fetchAllCollectionMedia, getCollectionItem, blobUrl, extractCid,
+    getAuthState, getCurrentDid, MAX_COLLECTION_RECORDS,
+  } from '../lib/atproto.svelte.ts';
+  import { readCachedCollection, writeCachedCollection, isStale } from '../lib/mediaCache.ts';
 
   interface Props {
     availableCollections: CollectionDef[];
@@ -24,41 +29,133 @@
 
   let activeNsid = $state(resolveInitialNsid());
   let items = $state<CollectionMediaItem[]>([]);
-  let nextCursor = $state<string | undefined>(undefined);
-  let loading = $state(false);
+  // The currently-selected item when it lives outside `items` — a different
+  // collection, or a record that has since been deleted from this one.
+  let pinned = $state<CollectionMediaItem | null>(null);
+  let query = $state('');
+  let loading = $state(false);    // nothing on screen yet
+  let refreshing = $state(false); // showing cached items while revalidating
+  let truncated = $state(false);
   let loadError = $state('');
   let showAppInfo = $state(false);
 
-  async function load(nsid: string, reset = false) {
+  // Bumped on every load so pages still arriving for an abandoned collection
+  // (or a superseded refresh) can tell they've been overtaken.
+  let loadToken = 0;
+
+  async function load(nsid: string, force = false) {
     if (!nsid) return;
-    loading = true;
+    const token = ++loadToken;
+    const did = getCurrentDid();
+
+    items = [];
+    pinned = null;
+    truncated = false;
     loadError = '';
-    if (reset) { items = []; nextCursor = undefined; }
-    try {
-      const result = await listCollectionMedia(nsid, reset ? undefined : nextCursor);
-      // Always suppress the selected item from paginated results — it's pinned at top on reset.
-      const page = selectedUri
-        ? result.items.filter(i => i.uri !== selectedUri)
-        : result.items;
-      if (reset) {
-        const pinned = selectedUri ? await getCollectionItem(selectedUri) : null;
-        items = pinned ? [pinned, ...page] : page;
-      } else {
-        items = [...items, ...page];
-      }
-      nextCursor = result.cursor;
-    } catch (e) {
-      loadError = String(e);
-    } finally {
-      loading = false;
+
+    const cached = did && !force ? readCachedCollection(did, nsid) : null;
+    if (cached) {
+      items = cached.items;
+      truncated = cached.truncated;
     }
+
+    // A fresh cache entry is good enough on its own; a stale one still gets
+    // shown immediately and quietly replaced when the walk finishes.
+    if (cached && !isStale(cached)) {
+      void resolvePinned(nsid, token);
+      return;
+    }
+
+    loading = !cached;
+    // Stays true past first paint: sibling context collections (Grain gallery
+    // text, say) are still being joined after the thumbnails are on screen.
+    refreshing = true;
+
+    try {
+      const result = await fetchAllCollectionMedia(nsid, {
+        shouldContinue: () => token === loadToken,
+        onPage: (page) => {
+          // Only stream pages in when there's nothing on screen; replacing a
+          // cached grid item-by-item would make it jump around.
+          if (token !== loadToken || cached) return;
+          items = [...items, ...page];
+          loading = false;
+        },
+      });
+      if (token !== loadToken || result.aborted) return;
+      items = result.items;
+      truncated = result.truncated;
+      if (did) writeCachedCollection(did, nsid, result.items, result.truncated);
+    } catch (e) {
+      if (token !== loadToken) return;
+      // A partial result still beats an error message.
+      if (items.length === 0) loadError = String(e);
+    } finally {
+      if (token === loadToken) {
+        loading = false;
+        refreshing = false;
+      }
+    }
+
+    void resolvePinned(nsid, token);
+  }
+
+  async function resolvePinned(nsid: string, token: number) {
+    if (!selectedUri || items.some(i => i.uri === selectedUri)) return;
+    const item = await getCollectionItem(selectedUri);
+    if (token === loadToken && nsid === activeNsid) pinned = item;
+  }
+
+  function selectCollection(nsid: string) {
+    if (nsid === activeNsid) return;
+    query = '';
+    activeNsid = nsid;
+  }
+
+  function refresh() {
+    // Deliberately not `disabled` while in flight: disabling a focused button
+    // blurs it, which the surrounding inline editor reads as "focus left" and
+    // closes the whole media editor.
+    if (loading || refreshing) return;
+    void load(activeNsid, true);
   }
 
   $effect(() => {
     if (isSignedIn && hasCollections && activeNsid) {
-      void load(activeNsid, true);
+      const nsid = activeNsid;
+      untrack(() => void load(nsid));
     }
   });
+
+  // Selected item first, so it stays visible without hunting for it.
+  const orderedItems = $derived.by(() => {
+    if (!selectedUri) return items;
+    const idx = items.findIndex(i => i.uri === selectedUri);
+    if (idx > 0) {
+      const rest = items.slice();
+      const [sel] = rest.splice(idx, 1);
+      return [sel, ...rest];
+    }
+    if (idx === 0) return items;
+    return pinned ? [pinned, ...items] : items;
+  });
+
+  const terms = $derived(query.trim().toLowerCase().split(/\s+/).filter(Boolean));
+
+  function haystack(item: CollectionMediaItem): string {
+    return item.searchText ?? `${item.label ?? ''} ${item.media.alt ?? ''}`.toLowerCase();
+  }
+
+  const visibleItems = $derived(
+    terms.length === 0
+      ? orderedItems
+      : orderedItems.filter(item => {
+          const hay = haystack(item);
+          return terms.every(t => hay.includes(t));
+        })
+  );
+
+  const isFiltered = $derived(terms.length > 0);
 
   function thumbUrl(item: CollectionMediaItem): string {
     if (item.media.blobRef) return blobUrl(extractCid(item.media.blobRef.ref));
@@ -107,22 +204,51 @@
           class="rb-tab"
           class:active={activeNsid === col.nsid}
           aria-selected={activeNsid === col.nsid}
-          onclick={() => { activeNsid = col.nsid; }}
+          onclick={() => selectCollection(col.nsid)}
         >{col.label}</button>
       {/each}
     </div>
   {/if}
 
+  <div class="rb-toolbar">
+    <input
+      type="search"
+      class="rb-filter"
+      placeholder="Filter media…"
+      aria-label="Filter media"
+      bind:value={query}
+    />
+    <span class="rb-count" aria-live="polite">
+      {#if loading}
+        Loading…
+      {:else if isFiltered}
+        {visibleItems.length} of {orderedItems.length}
+      {:else}
+        {orderedItems.length}{truncated ? '+' : ''}
+      {/if}
+    </span>
+    <button
+      type="button"
+      class="rb-refresh"
+      class:rb-refresh--busy={loading || refreshing}
+      aria-label="Reload from your PDS"
+      title="Reload from your PDS"
+      onclick={refresh}
+    >↻</button>
+  </div>
+
   <div class="rb-body">
-    {#if loading && items.length === 0}
+    {#if loading && orderedItems.length === 0}
       <p class="rb-status">Loading…</p>
     {:else if loadError}
       <p class="rb-status rb-status--error">{loadError}</p>
-    {:else if items.length === 0}
+    {:else if orderedItems.length === 0}
       <p class="rb-status">No media found.</p>
+    {:else if visibleItems.length === 0}
+      <p class="rb-status">Nothing matches “{query.trim()}”.</p>
     {:else}
       <div class="rb-grid">
-        {#each items as item (item.uri)}
+        {#each visibleItems as item (item.uri)}
           <button
             type="button"
             class="rb-item"
@@ -143,12 +269,8 @@
           </button>
         {/each}
       </div>
-      {#if nextCursor}
-        <div class="rb-more">
-          <button type="button" class="rb-load-more" disabled={loading} onclick={() => load(activeNsid)}>
-            {loading ? 'Loading…' : 'Load more'}
-          </button>
-        </div>
+      {#if truncated}
+        <p class="rb-note">Showing the first {MAX_COLLECTION_RECORDS.toLocaleString()} records.</p>
       {/if}
     {/if}
   </div>
@@ -323,26 +445,74 @@
     padding: 0 2px 2px;
   }
 
-  /* ── Load more ── */
-  .rb-more {
-    text-align: center;
-    padding: 0.6rem 0;
+  /* ── Toolbar (filter + count + reload) ── */
+  .rb-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.45rem 0.6rem 0;
   }
-  .rb-load-more {
-    background: none;
-    border: 1px solid #d4d4d4;
+  .rb-filter {
+    flex: 1 1 auto;
+    min-width: 0;
+    border: 1px solid #d8d8d8;
     border-radius: 4px;
-    padding: 0.3rem 0.9rem;
+    padding: 0.25rem 0.45rem;
     font-size: 0.75rem;
     font-family: inherit;
-    color: #555;
+    color: #333;
+    background: #fff;
+    margin-bottom: 0;
+  }
+  .rb-filter:focus {
+    outline: none;
+    border-color: #13a4df;
+    box-shadow: 0 0 0 2px rgba(19, 164, 223, 0.18);
+  }
+  .rb-filter::placeholder { color: #aaa; }
+  .rb-count {
+    flex: 0 0 auto;
+    font-size: 0.68rem;
+    color: #999;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .rb-refresh {
+    flex: 0 0 auto;
+    background: none;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    padding: 0.1rem 0.3rem;
+    font-size: 0.85rem;
+    line-height: 1.2;
+    font-family: inherit;
+    color: #999;
     cursor: pointer;
     text-transform: none;
     font-weight: normal;
     margin-bottom: 0;
   }
-  .rb-load-more:hover:not(:disabled) { border-color: #13a4df; color: #13a4df; }
-  .rb-load-more:disabled { opacity: 0.5; cursor: default; }
+  .rb-refresh:hover { color: #13a4df; border-color: #d8d8d8; }
+  .rb-refresh--busy {
+    color: #13a4df;
+    animation: rb-spin 0.9s linear infinite;
+    cursor: default;
+  }
+  @keyframes rb-spin {
+    to { transform: rotate(360deg); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .rb-refresh--busy { animation: none; opacity: 0.5; }
+  }
+
+  /* ── Truncation note ── */
+  .rb-note {
+    text-align: center;
+    font-size: 0.68rem;
+    color: #aaa;
+    margin: 0;
+    padding: 0.5rem 0 0.2rem;
+  }
 
   /* ── Footer ── */
   .rb-footer {
