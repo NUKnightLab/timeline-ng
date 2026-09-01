@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { TLEvent } from '@knight-lab/timeline-ng-core';
-  import { resolveBackgroundImageUrl } from '@knight-lab/timeline-ng-core';
+  import { resolveBackgroundImageUrl, isValidSlideId } from '@knight-lab/timeline-ng-core';
   import { stripHtml } from '../lib/text.ts';
 
   interface DeletedItem {
@@ -76,12 +76,10 @@
     return !!bgSrc || isDarkColor(event.background?.color ?? defaultColor);
   }
 
-  const VALID_ID = /^[a-zA-Z][a-zA-Z0-9_-]*$/;
-
   function validationErrors(event: TLEvent, isTitle: boolean): string[] {
     const errs: string[] = [];
     if (!isTitle && !event.start_date) errs.push('No start date');
-    if (event.unique_id && !VALID_ID.test(event.unique_id)) errs.push('Invalid slide ID');
+    if (event.unique_id && !isValidSlideId(event.unique_id)) errs.push('Invalid slide ID');
     return errs;
   }
 

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import type { TLEvent, TLTimeline, TLSettings } from '@knight-lab/timeline-ng-core';
-  import { parseTLDate, compareDates, toTL3CSV } from '@knight-lab/timeline-ng-core';
+  import { parseTLDate, compareDates, toTL3CSV, assignSlideIds } from '@knight-lab/timeline-ng-core';
   import { getAuthState, saveTimeline, signOut, uploadBlob, blobUrl, extractCid } from './lib/atproto.svelte.ts';
   import { initAuth } from './lib/atproto.svelte.ts';
   import { generatePoster } from './lib/poster.ts';
@@ -196,9 +196,11 @@
     if (hasPendingContent() && !window.confirm('Importing will discard your current draft. Continue?')) return;
     clearDraft();
     pendingDraft = null;
-    const evs = tl.events.map(ev => ev.unique_id ? ev : { ...ev, unique_id: uid() });
-    const te = tl.title ? { unique_id: 'title', ...tl.title } : null;
-    enterEditor({ titleEvent: te, events: evs, clean: false, settings: tl.settings });
+    // Legacy files (and older saved records) can arrive with missing or illegal
+    // slide IDs; normalize before they reach the editor rather than flagging them.
+    assignSlideIds(tl);
+    const te = tl.title ?? null;
+    enterEditor({ titleEvent: te, events: tl.events, clean: false, settings: tl.settings });
   }
 
   function handleOpenRecord(uri: string, result: { title?: string; timeline: TLTimeline }) {
@@ -206,9 +208,9 @@
     clearDraft();
     pendingDraft = null;
     const tl = result.timeline;
-    const evs = tl.events.map(ev => ev.unique_id ? ev : { ...ev, unique_id: uid() });
-    const te = tl.title ? { unique_id: 'title', ...tl.title } : null;
-    enterEditor({ title: result.title, titleSetByUser: !!result.title, titleEvent: te, events: evs, atUri: uri, clean: true, settings: tl.settings });
+    assignSlideIds(tl);
+    const te = tl.title ?? null;
+    enterEditor({ title: result.title, titleSetByUser: !!result.title, titleEvent: te, events: tl.events, atUri: uri, clean: true, settings: tl.settings });
   }
 
   function handleRestoreDraft() {

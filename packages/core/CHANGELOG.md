@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Slide ID helpers.** `SLIDE_ID_PATTERN`, `isValidSlideId()`, `slugifySlideId()`,
+  `uniqueSlideId()` and `assignSlideIds()`. A slide ID has to be usable as a URL fragment and a DOM
+  id — a letter followed by letters, digits, `-` or `_` — and this is now the one
+  place that rule is written down.
+
+### Changed
+
+- **Imports build legal slide IDs.** `fromTL3CSV()` used to number rows `1..N`,
+  which is both meaningless and illegal as an ID; it now derives IDs from the
+  headline (`the-moon-landing`), falling back to `slide-N` when a headline has no
+  usable characters. `fromTL3()` keeps any ID in the source that is already legal
+  and unique — so a timeline-ng file round-trips unchanged — and rebuilds the
+  rest the same way. Title slides get `title`. Duplicates are suffixed `-2`, `-3`.
+
 ## [0.4.0] - 2026-08-25
 
 ### Added

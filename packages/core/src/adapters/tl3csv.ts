@@ -1,4 +1,5 @@
 import type { TLTimeline, TLEvent, TLDateInput } from '../types.ts';
+import { assignSlideIds } from './ids.ts';
 
 // ── CSV parser (RFC 4180, handles quoted fields with embedded commas/newlines) ──
 
@@ -123,7 +124,6 @@ export function fromTL3CSV(csvText: string): TLTimeline {
   const iGroup   = col('group');
   const iBg      = col('background');
 
-  let idCounter = 0;
   let titleEvent: TLEvent | undefined;
   const events: TLEvent[] = [];
 
@@ -144,7 +144,6 @@ export function fromTL3CSV(csvText: string): TLTimeline {
     const bg       = get(row, iBg);
 
     const event: TLEvent = {
-      unique_id: String(++idCounter),
       ...(startDate ? { start_date: startDate } : {}),
       ...(endDate   ? { end_date: endDate }     : {}),
       ...(headline || body
@@ -169,7 +168,10 @@ export function fromTL3CSV(csvText: string): TLTimeline {
     else         { events.push(event); }
   }
 
-  return { ...(titleEvent ? { title: titleEvent } : {}), events };
+  const timeline: TLTimeline = { ...(titleEvent ? { title: titleEvent } : {}), events };
+  // The spreadsheet format has no ID column, so every ID here is ours to make.
+  assignSlideIds(timeline);
+  return timeline;
 }
 
 // ── Serializer (reverse of fromTL3CSV) ──────────────────────────────────────────

@@ -48,6 +48,18 @@ describe('toTL3CSV', () => {
     expect(e2.background?.url).toBe('https://example.com/bg.jpg');
   });
 
+  it('gives imported rows legal, headline-derived ids', () => {
+    const csv = [
+      'Year,Month,Day,Headline,Text,Type',
+      '2001,1,1,First Thing,,',
+      '2002,1,1,Second Thing,,',
+      ',,,My Timeline,,title',
+    ].join('\n');
+    const tl = fromTL3CSV(csv);
+    expect(tl.events.map(e => e.unique_id)).toEqual(['first-thing', 'second-thing']);
+    expect(tl.title?.unique_id).toBe('title');
+  });
+
   it('omits a title row when there is no title event', () => {
     const csv = toTL3CSV({ events: [{ start_date: { year: 2000 }, text: { headline: 'Only event' } }] });
     const roundTripped = fromTL3CSV(csv);

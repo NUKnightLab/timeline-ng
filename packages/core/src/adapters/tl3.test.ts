@@ -115,3 +115,22 @@ describe('settings passthrough', () => {
     expect(tl.settings).toBeUndefined();
   });
 });
+
+describe('fromTL3 slide ids', () => {
+  it('rebuilds illegal ids from the headline', () => {
+    const tl = fromTL3({
+      events: [
+        { unique_id: '1', start_date: { year: 2000 }, text: { headline: 'First Thing' } },
+        { unique_id: '2', start_date: { year: 2001 }, text: { headline: 'Second Thing' } },
+      ],
+    });
+    expect(tl.events.map(e => e.unique_id)).toEqual(['first-thing', 'second-thing']);
+  });
+
+  it('leaves legal ids alone', () => {
+    const tl = fromTL3({
+      events: [{ unique_id: 'kept-id', start_date: { year: 2000 }, text: { headline: 'First Thing' } }],
+    });
+    expect(tl.events[0].unique_id).toBe('kept-id');
+  });
+});

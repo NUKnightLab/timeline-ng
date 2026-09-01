@@ -8,6 +8,7 @@ import type {
   TLSettings,
 } from '../types.ts';
 import { getPairing } from '../fonts.ts';
+import { assignSlideIds } from './ids.ts';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -170,6 +171,10 @@ export function fromTL3(data: unknown): TLTimeline {
 
   const settings = adaptSettings(obj['settings']);
   if (settings) timeline.settings = settings;
+
+  // Legal IDs are kept as-is; TL3's own numeric ones (and anything else that
+  // could not be used as a URL fragment) are rebuilt from the headline.
+  assignSlideIds(timeline);
 
   return timeline;
 }

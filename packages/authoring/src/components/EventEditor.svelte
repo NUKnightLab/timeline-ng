@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { ATProtoBlobRef, TLEvent, TLDateInput } from '@knight-lab/timeline-ng-core';
-  import { resolveMedia, parseTLDate, formatDate, compareDates, canResolveBackgroundImage, resolveBackgroundImageUrl } from '@knight-lab/timeline-ng-core';
+  import { resolveMedia, parseTLDate, formatDate, compareDates, canResolveBackgroundImage, resolveBackgroundImageUrl, isValidSlideId, slugifySlideId, uniqueSlideId } from '@knight-lab/timeline-ng-core';
   import DatePicker from './DatePicker.svelte';
   import RichTextEditor from './RichTextEditor.svelte';
   import MediaPreview from './MediaPreview.svelte';
@@ -16,6 +16,7 @@
     event: TLEvent;
     isTitle?: boolean;
     index?: number; // 0-based position in sorted events; undefined for title slide
+    takenIds?: string[]; // slide IDs already in use elsewhere in the timeline
     onchange: (updated: TLEvent) => void;
     ondelete: () => void;
   }
@@ -29,7 +30,7 @@
     second: number | '';
   }
 
-  let { event, isTitle = false, index, onchange, ondelete }: Props = $props();
+  let { event, isTitle = false, index, takenIds = [], onchange, ondelete }: Props = $props();
   // Snapshot the event prop — this component is keyed on selectedId and recreated
   // when the event changes, so $state fields only need the initial value.
   const ev = untrack(() => event);
@@ -426,11 +427,23 @@
   let editingBody     = $state(false);
   let mediaOnRight    = $state(ev.media_position === 'right');
   let slideId         = $state(ev.unique_id ?? '');
-  const slideIdValid  = $derived(!slideId.trim() || /^[a-zA-Z][a-zA-Z0-9_-]*$/.test(slideId.trim()));
+  const slideIdValid  = $derived(!slideId.trim() || isValidSlideId(slideId.trim()));
 
   function commitSlideId() {
     const customId = slideId.trim();
     if (customId && slideIdValid && customId !== event.unique_id) buildAndEmit(customId);
+  }
+
+  /* The ID this slide's headline would produce — '' when the headline is empty or
+     has no characters an ID can use, which is when the offer is worth hiding. */
+  const suggestedSlideId = $derived.by(() => {
+    const base = slugifySlideId(headline);
+    return base ? uniqueSlideId(base, new Set(takenIds)) : '';
+  });
+
+  function useSuggestedSlideId() {
+    slideId = suggestedSlideId;
+    commitSlideId();
   }
 
   function handleSlideIdKeydown(e: KeyboardEvent) {
@@ -1177,7 +1190,8 @@
         {#if slideId.trim() && !slideIdValid}
           <p class="field-error" role="alert">Must start with a letter; only letters, digits, hyphens, and underscores allowed.</p>
         {/if}
-        <p class="field-hint">Used for direct links to this slide and for CSS customization. Auto-generated if blank.</p>
+        <p class="field-hint">Used for direct links to this slide and for CSS customization. Auto-generated if blank. {#if suggestedSlideId && suggestedSlideId !== slideId.trim()}
+          <button type="button" class="field-hint-action" onclick={useSuggestedSlideId}>Generate from title</button>{/if}</p>
 
       </div>
 
@@ -1903,6 +1917,15 @@
   .field { display: flex; flex-direction: column; gap: 0; }
   .field-label { font-size: 0.8rem; font-weight: 600; color: #444; margin-bottom: 0.3rem; }
   .field-hint { margin-top: 0.3rem; font-size: 0.75rem; color: #999; line-height: 1.4; }
+  /* A link-looking action inside a hint. The long reset is Orangeline's doing —
+     it gives every button a margin, a text-transform and a text-shadow. */
+  .field-hint-action {
+    background: none; border: none; padding: 0; margin: 0;
+    font: inherit; color: #13a4df; cursor: pointer;
+    font-weight: normal; text-transform: none;
+    text-shadow: none; box-shadow: none; border-radius: 0;
+  }
+  .field-hint-action:hover { color: #0a7cb8; text-decoration: underline; }
   .field-error { margin-top: 0.3rem; font-size: 0.75rem; color: #b91c1c; }
   .field-url-error { border-color: #f87171 !important; }
 

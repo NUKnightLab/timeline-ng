@@ -47,6 +47,13 @@
     onsettingschange,
   }: Props = $props();
 
+  /* Every slide ID except the one being edited — so the editor can offer a
+     generated ID that will not collide with a slide the author already has. */
+  const otherSlideIds = $derived(
+    [titleEvent?.unique_id, ...sortedEvents.map(e => e.unique_id)]
+      .filter((id): id is string => !!id && id !== selectedEvent?.unique_id),
+  );
+
   const SIZE_PRESETS: { label: string; width: number }[] = [
     { label: 'Small', width: 300 },
     { label: 'Mobile', width: 375 },
@@ -440,6 +447,7 @@
             event={selectedEvent}
             isTitle={isEditingTitle}
             index={isEditingTitle ? undefined : sortedEvents.findIndex(e => e.unique_id === selectedId)}
+            takenIds={otherSlideIds}
             onchange={onupdate}
             ondelete={() => selectedId && ondelete(selectedId)}
           />
