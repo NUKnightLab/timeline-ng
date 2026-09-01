@@ -7,6 +7,7 @@
     "test": "pnpm -r test",
     "test:run": "pnpm -r test:run",
     "dev": "pnpm -r --parallel dev",
+    "dev:og": "pnpm --parallel --filter @knight-lab/timeline-ng-core --filter @timeline-ng/embed --filter @timeline-ng/og-preview dev",
     "authoring": "pnpm --filter @timeline-ng/authoring dev",
     "authoring:devnet": "pnpm --filter @timeline-ng/authoring dev:devnet",
     "embed": "pnpm --filter @timeline-ng/embed dev",

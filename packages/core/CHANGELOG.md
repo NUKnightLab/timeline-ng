@@ -23,6 +23,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   and unique — so a timeline-ng file round-trips unchanged — and rebuilds the
   rest the same way. Title slides get `title`. Duplicates are suffixed `-2`, `-3`.
 
+### Fixed
+
+- **Declarations for test files no longer ship.** The published tarball included
+  `dist/**/*.test.d.ts`, because declaration generation ran over all of `src`.
+  Only the public surface is emitted now.
+
 ## [0.4.0] - 2026-08-25
 
 ### Added

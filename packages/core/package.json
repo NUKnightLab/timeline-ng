@@ -29,7 +29,7 @@
     "schema"
   ],
   "scripts": {
-    "build": "vite build && tsc -p tsconfig.build.json && node scripts/schema.mjs",
+    "build": "vite build && node scripts/schema.mjs",
     "build:schema": "node scripts/schema.mjs",
     "dev": "vite build --watch",
     "test": "vitest",
