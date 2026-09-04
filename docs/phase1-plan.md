@@ -77,7 +77,7 @@ Each stage is independently verifiable and independently committable. The app st
 boundary. **[P3]** Stages 0–2 do not change any behaviour a user can see, which is deliberate: the
 risky structural change lands under a green test suite before any feature rides on it.
 
-### Stage 0 — the document module
+### Stage 0 — the document module ✅
 
 Add `yjs`, `y-indexeddb`, `y-prosemirror`, `@tiptap/extension-collaboration`.
 
@@ -97,7 +97,7 @@ apart. Rich text stays a plain string until Stage 3 converts it.
 *Verify:* vitest round-trips — every fixture timeline through the doc and back, deep-equal to the
 original. No UI involvement, so failures are unambiguous.
 
-### Stage 1 — the snapshot bridge
+### Stage 1 — the snapshot bridge ✅
 
 New `lib/doc.svelte.ts`: observe the doc, rebuild plain `$state` in the shapes App.svelte already
 uses (`events: TLEvent[]`, `titleEvent`, `settings`). App.svelte swaps its `$state` declarations for
@@ -109,12 +109,24 @@ sites. It is the same information, computed instead of remembered.
 *Verify:* the app behaves exactly as before. Existing tests pass, plus a manual pass over add /
 edit / delete / settings / save.
 
-### Stage 2 — field-level writes
+### Stage 2 — field-level writes ✅
 
-The diff adapter described above. `applyEventUpdate(doc, key, updated)` writes only what changed.
+The diff adapter described above — which turned out to be almost entirely delivered already, by the
+no-op write guards Stage 0 needed for a different reason (stopping the title-sync effect looping).
+Measured before implementing: a headline-only edit already touched exactly `text/headline`.
 
-*Verify:* unit tests asserting that a headline-only edit produces exactly one field write, and that a
-no-op emit produces none.
+The one real leak was `blobRef`. It is the only object-valued field the editor emits, so it arrived
+as a fresh object each time and failed a referential guard, meaning it was rewritten on every
+keystroke anywhere on the slide. Fixed by making the guard structural rather than referential
+(`sameValue` in `doc.ts`), which is a dozen lines rather than the separate `applyEventUpdate`
+adapter this plan imagined.
+
+So there is no translation layer to carry after all, and **[P1] costs less than advertised**: the
+whole-event emit from `EventEditor` is safe as written, and the 2,069-line editor stays untouched.
+
+*Verified:* `docdiff.test.ts` — a re-emit with freshly constructed nested objects writes nothing at
+all; a headline edit, a caption edit, a date part, a rename and a removed sub-field each write
+exactly one field.
 
 ### Stage 3 — rich text on `Y.XmlFragment`
 

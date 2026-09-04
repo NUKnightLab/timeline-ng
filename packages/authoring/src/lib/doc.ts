@@ -85,6 +85,27 @@ export const hasTitleSlide = (doc: Y.Doc): boolean => titleMap(doc).size > 0;
 // ── Writing ───────────────────────────────────────────────────────────────────
 
 /**
+ * Whether writing `next` over `current` would change anything.
+ *
+ * Structural rather than referential because `EventEditor` rebuilds the whole
+ * `TLEvent` on every keystroke, so object-valued fields — `blobRef` — arrive as
+ * a fresh object each time and would otherwise be rewritten on every character
+ * typed anywhere on the slide. The values here are small and JSON-shaped;
+ * this is not a general deep-equal.
+ */
+function sameValue(current: unknown, next: unknown): boolean {
+  if (current === next) return true;
+  if (typeof current !== 'object' || typeof next !== 'object') return false;
+  if (current === null || next === null) return false;
+  if (Array.isArray(current) !== Array.isArray(next)) return false;
+  const a = current as Record<string, unknown>;
+  const b = next as Record<string, unknown>;
+  const keys = Object.keys(a);
+  if (keys.length !== Object.keys(b).length) return false;
+  return keys.every((k) => Object.hasOwn(b, k) && sameValue(a[k], b[k]));
+}
+
+/**
  * Set when defined, delete when not. A key is never present holding `undefined`.
  *
  * Writing a value a key already holds is skipped, and that is load-bearing
@@ -95,7 +116,7 @@ export const hasTitleSlide = (doc: Y.Doc): boolean => titleMap(doc).size > 0;
 function put(map: Y.Map<unknown>, key: string, value: unknown): void {
   if (value === undefined || value === null) {
     if (map.has(key)) map.delete(key);
-  } else if (map.get(key) !== value) {
+  } else if (!sameValue(map.get(key), value)) {
     map.set(key, value);
   }
 }
@@ -123,7 +144,7 @@ function writeGroup(slide: Y.Map<unknown>, name: string, value: Record<string, u
   for (const [k, v] of entries) {
     // Opaque sub-fields are stored whole; everything else here is already scalar.
     // Same no-op guard as `put`, for the same reason.
-    if (nested.get(k) !== v) nested.set(k, v);
+    if (!sameValue(nested.get(k), v)) nested.set(k, v);
   }
 }
 
@@ -152,7 +173,7 @@ export function writeSettings(doc: Y.Doc, settings: TLSettings | undefined): voi
   const entries = Object.entries(settings ?? {}).filter(([, v]) => v !== undefined);
   const keep = new Set(entries.map(([k]) => k));
   for (const existing of [...map.keys()]) if (!keep.has(existing)) map.delete(existing);
-  for (const [k, v] of entries) if (map.get(k) !== v) map.set(k, v);
+  for (const [k, v] of entries) if (!sameValue(map.get(k), v)) map.set(k, v);
 }
 
 export function writeMeta(doc: Y.Doc, meta: DocMeta): void {
