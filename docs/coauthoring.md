@@ -1,6 +1,6 @@
 # Co-authoring timelines
 
-**Status: design, not started.** Revised 2026-08-27 (v4).
+**Status: design, not started.** Revised 2026-09-04 (v6).
 
 > **v3 changed the architecture.** v1 and v2 proposed building co-authoring on Atproto Spaces with
 > no server. That's now the *deferred* option — see §7. The plan is a collaboration server holding
@@ -10,6 +10,16 @@
 > leftover requirement from the Spaces design. Phase 1 is now "adopt Yjs locally, single user, no
 > server," which delivers the model change as a by-product of a real implementation and ships undo
 > and multi-tab safety on its own (§9).
+>
+> **v5 is clarification, not redirection.** Three passages that read wrong on their own are fixed
+> (§2 on where a draft link is served from, §4.1 on what key rotation actually requires, §5 on which
+> of the accountability artifacts is public). The substantive addition is §8.2: the questions that a
+> reading of the current editor code raises, which have to be answered before Phase 1 code is cut.
+>
+> **v6 resolves eight of the eleven open questions**, folding each answer into the body where it
+> belongs: the rich-text type, slide-ID keying and the Svelte bridge into §3.2; review and
+> draft-state UI into §4.2; local drafts into §9; credential scope into §10.2; the retention number
+> into §10.5, undo into its own spec. §8 now holds only what is genuinely still open — Q1 and Q6.
 
 ---
 
@@ -62,8 +72,14 @@ Third argument: it ships without waiting on the Spaces alpha, which is Draft-sta
 - *"Access control is stored server-side, checked on every WebSocket connection. So is the draft data."*
 - Atproto provides identity (OAuth) and the publish target; drafts never touch it
 - Two permission levels: read/write and read-only. **"Only the document owner can publish."**
-- An optional public read-only draft link — which they can offer *because* the draft is on their
-  server (a space could not, see §7)
+- An optional read-only draft link that needs no account to open — which they can offer *because*
+  the draft lives on **their own** server and never on a PDS. "Public" here means "no sign-in
+  required to view," not "written to the atmosphere": nothing reaches a repo until publish. A space
+  could not offer this, for the opposite reason to the one you might expect — space reads require a
+  delegation token from the reader's own PDS, so `policy: public` means "any signed-in atproto
+  user," not the open web (§7).
+
+  Treat it as opt-in and off by default. Drafts are private unless their owner decides otherwise.
 
 Their model is our model, plus deferred publishing (§4), which they don't appear to do.
 
@@ -71,12 +87,13 @@ Their model is our model, plus deferred publishing (§4), which they don't appea
 
 ## 3. Shape
 
-| | Draft | Publication |
-|---|---|---|
-| Storage | Our server | Public repo record (unchanged) |
-| Sync | Yjs/CRDT over WebSocket | — |
-| Who writes | Owner + collaborators | Server, acting as the owner |
-| Who reads | Invited collaborators (+ optional link) | Anyone, no auth |
+
+|            | Draft                                   | Publication                    |
+| ---------- | --------------------------------------- | ------------------------------ |
+| Storage    | Our server                              | Public repo record (unchanged) |
+| Sync       | Yjs/CRDT over WebSocket                 | —                             |
+| Who writes | Owner + collaborators                   | Server, acting as the owner    |
+| Who reads  | Invited collaborators (+ optional link) | Anyone, no auth                |
 
 The player, embeds, and share links are **untouched**. No regression risk to the shipped thing.
 
@@ -97,16 +114,54 @@ is.)*
 opaque value in a `Y.Map` and every edit becomes a whole-document replace — last-write-wins with
 extra steps and a WebSocket. The shape that actually merges:
 
-| Piece | Yjs type | Why |
-|---|---|---|
-| Slide collection | `Y.Map` keyed by `unique_id` | **Not** a `Y.Array` — see below |
-| A slide | `Y.Map` | Independent fields merge independently |
-| `headline`, `text` | `Y.Text` | Two people in one paragraph actually merge |
-| Settings | `Y.Map` | |
+
+| Piece              | Yjs type                          | Why                                        |
+| ------------------ | --------------------------------- | ------------------------------------------ |
+| Slide collection   | `Y.Map` keyed by an internal id   | **Not** a `Y.Array` — see below            |
+| A slide            | `Y.Map`                           | Independent fields merge independently     |
+| `headline`, `text` | `Y.XmlFragment` (+ derived HTML)  | Two people in one paragraph actually merge |
+| `unique_id`        | ordinary field on the slide's map | Author-visible and editable, not the key   |
+| Settings           | `Y.Map`                           |                                            |
 
 Note this is a decomposition of the **editor's in-memory model**, not of anything on the PDS. The
 data is already close to this shape — `App.svelte` holds `events` as a `TLEvent[]` with `unique_id`s,
 and `EventEditor` edits one at a time. What's missing is the CRDT types underneath.
+
+**Rich text is `Y.XmlFragment`, not `Y.Text`.** The editor is Tiptap, and Tiptap's collaborative
+binding is y-prosemirror, which requires an `Y.XmlFragment`. That buys the real thing — two people
+editing one paragraph actually merge — at three costs worth naming:
+
+- **Publishing gains a serialization step.** In Phase 3 the *server* publishes, and it must not need
+  the ProseMirror schema to do so (§10.6). So each rich-text field also carries a **derived HTML
+  string** on the slide's map, written by the same client transaction that edits the fragment. The
+  fragment is the source of truth for editing and merging; the string is a denormalized copy for the
+  publish layer to read.
+- **Sanitization moves, and improves.** `DOMPurify` currently cleans HTML on the way out of the
+  editor. A ProseMirror schema constrains which nodes can exist at all, a stronger guarantee than
+  cleaning a string afterwards. Keep DOMPurify at serialization as defence in depth.
+- **Schema changes become migrations.** Once text is stored as structured nodes, adding a mark or a
+  node type means transforming stored documents; HTML strings would have been trivially
+  forward-compatible. Today the schema is StarterKit + Link — small, stable, nothing planned — so
+  this is a rare cost rather than a recurring one. Revisit it if media ever becomes an inline
+  ProseMirror node.
+
+One knock-on: Tiptap's `Collaboration` extension replaces the editor's own history, so
+`StarterKit.configure({ undoRedo: false })` and Yjs's `UndoManager` becomes the only undo in the app
+(Q11).
+
+**The map key is an internal id, not `unique_id`.** Slide IDs are author-facing — they appear in URLs
+as slide anchors and are meant to stay legible (`the-moon-landing`). That makes them a bad primary
+key: renaming one in a `Y.Map` is a delete plus an insert, which under concurrency discards another
+author's edits to that slide. So the map is keyed by an arbitrary internal id, assigned at creation
+and never shown, and `unique_id` becomes an ordinary field that merges like any other.
+`assignSlideIds()` keeps its existing job at import. What this gives up is structural uniqueness —
+two collaborators can concurrently choose the same `unique_id` — so uniqueness becomes a validation
+pass at publish rather than a property of the data structure.
+
+**The Y.Doc reaches Svelte as a snapshot.** Observe the document and rebuild plain `$state` on
+change, rather than wrapping Y types in a reactive proxy. Every existing component keeps working
+against ordinary objects, at the cost of a re-derive per update — cheap at timeline sizes, and it
+keeps Phase 2 a provider swap instead of an editor rewrite.
 
 **Slide ordering is free.** TimelineJS orders slides by date, so a keyed `Y.Map` suffices and we never
 need list-CRDT semantics — no fractional indexing, no order convergence. The single hardest part of
@@ -122,12 +177,13 @@ This is the enabling change. Today `caddy/client-metadata.json` declares
 `"token_endpoint_auth_method": "none"` — a **public** client. The [OAuth
 spec](https://atproto.com/specs/oauth) treats the two very differently:
 
-| | Public client (today) | Confidential client |
-|---|---|---|
-| Session lifetime | **2 weeks** | **may be unlimited** |
-| Refresh token lifetime | 2 weeks | **up to 180 days** |
-| Access token | <30 min (5 min recommended) | same |
-| Requires | nothing | `private_key_jwt`, keys published via `jwks` / `jwks_uri` |
+
+|                        | Public client (today)       | Confidential client                                       |
+| ---------------------- | --------------------------- | --------------------------------------------------------- |
+| Session lifetime       | **2 weeks**                 | **may be unlimited**                                      |
+| Refresh token lifetime | 2 weeks                     | **up to 180 days**                                        |
+| Access token           | <30 min (5 min recommended) | same                                                      |
+| Requires               | nothing                     | `private_key_jwt`, keys published via `jwks` / `jwks_uri` |
 
 Confidential clients get this because they authenticate with a signing key and can revoke a
 compromised one. Practically: as a public client the owner would have to sign in **every two weeks**
@@ -153,18 +209,45 @@ What it takes:
   in the browser. As a confidential client the server handles PAR, the callback, and token storage.
   Both reference apps are shaped this way (Bulletin: `app/oauth-client-metadata.json/route.ts`,
   `app/oauth/callback/route.ts`). Budget this as a refactor, not a config change.
-- **key rotation** as ongoing discipline: add a new key to the JWKS, use it for new sessions, drop the
-  old one once no active session references it; remove a compromised key immediately.
+- **key rotation** as a written procedure: publish the new key in the JWKS, allow time for
+  authorization servers to refresh their cached copy of it, then switch to signing with it, then
+  retire the old one. Removing a compromised key is immediate, and will break in-flight refreshes —
+  which is the correct trade.
+
+  Note what this is *not*: a client assertion is signed fresh on every token request, so no session
+  is bound to a particular key and there is nothing to drain. The overlap window is however long an
+  authorization server caches `jwks_uri`, measured in hours, not the 180 days of a refresh token.
+  Rotation is therefore a runbook plus a calendar entry, not ongoing toil. *(Worth confirming against
+  a real PDS alongside Q6 — both are "what does the implementation actually do" questions.)*
 
 ### 4.2 Publish policy, per timeline
 
-| Policy | Behavior |
-|---|---|
+
+| Policy             | Behavior                                                                                       |
+| ------------------ | ---------------------------------------------------------------------------------------------- |
 | `manual` (default) | Only the owner publishes. Collaborator edits sit in the draft; owner sees "3 pending changes." |
-| `review` | Collaborator edits are staged as suggestions. Owner approves, then it publishes. |
-| `auto` | Any collaborator edit republishes after a debounce. |
+| `review`           | Collaborator edits are staged as suggestions. Owner approves, then it publishes.               |
+| `auto`             | Any collaborator edit republishes after a debounce.                                            |
 
 `auto` is opt-in per timeline, never a global default.
+
+**Review is wholesale, not per-change.** The interaction is "here is the current draft; if you are
+happy with it, publish it" — an owner reads through and makes one call, rather than adjudicating
+forty individual edits. Version history exists underneath (§4.3) and can be surfaced when something
+looks wrong, but browsing it is the exception, not the review flow.
+
+**What a collaborator sees.** The editor has to be unambiguous about publication state, because a
+collaborator cannot publish and should never have to guess. Three states, not two:
+
+| State | What the collaborator needs to know |
+|---|---|
+| Never published | This timeline has no public version yet. Nothing here is visible to anyone outside. |
+| Published, draft matches | What you see is what the public sees. |
+| Published, draft has moved on | There are unpublished changes; only the owner can publish them. |
+
+A collaborator can always view the published version — it is a public record on the owner's PDS,
+readable by anyone, with or without an account. A count of pending changes is probably noise; the
+signal is the state, not the number.
 
 ### 4.3 Revert is what makes this safe
 
@@ -211,8 +294,8 @@ never collects them — works, and it's a known trick, but it's the worse option
 Server-side retention is private, revertible, and doesn't consume someone else's quota. Prefer it.
 
 Two consequences: **media retention policy becomes load-bearing for revert**, not just a storage
-question (Q3) — revert horizon can't exceed media retention, and the UI shouldn't offer a revert it
-can't perform. And if the owner has revoked our session, re-upload fails, so reverting to a version
+question (§10.5) — the revert horizon is therefore 90 days, the same number, and the UI shouldn't
+offer a revert it can't perform. And if the owner has revoked our session, re-upload fails, so reverting to a version
 with collected media degrades to "reconnect to revert."
 
 ---
@@ -227,9 +310,18 @@ It is a well-understood shape in editorial contexts — shared bylines, managed 
 it's handled with process rather than mechanism. What the software should provide:
 
 - `review` as the interesting default for anything beyond a trusted pair; `manual` as the safe one
-- a `contributors` field on the published record so attribution isn't lost
-- a visible publication log: who triggered each published version, and when
+- a `contributors` field **in the published record on the PDS**, and therefore public by
+  construction — which is the point, since attribution has to survive independently of our server.
+  Whether the *player* renders it as a visible byline is a separate design question, and not yet
+  answered.
+- a publication log — who triggered each published version, and when — held **with the draft on our
+  server**, visible to the owner and collaborators. This one is not public and is not part of the
+  published record.
 - cheap revert (§4.3), which converts most consent failures from incidents into corrections
+
+The first two are easy to run together and shouldn't be: one is a public, durable claim about
+authorship, the other is private operational history. They have different audiences, different
+lifetimes, and different deletion stories.
 
 ---
 
@@ -301,25 +393,22 @@ narrow case.
 
 ## 8. Open questions
 
-- **Q1. What are the manual and review UXs?** The mechanism is settled; the interaction isn't. How
-  does an owner see what changed since they last published — a diff, a slide-level change list, an
-  activity feed? How do they approve selectively vs. wholesale? This is the next thing to work through
-  and probably wants sketches rather than prose.
-- **Q2. What's the collaborator's model of "published vs. draft"?** They can edit but not publish.
-  Does the editor show a persistent "3 changes not yet published" state? Does a collaborator ever see
-  the public version?
-- **Q3. What is the retention window?** Everything in §10.5 collapses to one number: it sets the
-  revert horizon, the media storage bill, and what we can honestly promise a contributor who asks to
-  be removed. Pick it early — the UI, the compaction schedule, and the policy language all depend on
-  it. *(Closed sub-question: StoryMapJS has no policy to inherit. It has no co-authoring and holds no
-  long-lived credentials, so it never needed one.)*
-- **Q4. Do we hold refresh tokens for every user, or only owners of shared timelines?** Narrower is
-  better; a solo author needs no server-held session at all, and shouldn't have one.
-- **Q5. Does `review` need to be per-change or per-session?** Approving 40 individual edits is worse
-  than approving "everything Chris did this afternoon."
-- **Q6. Verify the confidential-client session numbers against the actual PDS implementation.** The
-  spec states 2 weeks / 180 days / unlimited; implementations may be stricter. Worth confirming before
-  designing failure handling around it.
+Nine of the original eleven are resolved and have moved into the body — rich text, slide-ID keying
+and the Svelte bridge to §3.2, review and draft-state UI to §4.2, credential scope to §10.2, local
+drafts to §9, retention to §10.5, and undo into its own spec ([phase1-undo.md](phase1-undo.md)).
+What is left:
+
+- **Q1. What are the manual and review UXs?** The mechanism is settled (§4.2); the interaction is
+  not. How does an owner see what changed since they last published — a diff, a slide-level change
+  list, an activity feed? What does the history view look like on the occasions it is called for?
+  To be worked through visually rather than in prose, and not on Phase 1's critical path.
+
+- **Q6. How do we handle session lifetimes we cannot predict?** The spec states 2 weeks / 180 days /
+  unlimited (§4.1), but users arrive from arbitrary PDSes and each one enforces its own limits, so
+  there is no single number to design against. Treat the lifetimes as **observed, not assumed**:
+  drive expiry handling off what a token response actually says, and measure the reference
+  implementation (`bluesky-social/atproto`) only to get a sanity baseline. Fold in the `jwks_uri`
+  cache behaviour from §4.1 while measuring.
 
 ---
 
@@ -327,6 +416,14 @@ narrow case.
 
 - **Phase 1 — adopt Yjs locally.** Single user, no server, no collaboration. Move the editor onto the
   §3.2 document model, persist with `y-indexeddb`, keep publishing to the same single PDS record.
+
+  **Several local drafts, not one.** `lib/draft.ts` is a single localStorage slot (`tl-draft-v1`)
+  today, so opening a second timeline silently discards the first — a live data-loss bug. Since
+  `y-indexeddb` is per-document by nature, keeping several is the default shape and the single-slot
+  limit is what would take effort to preserve. The cost is a local drafts list in `HomeView`, which
+  Phase 2 needs anyway. (This is about one browser's local state; nothing has ever stopped a person
+  from collaborating on many timelines at once — in Phase 2 those are separate Durable Objects with
+  separate access control.)
 - **Phase 2 — the collaboration server.** Add a network provider (Hocuspocus on Workers + Durable
   Objects), draft storage, invite + access control, live cursors. Owner-only publishing, `manual`.
 - **Phase 3 — confidential client + deferred publishing.** Version history and revert *first*, then
@@ -339,7 +436,11 @@ Not because collaboration needs it staged — because it **pays for itself befor
 
 - **Undo/redo.** There is none in the app today (zero matches for undo/redo in `packages/authoring`).
   Yjs's `UndoManager` gives proper undo essentially for free, and it's the kind of thing users
-  immediately notice in an authoring tool.
+  immediately notice in an authoring tool. The interaction is specified in
+  [phase1-undo.md](phase1-undo.md): one global stack, and *reveal, then apply, then flash* whenever
+  the change is off screen. Note that `trackedOrigins` must be set in Phase 1 even with a single
+  user — it is what stops undo from reverting a *collaborator's* edits in Phase 2, and retrofitting
+  it means re-auditing every mutation site.
 - **Multi-tab safety.** Autosave today is whole-state to localStorage (`lib/draft.ts`), so two open
   tabs are a live data-loss bug — last save wins. `y-indexeddb` makes persistence incremental and
   syncs tabs.
@@ -362,12 +463,13 @@ the standard, well-supported Yjs backend rather than porting to a bespoke implem
 
 ### 10.1 Shape
 
-| Piece | Cloudflare primitive | Why |
-|---|---|---|
-| Per-timeline draft + WebSocket fan-out | Durable Object, one per timeline | A DO exists in one place at a time and reconnections route back to the same object — exactly the guarantee collaborative editing needs |
-| Per-user session + tokens | Durable Object, one per DID | §10.2 |
-| Media | R2 | Zero egress fees |
-| Our signing key | Workers secret / Secrets Store binding | §10.2 |
+
+| Piece                                  | Cloudflare primitive                   | Why                                                                                                                                     |
+| -------------------------------------- | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Per-timeline draft + WebSocket fan-out | Durable Object, one per timeline       | A DO exists in one place at a time and reconnections route back to the same object — exactly the guarantee collaborative editing needs |
+| Per-user session + tokens              | Durable Object, one per DID            | §10.2                                                                                                                                  |
+| Media                                  | R2                                     | Zero egress fees                                                                                                                        |
+| Our signing key                        | Workers secret / Secrets Store binding | §10.2                                                                                                                                  |
 
 **There is not much to "provision."** The unit of isolation is the document, so there's no cluster to
 size, no connection pool to tune, and no capacity plan — a new co-authored timeline is a new DO and
@@ -385,6 +487,20 @@ Two different kinds of secret, two different homes. Conflating them is the easy 
 **Our confidential-client signing key** (§4.1) is one value, set at deploy time, shared by all
 requests → a **Workers secret**, or a Secrets Store binding for account-level management. Never in
 the repo, never in the bundle, never reaching the browser.
+
+**Whose tokens we hold, and for how long.** Only **owners of timelines that have at least one
+collaborator**. Collaborators authenticate to *our* server for identity and access control, but we
+never write to their repos — their media lands in our R2 and is re-uploaded under the owner's session
+at publish (§4.4) — so storing their refresh tokens would add risk and buy no capability. Acquisition
+is lazy: a solo author has no server-held session at all, and the escalation to a confidential-client
+session happens when an owner first invites someone.
+
+Release solves itself, provided we **never run a keep-alive**. Refreshing only when we actually need
+to publish means an abandoned shared timeline's refresh token simply lapses at the 180-day mark, so
+credential lifetime tracks real use with no cron and no attempt to detect that collaboration has
+stopped — which is not reliably detectable. Explicit revocation paths (last collaborator removed,
+timeline deleted, owner disconnects the app) still exist, but they are conveniences rather than the
+mechanism.
 
 **Users' refresh tokens are data, not configuration.** There's one per user, they change constantly,
 and there may eventually be thousands. Secrets bindings are the wrong tool. They belong in storage —
@@ -455,11 +571,12 @@ inherit** — StoryMap never needed one at this depth. Treat it as a deliverable
 
 **The whole policy is one tension.** Two forces pull the retention window in opposite directions:
 
-| Longer history | Shorter history |
-|---|---|
+
+| Longer history                             | Shorter history                                |
+| ------------------------------------------ | ---------------------------------------------- |
 | Revert reaches further back (§4.3, §4.5) | Less user content held, smaller breach surface |
-| Media stays re-uploadable after PDS GC | Contributors' data ages out on its own |
-| Better recovery from a bad `auto` publish | Cheaper, simpler, less to answer for |
+| Media stays re-uploadable after PDS GC     | Contributors' data ages out on its own         |
+| Better recovery from a bad`auto` publish   | Cheaper, simpler, less to answer for           |
 
 Pick the number and everything else follows. **The revert horizon cannot exceed media retention**, and
 the UI must never offer a revert it can't perform.
@@ -475,15 +592,35 @@ and a contributor's raw operations age out on their own — the request is satis
 not by a scalpel. Which is also why the window can't be indefinite, and why the revert horizon and
 the deletion promise are the same number viewed from two sides.
 
-What the policy needs to answer:
+**The number is 90 days.** Draft version history is kept for 90 days, and media is kept for as long
+as any retained version references it. Comparable products treat history as a tiered feature rather
+than an archive — Figma and Notion both cap version history on lower tiers — and nobody in this
+category keeps raw edit history indefinitely. Ninety days covers "we published something wrong and
+nobody noticed for a while" by a wide margin, sits at the generous end of the field, and makes the
+contributor promise a sentence we can actually keep: *your raw edits age out within 90 days of being
+superseded.*
 
-- How long is draft version history kept? (= the revert horizon)
-- How long is media kept once no retained version references it?
+Published versions are the exception and are kept indefinitely: they are small materializations, the
+current one lives on the owner's PDS regardless, and they are what a publication log (§5) refers to.
+
+**Abandoned drafts**, separately: warn in-app at 12 months untouched, purge at 18. We cannot notify
+the owner out-of-band — §6.3 disposes of DMs, and atproto hands us no email address, which we would
+then have to hold and retain in its own right — so the mitigation is that the purge is nearly
+harmless rather than that the warning is loud. If the timeline was ever published, the published
+version is on the owner's PDS and is untouched; only unpublished working state is lost.
+
+One carve-out: a draft **never published at all** has no copy anywhere else, so purging it destroys
+the only one. Those get a longer window and an explicit confirmation on the owner's next sign-in
+rather than silent deletion.
+
+Still to write down, all of which follow from the number rather than reopening it:
+
 - What happens to a draft when the owner deletes the timeline — immediate purge, or a grace period?
 - When a collaborator is removed, do their existing contributions stay in the draft?
-- What do we promise a contributor who asks for removal, given the above?
-- Is there a TTL on abandoned drafts — never published, never opened in N months?
 - What happens on account deletion or session revocation?
+
+*(Not a legal opinion. Northwestern will have a records-retention policy this has to sit inside;
+confirm before the number goes anywhere public-facing.)*
 
 Two more obligations alongside it:
 
@@ -529,12 +666,13 @@ users** — but not for the reason you'd guess.
 Durable Objects *are* available on the free plan, restricted to **SQLite-backed** DOs. That's not a
 real constraint; SQLite-backed is the right choice here anyway.
 
-| | Free | Paid ($5/mo) |
-|---|---|---|
-| Requests | 100k/day (≈3M/mo) | 1M/mo included, then $0.15/M |
-| Duration | 13,000 GB-s/day (≈390k/mo) | 400k GB-s/mo included, then $12.50/M GB-s |
-| SQLite storage | 5 GB total | 5 GB-month, then $0.20/GB-month |
-| Rows written | 100k/day | — |
+
+|                | Free                        | Paid ($5/mo)                              |
+| -------------- | --------------------------- | ----------------------------------------- |
+| Requests       | 100k/day (≈3M/mo)          | 1M/mo included, then $0.15/M              |
+| Duration       | 13,000 GB-s/day (≈390k/mo) | 400k GB-s/mo included, then $12.50/M GB-s |
+| SQLite storage | 5 GB total                  | 5 GB-month, then $0.20/GB-month           |
+| Rows written   | 100k/day                    | —                                        |
 
 Note what that table says: **the free allowances roughly equal what the $5 plan includes**, and free
 gives *more* requests per month. Paying does not buy headroom.
