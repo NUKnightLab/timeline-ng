@@ -64,11 +64,10 @@ approach: make the editor's fields derive from the document snapshot, with a loc
 field has focus so that incoming changes never fight the user's cursor. Rich-text fields sidestep it
 entirely, since Tiptap binds to the fragment directly.
 
-**[A1]** In user terms the two outcomes are: undoing an edit to the slide you are looking at either
-updates that field in place with your cursor undisturbed, or re-renders the whole slide-editor panel
-and loses your cursor position and scroll. The first is the plan. The second is the escape hatch if
-this proves as awkward as it might. The ask is only whether taking the escape hatch is something to
-raise at the time or just get on with.
+**[A1 — answered: raise it]** In user terms the two outcomes are: undoing an edit to the slide you
+are looking at either updates that field in place with your cursor undisturbed, or re-renders the
+whole slide-editor panel and loses your cursor position and scroll. The first is the plan; the second
+is the escape hatch. If the escape hatch gets taken, say so at the time rather than quietly.
 
 ---
 
@@ -83,8 +82,17 @@ risky structural change lands under a green test suite before any feature rides 
 Add `yjs`, `y-indexeddb`, `y-prosemirror`, `@tiptap/extension-collaboration`.
 
 New `lib/doc.ts`, plain TypeScript, no Svelte: the §3.2 schema (`slides: Y.Map<Y.Map>`,
-`settings: Y.Map`, `meta: Y.Map` for title and `atUri`), plus `createDoc()`,
-`docToTimeline(doc): TLTimeline` and `loadTimeline(doc, tl)`.
+`settings: Y.Map`, `title: Y.Map`, `meta: Y.Map` for the timeline title and `atUri`), plus
+`createDoc()`, `docToTimeline(doc): TLTimeline` and `loadTimeline(doc, tl)`.
+
+**[P7] Internal keys land here, not in Stage 4.** Keying the map by an internal id costs nothing in
+this module — the work in Stage 4 is threading `selectedId` through App, EventList and EditorView,
+which is entirely UI. Building Stage 0 on `unique_id` keys would mean writing it twice.
+
+**[P8] Object-valued fields are nested `Y.Map`s** — `start_date`, `end_date`, `text`, `media`,
+`background` — so that a caption and a credit on one slide merge independently. `blobRef` is the
+exception and is stored whole: it is a content-addressed reference whose parts are meaningless
+apart. Rich text stays a plain string until Stage 3 converts it.
 
 *Verify:* vitest round-trips — every fixture timeline through the doc and back, deep-equal to the
 original. No UI involvement, so failures are unambiguous.
@@ -113,7 +121,8 @@ no-op emit produces none.
 Wire `Collaboration` into `RichTextEditor`, with `StarterKit.configure({ undoRedo: false })`. Maintain
 the derived HTML mirror on the same transaction. Exclude these fields from the Stage 2 adapter.
 
-**[A2]** Headline and body become fragments; **media caption and credit stay plain LWW strings** —
+**[A2 — answered: last-write-wins]** Headline and body become fragments; **media caption, credit and
+alt stay plain LWW strings** —
 if two people edit one caption at the same time, the later edit wins outright rather than merging.
 They are short and single-author in practice, and four fragments per slide is a lot of machinery for
 a photo credit. Easy to promote later if that turns out wrong.
@@ -176,10 +185,10 @@ return on the schema), and after **Stage 5** (before undo, everything else is do
 
 Two, both judgeable without reading any code.
 
-| | Ask | Default if you have no view |
+| | Ask | Answered |
 |---|---|---|
-| A1 | If keeping the cursor steady during same-slide undo proves as awkward as it might, is falling back to "the panel re-renders and you lose your place" worth raising at the time, or just my call? | Raise it, since it is a visible downgrade |
-| A2 | Should photo captions and credits merge properly between two simultaneous editors, or is last-write-wins fine for them? | Last-write-wins; promote later if wrong |
+| A1 | If keeping the cursor steady during same-slide undo proves awkward, is falling back to "the panel re-renders and you lose your place" worth raising at the time? | **Yes, raise it** — assumed to be for good reasons, but say so |
+| A2 | Should photo captions and credits merge between simultaneous editors, or is last-write-wins fine? | **Last-write-wins.** Alt text too, which is already a plain textarea and needs no change |
 
 ## Decisions I made
 
@@ -191,3 +200,5 @@ Recorded so they are visible, not because they need your attention.
 | P3 | Stages 0–2 ship no visible change | You want something demoable sooner |
 | P4 | `pdsClean` becomes derived from the document | |
 | P6 | Migrate any existing `tl-draft-v1` rather than dropping it | |
+| P7 | Internal keys land in Stage 0, not Stage 4 | |
+| P8 | Nested `Y.Map`s for object fields; `blobRef` stored whole | Sub-field merging turns out not to be worth the read/write cost |
