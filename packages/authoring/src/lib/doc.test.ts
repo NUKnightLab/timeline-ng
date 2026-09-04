@@ -235,3 +235,32 @@ describe('real adapter output', () => {
     });
   });
 });
+
+describe('no-op writes', () => {
+  it('produces no update when a scalar is rewritten with the same value', () => {
+    // Load-bearing: an effect that reads the document and writes a derived
+    // value back into it would otherwise loop forever, since Y.Map.set emits
+    // an update regardless of whether the value changed.
+    const doc = createDoc();
+    writeMeta(doc, { title: 'Spaceflight' });
+
+    let updates = 0;
+    doc.on('update', () => { updates += 1; });
+    writeMeta(doc, { title: 'Spaceflight' });
+    expect(updates).toBe(0);
+
+    writeMeta(doc, { title: 'Spaceflight and after' });
+    expect(updates).toBe(1);
+  });
+
+  it('produces no update when a slide field is rewritten unchanged', () => {
+    const doc = createDoc();
+    const key = addSlide(doc, sputnik);
+    const slide = slidesMap(doc).get(key)!;
+
+    let updates = 0;
+    doc.on('update', () => { updates += 1; });
+    writeSlide(slide, sputnik);
+    expect(updates).toBe(0);
+  });
+});

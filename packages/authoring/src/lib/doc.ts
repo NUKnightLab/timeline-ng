@@ -84,10 +84,20 @@ export const hasTitleSlide = (doc: Y.Doc): boolean => titleMap(doc).size > 0;
 
 // ── Writing ───────────────────────────────────────────────────────────────────
 
-/** Set when defined, delete when not. A key is never present holding `undefined`. */
+/**
+ * Set when defined, delete when not. A key is never present holding `undefined`.
+ *
+ * Writing a value a key already holds is skipped, and that is load-bearing
+ * rather than an optimisation: `Y.Map.set` produces an update even when the
+ * value is identical, so an effect that both reads the document and writes a
+ * derived value back into it would loop forever.
+ */
 function put(map: Y.Map<unknown>, key: string, value: unknown): void {
-  if (value === undefined || value === null) map.delete(key);
-  else map.set(key, value);
+  if (value === undefined || value === null) {
+    if (map.has(key)) map.delete(key);
+  } else if (map.get(key) !== value) {
+    map.set(key, value);
+  }
 }
 
 /**
@@ -112,7 +122,8 @@ function writeGroup(slide: Y.Map<unknown>, name: string, value: Record<string, u
   }
   for (const [k, v] of entries) {
     // Opaque sub-fields are stored whole; everything else here is already scalar.
-    nested.set(k, v);
+    // Same no-op guard as `put`, for the same reason.
+    if (nested.get(k) !== v) nested.set(k, v);
   }
 }
 
@@ -141,7 +152,7 @@ export function writeSettings(doc: Y.Doc, settings: TLSettings | undefined): voi
   const entries = Object.entries(settings ?? {}).filter(([, v]) => v !== undefined);
   const keep = new Set(entries.map(([k]) => k));
   for (const existing of [...map.keys()]) if (!keep.has(existing)) map.delete(existing);
-  for (const [k, v] of entries) map.set(k, v);
+  for (const [k, v] of entries) if (map.get(k) !== v) map.set(k, v);
 }
 
 export function writeMeta(doc: Y.Doc, meta: DocMeta): void {

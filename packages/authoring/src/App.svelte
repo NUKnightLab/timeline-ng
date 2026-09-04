@@ -1,12 +1,13 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import type { TLEvent, TLTimeline, TLSettings } from '@knight-lab/timeline-ng-core';
-  import { parseTLDate, compareDates, toTL3CSV, assignSlideIds } from '@knight-lab/timeline-ng-core';
+  import { toTL3CSV, assignSlideIds } from '@knight-lab/timeline-ng-core';
   import { getAuthState, saveTimeline, signOut, uploadBlob, blobUrl, extractCid } from './lib/atproto.svelte.ts';
   import { initAuth } from './lib/atproto.svelte.ts';
   import { generatePoster } from './lib/poster.ts';
   import { saveDraft, loadDraft, clearDraft } from './lib/draft.ts';
   import type { Draft } from './lib/draft.ts';
+  import { TimelineDoc } from './lib/doc.svelte.ts';
   import { stripHtml } from './lib/text.ts';
   import HomeView from './components/HomeView.svelte';
   import EditorView from './components/EditorView.svelte';
@@ -30,15 +31,31 @@
 
   const DEFAULT_SETTINGS: TLSettings = { language: 'en', theme: 'auto', initialIndex: 0, reverseOrder: false };
 
-  let timelineTitle = $state(_restoreDraft?.title ?? '');
-  let titleSetByUser = $state(false);
-  let titleEvent = $state<TLEvent | null>(_restoreDraft?.titleEvent ?? null);
-  let events = $state<TLEvent[]>(_startInEditor ? (_restoreDraft?.events ?? []) : []);
+  // The Yjs document is the source of truth; everything below reads a plain
+  // snapshot of it. See lib/doc.svelte.ts and docs/coauthoring.md §3.2.
+  const tldoc = new TimelineDoc();
+
+  if (_startInEditor && _restoreDraft) {
+    tldoc.load(
+      {
+        ...(_restoreDraft.titleEvent ? { title: _restoreDraft.titleEvent } : {}),
+        events: _restoreDraft.events ?? [],
+        settings: _restoreDraft.settings ?? { ...DEFAULT_SETTINGS },
+      },
+      { title: _restoreDraft.title, titleSetByUser: !!_restoreDraft.title, atUri: _restoreDraft.atUri },
+      { clean: _restoreDraft.pdsClean ?? true },
+    );
+  }
+
   let selectedId = $state<string | null>(_startInEditor ? (_restoreDraft?.titleEvent ? 'title' : (_restoreDraft?.events?.[0]?.unique_id ?? null)) : null);
-  let atUri = $state<string | null>(_restoreDraft?.atUri ?? null);
-  let pdsClean = $state(_startInEditor ? (_restoreDraft?.pdsClean ?? true) : true);
   let saveStatus = $state<string | null>(null);
-  let settings = $state<TLSettings>(_restoreDraft?.settings ?? { ...DEFAULT_SETTINGS });
+
+  const timelineTitle = $derived(tldoc.title);
+  const titleEvent = $derived(tldoc.titleEvent);
+  const events = $derived(tldoc.events);
+  const settings = $derived(tldoc.settings);
+  const atUri = $derived(tldoc.atUri);
+  const pdsClean = $derived(tldoc.clean);
 
   // ── Draft ────────────────────────────────────────────────────────────────────
 
@@ -51,23 +68,13 @@
 
   const auth = $derived(getAuthState());
 
-  const sortedEvents = $derived(
-    [...events].sort((a, b) => {
-      if (!a.start_date) return 1;
-      if (!b.start_date) return -1;
-      return compareDates(parseTLDate(a.start_date), parseTLDate(b.start_date));
-    })
-  );
-
-  const timeline = $derived<TLTimeline>({
-    ...(titleEvent ? { title: titleEvent } : {}),
-    events: sortedEvents,
-    settings,
-  });
+  // The document already orders slides by date, so there is nothing left to sort.
+  const sortedEvents = $derived(events);
+  const timeline = $derived<TLTimeline>(tldoc.timeline);
 
   const selectedEvent = $derived.by<TLEvent | null>(() => {
     if (selectedId === 'title') return titleEvent;
-    return events.find((e) => e.unique_id === selectedId) ?? null;
+    return selectedId === null ? null : tldoc.eventForUniqueId(selectedId);
   });
 
   const isEditingTitle = $derived(selectedId === 'title');
@@ -107,11 +114,13 @@
   });
 
 
-  // Auto-sync title from title slide headline when user hasn't set one explicitly
+  // Auto-sync title from title slide headline when user hasn't set one explicitly.
+  // The equality check matters: this effect both reads the document and writes
+  // back into it, and Y.Map.set emits an update even for an unchanged value.
   $effect(() => {
-    if (!titleSetByUser) {
-      timelineTitle = stripHtml(titleEvent?.text?.headline);
-    }
+    if (tldoc.titleSetByUser) return;
+    const fromHeadline = stripHtml(tldoc.titleEvent?.text?.headline);
+    if (fromHeadline !== tldoc.title) tldoc.setTitle(fromHeadline, false);
   });
 
   // ── Init ─────────────────────────────────────────────────────────────────────
@@ -140,14 +149,16 @@
   }
 
   function enterEditor(opts: { title?: string; titleSetByUser?: boolean; titleEvent?: TLEvent | null; events?: TLEvent[]; atUri?: string; clean?: boolean; settings?: TLSettings } = {}) {
-    titleSetByUser = opts.titleSetByUser ?? false;
-    timelineTitle = opts.title ?? '';
-    titleEvent = opts.titleEvent ?? null;
-    events = opts.events ?? [];
-    atUri = opts.atUri ?? null;
+    tldoc.load(
+      {
+        ...(opts.titleEvent ? { title: opts.titleEvent } : {}),
+        events: opts.events ?? [],
+        settings: opts.settings ?? { ...DEFAULT_SETTINGS },
+      },
+      { title: opts.title, titleSetByUser: opts.titleSetByUser ?? false, atUri: opts.atUri },
+      { clean: opts.clean ?? true },
+    );
     selectedId = opts.titleEvent ? 'title' : (opts.events?.[0]?.unique_id ?? null);
-    pdsClean = opts.clean ?? true;
-    settings = opts.settings ?? { ...DEFAULT_SETTINGS };
     view = 'editor';
   }
 
@@ -235,27 +246,24 @@
   // ── Editor actions ────────────────────────────────────────────────────────────
 
   function addEvent() {
-    pdsClean = false;
     const id = uid();
-    events = [...events, { unique_id: id }];
+    tldoc.addEvent({ unique_id: id });
     selectedId = id;
   }
 
   function addTitleSlide() {
-    pdsClean = false;
-    titleEvent = { unique_id: 'title' };
+    tldoc.setTitleSlide({ unique_id: 'title' });
     selectedId = 'title';
   }
 
   function updateEvent(updated: TLEvent) {
-    pdsClean = false;
     if (selectedId === 'title') {
-      titleEvent = updated;
-    } else {
+      tldoc.setTitleSlide(updated);
+    } else if (selectedId !== null) {
       // Match on the id the event had *before* this update, not updated.unique_id —
       // when a rename is in the update, updated.unique_id is the new value, which
-      // won't match anything in the array yet.
-      events = events.map(e => e.unique_id === selectedId ? updated : e);
+      // won't match any slide yet.
+      tldoc.updateEvent(selectedId, updated);
       if (updated.unique_id && updated.unique_id !== selectedId) {
         selectedId = updated.unique_id;
       }
@@ -263,17 +271,17 @@
   }
 
   function deleteEvent(id: string) {
-    pdsClean = false;
     if (id === 'title') {
       deletedItem = { event: titleEvent!, isTitle: true, sortedIndex: -1 };
-      titleEvent = null;
-      selectedId = events[0]?.unique_id ?? null;
+      tldoc.removeTitleSlide();
+      selectedId = tldoc.events[0]?.unique_id ?? null;
     } else {
       const sortedIndex = sortedEvents.findIndex(e => e.unique_id === id);
-      deletedItem = { event: events.find(e => e.unique_id === id)!, isTitle: false, sortedIndex };
-      events = events.filter(e => e.unique_id !== id);
+      deletedItem = { event: tldoc.eventForUniqueId(id)!, isTitle: false, sortedIndex };
+      tldoc.removeEvent(id);
       if (selectedId === id) {
-        selectedId = events.length > 0 ? events[events.length - 1].unique_id! : null;
+        const remaining = tldoc.events;
+        selectedId = remaining.length > 0 ? remaining[remaining.length - 1].unique_id! : null;
       }
     }
     deletedItemLeaving = false;
@@ -285,8 +293,7 @@
   }
 
   function updateSettings(patch: Partial<TLSettings>) {
-    pdsClean = false;
-    settings = { ...settings, ...patch };
+    tldoc.patchSettings(patch);
   }
 
   function undoDelete() {
@@ -296,10 +303,10 @@
     const { event, isTitle } = deletedItem;
     deletedItem = null;
     if (isTitle) {
-      titleEvent = event;
+      tldoc.setTitleSlide(event);
       selectedId = 'title';
     } else {
-      events = [...events, event];
+      tldoc.addEvent(event);
       selectedId = event.unique_id!;
     }
   }
@@ -308,8 +315,7 @@
   $effect(() => { if (!pdsClean) saveStatus = null; });
 
   function handleTitleChange(t: string) {
-    timelineTitle = t;
-    titleSetByUser = t.trim() !== '';
+    tldoc.setTitle(t, t.trim() !== '');
   }
 
   async function handleSave() {
@@ -325,7 +331,7 @@
           'This timeline was saved under a different account. Save it as a new timeline in your current account?'
         );
         if (!saveAsNew) return;
-        atUri = null;
+        tldoc.setAtUri(null);
       }
     }
 
@@ -347,8 +353,8 @@
 
     const result = await saveTimeline(timelineToSave, { title: timelineTitle }, atUri ?? undefined);
     if (result.ok) {
-      atUri = result.uri;
-      pdsClean = true;
+      tldoc.setAtUri(result.uri);
+      tldoc.markClean();
       saveStatus = 'Saved ✓';
     } else {
       saveStatus = `Save failed: ${result.error}`;
