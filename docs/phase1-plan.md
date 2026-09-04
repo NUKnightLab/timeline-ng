@@ -5,7 +5,11 @@
 Implements Phase 1 of [coauthoring.md](coauthoring.md) §9, to the document model in §3.2 and the
 undo spec in [phase1-undo.md](phase1-undo.md). Single user, no server, no collaboration.
 
-Judgement calls are tagged **[P*n*]** and collected at the end so each can be overruled on its own.
+Two kinds of judgement call are tagged and collected at the end, kept apart because they need
+different things from a reader: **[A*n*]** are asks — choices with consequences you can judge without
+reading the code, and which I should not make alone. **[P*n*]** are mine — engineering calls,
+recorded so they are visible and reversible, but not questions. Skip the P table unless something
+downstream looks wrong.
 
 ## What ships
 
@@ -22,9 +26,10 @@ writes today.
 
 ---
 
-## Two things the design doc does not know
+## Two things the code says that the design doc does not
 
-Both came out of reading the editor, and both change the shape of the work.
+Findings, not questions — this section is here to explain why the stages are shaped the way they
+are. Both came out of reading the editor.
 
 ### EventEditor emits whole slides, ~25 times over
 
@@ -54,10 +59,16 @@ what is on screen. That is fine today — the editor is the only writer — but:
   the field you are looking at.
 - **Phase 2 needs it** for a collaborator's edit to appear at all.
 
-So this is real Phase 1 work, not a Phase 2 concern, and it is the hardest single piece. **[P2]** The
+So this is real Phase 1 work, not a Phase 2 concern, and it is the hardest single piece. The
 approach: make the editor's fields derive from the document snapshot, with a local override while a
 field has focus so that incoming changes never fight the user's cursor. Rich-text fields sidestep it
 entirely, since Tiptap binds to the fragment directly.
+
+**[A1]** In user terms the two outcomes are: undoing an edit to the slide you are looking at either
+updates that field in place with your cursor undisturbed, or re-renders the whole slide-editor panel
+and loses your cursor position and scroll. The first is the plan. The second is the escape hatch if
+this proves as awkward as it might. The ask is only whether taking the escape hatch is something to
+raise at the time or just get on with.
 
 ---
 
@@ -102,9 +113,10 @@ no-op emit produces none.
 Wire `Collaboration` into `RichTextEditor`, with `StarterKit.configure({ undoRedo: false })`. Maintain
 the derived HTML mirror on the same transaction. Exclude these fields from the Stage 2 adapter.
 
-**[P5]** Headline and body become fragments; **media caption and credit stay plain LWW strings.**
-They are short, single-author in practice, and four fragments per slide is a lot of machinery for
-a photo credit. Easy to promote later.
+**[A2]** Headline and body become fragments; **media caption and credit stay plain LWW strings** —
+if two people edit one caption at the same time, the later edit wins outright rather than merging.
+They are short and single-author in practice, and four fragments per slide is a lot of machinery for
+a photo credit. Easy to promote later if that turns out wrong.
 
 *Verify:* the first real proof of merge — two `RichTextEditor` instances bound to the same fragment
 in one page, typed into simultaneously, converging without loss.
@@ -133,7 +145,7 @@ upgrade.
 ### Stage 6 — undo
 
 `UndoManager` with `trackedOrigins` set, then the seven scripts. Depends on Stages 3, 4 and 5, and on
-the **[P2]** work, which is why it is last.
+the **[A1]** work, which is why it is last.
 
 *Verify:* each script by hand, since they are about sequencing and focus. The *(feel)* items in the
 undo spec get judged here.
@@ -142,7 +154,7 @@ undo spec get judged here.
 
 ## Risks
 
-- **[P2] is the schedule risk.** Making a 2,000-line editor accept incoming changes without
+- **[A1] is the schedule risk.** Making a 2,000-line editor accept incoming changes without
   disturbing a typing user is the part most likely to take longer than it looks. It is also
   unavoidable — undo requires it. If it turns ugly, the fallback is to remount the editor on external
   change and accept focus loss for same-slide undo, which is bad but shippable.
@@ -160,13 +172,22 @@ Places to stop and confirm rather than press on: after **Stage 1** (the model is
 looks different — the moment to confirm nothing regressed), after **Stage 3** (the point of no
 return on the schema), and after **Stage 5** (before undo, everything else is done and shippable).
 
-## Decisions, collected
+## Asks
 
-| | Decision | Overrule if |
+Two, both judgeable without reading any code.
+
+| | Ask | Default if you have no view |
 |---|---|---|
-| P1 | Diff adapter rather than rewriting EventEditor | You would rather pay for the rewrite now than carry a translation layer |
-| P2 | Editor fields derive from the doc, with focus-local override | You accept remount-and-lose-focus for same-slide undo |
+| A1 | If keeping the cursor steady during same-slide undo proves as awkward as it might, is falling back to "the panel re-renders and you lose your place" worth raising at the time, or just my call? | Raise it, since it is a visible downgrade |
+| A2 | Should photo captions and credits merge properly between two simultaneous editors, or is last-write-wins fine for them? | Last-write-wins; promote later if wrong |
+
+## Decisions I made
+
+Recorded so they are visible, not because they need your attention.
+
+| | Decision | Revisit if |
+|---|---|---|
+| P1 | A diff adapter rather than rewriting EventEditor | The translation layer starts leaking into components |
 | P3 | Stages 0–2 ship no visible change | You want something demoable sooner |
-| P4 | `pdsClean` becomes derived | |
-| P5 | Caption and credit stay plain strings | You expect real co-editing of captions |
-| P6 | Migrate the existing `tl-draft-v1` | |
+| P4 | `pdsClean` becomes derived from the document | |
+| P6 | Migrate any existing `tl-draft-v1` rather than dropping it | |
