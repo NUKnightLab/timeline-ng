@@ -32,7 +32,6 @@ export interface RichTextOptions {
   minimal?: boolean;
   /** Headline: as `minimal`, and no inline code either. */
   inlineOnly?: boolean;
-  noLink?: boolean;
   singleLine?: boolean;
 }
 
@@ -41,6 +40,11 @@ export interface RichTextOptions {
  * is one line of prose, not a document. Inline marks default to author freedom:
  * every mark StarterKit offers is available everywhere, except inline `code` in
  * a headline, where it is far more often a paste artefact than an intention.
+ *
+ * Links are allowed in headlines. Arguably they are a poor idea there, but
+ * StarterKit has permitted them since forever and the freedom default settles
+ * a close call — restricting them now would strip anchors out of headlines
+ * people have already published, which is a real cost against a stylistic one.
  */
 export function extensionsFor(o: RichTextOptions = {}, collaborative = false): Extensions {
   const block = o.minimal || o.inlineOnly ? false : undefined;
@@ -53,10 +57,7 @@ export function extensionsFor(o: RichTextOptions = {}, collaborative = false): E
     horizontalRule: block,
     code: o.inlineOnly ? false : undefined,
     hardBreak: o.singleLine ? false : undefined,
-    // StarterKit v3 ships Link itself, so excluding a separately-added Link
-    // extension did nothing — a headline accepted links regardless. Turning
-    // StarterKit's own off is what actually removes the mark.
-    link: o.noLink ? false : { openOnClick: false, autolink: true },
+    link: { openOnClick: false, autolink: true },
     // Yjs owns history for a collaborative field: its UndoManager is the only
     // undo in the app, so ProseMirror's own must be off or the two fight.
     ...(collaborative ? { undoRedo: false as const } : {}),
@@ -67,7 +68,7 @@ const schemaCache = new Map<string, Schema>();
 
 /** The schema a given configuration produces. Cached: building one is not free. */
 export function schemaFor(o: RichTextOptions = {}): Schema {
-  const key = `${!!o.minimal}|${!!o.inlineOnly}|${!!o.noLink}|${!!o.singleLine}`;
+  const key = `${!!o.minimal}|${!!o.inlineOnly}|${!!o.singleLine}`;
   let schema = schemaCache.get(key);
   if (!schema) {
     // `collaborative` is deliberately false here: the Collaboration extension
@@ -87,10 +88,20 @@ function normalizeEmpty(html: string): string {
 /**
  * Serialize a fragment to the HTML the published record carries.
  *
- * Derived from the *fragment*, never from an editor instance. In Phase 2 a
- * collaborator's edit changes a fragment on a slide nobody has open locally,
- * which fires no local editor event — deriving from the editor would leave the
- * mirror stale for every slide that is not on screen.
+ * Derived from the *fragment*, never from an editor instance, for two reasons
+ * that both bite:
+ *
+ * Concurrent edits to one field. Two authors typing in the same paragraph
+ * produce a fragment that merges correctly, but each client would compute the
+ * mirror from its own view and write it to the same string key — last write
+ * wins, and the mirror ends up holding one author's text while the fragment
+ * holds the merge. The published paragraph would then disagree with the one on
+ * screen.
+ *
+ * Undo, which is a Phase 1 problem and not a Phase 2 one. `UndoManager` mutates
+ * a fragment directly with no editor involved, and undo routinely lands on a
+ * slide other than the one being displayed (docs/phase1-undo.md, Script 3), so
+ * there is no editor to derive from at all.
  */
 export function fragmentToHtml(fragment: Y.XmlFragment, schema: Schema): string {
   const root = yXmlFragmentToProseMirrorRootNode(fragment, schema);

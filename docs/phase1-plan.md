@@ -159,13 +159,12 @@ alt as plain strings, exactly two of them become fragments:
 | Field | Config | Schema |
 |---|---|---|
 | Body `text.text` | none | Full StarterKit + Link — headings, lists, blockquote, code block, rule, strike, code, hard break, bold, italic, underline, link |
-| Headline `text.headline` | `inlineOnly noLink singleLine` | Paragraph, text, bold, italic, underline, strike. No link, no inline code. |
+| Headline `text.headline` | `inlineOnly singleLine` | Paragraph, text, bold, italic, underline, strike, link. No inline code. |
 
-Inline marks default to **author freedom**: every mark StarterKit offers is available everywhere
-except two deliberate exclusions in the headline — `link`, which is a bad idea in a headline, and
-inline `code`, which there is far more often a paste artefact than an intention. Block structure is
-a different matter and stays excluded from headlines and captions, since removing it is what those
-configurations are for.
+Inline marks default to **author freedom**: every mark StarterKit offers is available everywhere,
+with one deliberate exclusion — inline `code` in a headline, which there is far more often a paste
+artefact than an intention. Block structure is a different matter and stays excluded from headlines
+and captions, since removing it is what those configurations are for.
 
 Two consequences. Each field must always be bound to the editor configuration that wrote it, which
 holds today because the configuration is fixed per field in `EventEditor` — but it is now an
@@ -177,10 +176,11 @@ links. They did not. **StarterKit v3 bundles the Link extension itself**, so `no
 omitted a *separately added* `Link` — removed nothing from the schema; it dropped `autolink` and
 nothing else. Headlines have accepted links all along.
 
-Stage 3 makes `noLink` mean what it says, by turning StarterKit's own link off. That is a real
-behaviour change: a link already saved in a headline loses its anchor, keeping its text, the next
-time that timeline is opened. Deliberate — a link in a headline was never intended — but it is a
-content change rather than a no-op, and it is the only one in Stage 3.
+Given the choice between making the restriction real and dropping it, the freedom default settles
+it: **links stay allowed everywhere**, and the `noLink` prop is gone rather than left in place doing
+nothing, which is exactly how the confusion arose. Enforcing it would have stripped anchors out of
+headlines people have already published — a real cost against a stylistic preference. Stage 3
+therefore changes no content at all.
 
 Inline code in a headline genuinely was and remains excluded.
 
@@ -228,8 +228,15 @@ Two things follow, and both are cheap now and awkward later:
   Retrofitting a version stamp onto documents that do not carry one is the genuinely painful part of
   any migration, and Phase 2's connect handshake needs the same value. Writing one costs a line.
   Same argument as `trackedOrigins`.
-- **[P10] The mirror must be written in the same transaction as the fragment**, or it can go stale
-  and the escape hatch stops working. This is an invariant to test, not a convention to remember.
+- **[P10] The mirror is derived from the fragment, never from an editor.** Two reasons, and the
+  first was not obvious. Concurrent edits to one field produce a fragment that merges correctly,
+  but each client would compute the mirror from its own view and write it to the same string key —
+  last write wins, so the mirror ends up holding one author's text while the fragment holds the
+  merge, and the published paragraph disagrees with the one on screen. Second, `UndoManager` mutates
+  fragments directly with no editor involved, and undo routinely lands on a slide other than the one
+  displayed (phase1-undo.md, Script 3), so frequently there is no editor to derive from. An earlier
+  version of this said "written in the same transaction", which is neither achievable through
+  Tiptap's update hook nor sufficient.
 
 *(To confirm when we get there: exactly how y-prosemirror behaves when a stored fragment contains a
 node the current schema does not know — whether it throws or drops the node. That decides whether a

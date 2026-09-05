@@ -1047,7 +1047,6 @@
               value={headline}
               onchange={(v) => { headline = v; buildAndEmit(); }}
               inlineOnly
-              noLink
               singleLine
               rows={1}
               autofocus

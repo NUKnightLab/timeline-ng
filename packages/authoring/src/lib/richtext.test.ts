@@ -9,7 +9,7 @@ import * as Y from 'yjs';
 import { fragmentToHtml, htmlToFragment, rebuildFragmentFromHtml, schemaFor } from './richtext.ts';
 
 const BODY = {};
-const HEADLINE = { inlineOnly: true, noLink: true, singleLine: true };
+const HEADLINE = { inlineOnly: true, singleLine: true };
 const CAPTION = { minimal: true };
 
 function roundTrip(html: string, opts = BODY): string {
@@ -45,9 +45,11 @@ describe('the schemas differ exactly where they are meant to', () => {
       .toBe('<p>A <strong>bold</strong> <em>new</em> <s>old</s> era</p>');
   });
 
-  it('the headline drops a link but keeps its text', () => {
-    const out = roundTrip('<p>See <a href="https://example.com">this</a>.</p>', HEADLINE);
-    expect(out).toBe('<p>See this.</p>');
+  it('the headline keeps links, on the author-freedom default', () => {
+    // Arguably a poor idea in a headline, but StarterKit has always allowed it
+    // and restricting it now would strip anchors out of published headlines.
+    const html = '<p>See <a target="_blank" rel="noopener" href="https://example.com">this</a>.</p>';
+    expect(roundTrip(html, HEADLINE)).toBe(html);
   });
 
   it('the headline flattens a heading to a paragraph', () => {

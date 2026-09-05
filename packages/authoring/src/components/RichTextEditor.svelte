@@ -11,7 +11,6 @@
     onchange: (html: string) => void;
     minimal?: boolean;
     inlineOnly?: boolean;
-    noLink?: boolean;
     singleLine?: boolean;
     rows?: number;
     autofocus?: boolean;
@@ -24,7 +23,6 @@
     onchange,
     minimal = false,
     inlineOnly = false,
-    noLink = false,
     singleLine = false,
     rows = 4,
     autofocus = false,
@@ -84,7 +82,7 @@
     if (!editor) return;
     isBold    = editor.isActive('bold');
     isItalic  = editor.isActive('italic');
-    isLink    = noLink ? false : editor.isActive('link');
+    isLink    = editor.isActive('link');
     if (!minimal && !inlineOnly) {
       isH2     = editor.isActive('heading', { level: 2 });
       isH3     = editor.isActive('heading', { level: 3 });
@@ -123,7 +121,7 @@
     // What this editor can express lives in lib/richtext.ts, because the
     // reactive bridge needs the identical schema to derive the HTML that gets
     // published. Two definitions that drift would be a silent corruption.
-    const extensions = extensionsFor({ minimal, inlineOnly, noLink, singleLine });
+    const extensions = extensionsFor({ minimal, inlineOnly, singleLine });
 
     const instance = new Editor({
       element,
@@ -232,15 +230,13 @@
         </button>
       {/if}
 
-      {#if !noLink}
-        <span class="rte-sep"></span>
+      <span class="rte-sep"></span>
 
-        <button type="button" class="rte-btn rte-btn--text" class:active={isLink || showLinkInput}
-          aria-label="Link" aria-pressed={isLink}
-          onmousedown={(e) => { e.preventDefault(); showLinkInput ? closeLinkInput() : openLinkInput(); }}>
-          URL
-        </button>
-      {/if}
+      <button type="button" class="rte-btn rte-btn--text" class:active={isLink || showLinkInput}
+        aria-label="Link" aria-pressed={isLink}
+        onmousedown={(e) => { e.preventDefault(); showLinkInput ? closeLinkInput() : openLinkInput(); }}>
+        URL
+      </button>
 
       <span class="rte-sep"></span>
 
