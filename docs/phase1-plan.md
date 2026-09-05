@@ -133,6 +133,91 @@ exactly one field.
 Wire `Collaboration` into `RichTextEditor`, with `StarterKit.configure({ undoRedo: false })`. Maintain
 the derived HTML mirror on the same transaction. Exclude these fields from the Stage 2 adapter.
 
+#### Migration strategy
+
+"Schema changes become migrations" is the scariest line in this plan, so it is worth being precise
+about what is actually at risk.
+
+**Published timelines are never at risk.** The record on the PDS stays HTML (§3.1) — a
+`Y.XmlFragment` exists only inside a draft document, and the derived HTML string is what gets
+published. No schema change can break a published timeline, an embed or the player. The blast radius
+is live drafts and nothing else.
+
+**That population is bounded and self-expiring.** In Phase 1 drafts are local to one browser and
+last as long as someone is working. From Phase 3 they are server-held under a 90-day retention
+(§10.5), so any document predating a schema change ages out on its own.
+
+**Most changes need no migration.** Adding a mark or a node type is additive: existing documents do
+not contain it, and the new schema accepts everything the old one produced. That covers the realistic
+cases — highlight, strikethrough, superscript.
+
+**There is more than one schema.** `RichTextEditor`'s `minimal`, `inlineOnly`, `singleLine` and
+`noLink` props do not merely hide toolbar buttons — they pass `false` to StarterKit extensions and to
+`Link`, so each configuration is a different ProseMirror schema. Since [A2] keeps caption, credit and
+alt as plain strings, exactly two of them become fragments:
+
+| Field | Config | Schema |
+|---|---|---|
+| Body `text.text` | none | Full StarterKit + Link — headings, lists, blockquote, code block, rule, strike, code, hard break, bold, italic, underline, link |
+| Headline `text.headline` | `inlineOnly noLink singleLine` | Paragraph, text, bold, italic, underline, strike. |
+
+Two consequences. Each field must always be bound to the editor configuration that wrote it, which
+holds today because the configuration is fixed per field in `EventEditor` — but it is now an
+invariant rather than an accident. And the headline schema is a strict *subset* of the body schema,
+so relaxing a headline restriction later is additive and free; tightening one needs a rebuild.
+
+Worth recording so it is not later blamed on this work: headlines **already** discard links and
+inline code on paste or import, because those extensions are not loaded. That is current behaviour,
+unchanged by Stage 3.
+
+Strikethrough used to be in that list and no longer is. It had been swept up with the block-level
+exclusions — `heading`, `blockquote`, lists, `codeBlock`, `horizontalRule` — where dropping it makes
+obvious sense, but strike is an inline mark and `inlineOnly` is about removing block structure. The
+body has always preserved pasted strikethrough; a headline dropping it was inconsistent rather than
+decided. Enabling it before Stage 3 means the two fragment schemas differ only where they differ on
+purpose. (No configuration offers a toolbar button for strike, in the body either — this is about
+what survives paste and import.)
+
+**For the rest, the derived HTML mirror is the migration mechanism.** Discard the fragment, re-parse
+its HTML with the new schema, write a fresh fragment. That is exactly what `RichTextEditor` already
+does on every load today, so it is a well-trodden path rather than new machinery. This is worth
+noticing: the mirror was introduced to keep the ProseMirror schema out of the publish layer
+(§10.6), and it turns out to be the reason schema changes stay recoverable at all. It earns its
+keep twice.
+
+What a rebuild costs is the CRDT history for that field — its edit history and its undo stack, not
+its content. For a schema migration that is an acceptable trade, and it is why a migration should
+run at load, when nobody else is editing that document.
+
+Two things follow, and both are cheap now and awkward later:
+
+**The dangerous case is not a migration.** Everything above assumes a load-time hook: the document
+is opened, found stale, rebuilt. In Phase 2 there is a case with no such hook — two clients on
+different app versions editing the same document at once. The newer one writes a mark the older one
+has never heard of, and the older one receives it over the wire with the document already open.
+There is nothing to migrate and nowhere to intervene.
+
+Note what that does to Case 1: an *additive* change, the free direction, is exactly the one that
+produces this. Adding a mark is safe for stored documents and unsafe for live ones.
+
+This is a Phase 2 problem and it does not need solving now, but it does need naming, because the
+answer is a handshake and handshakes are cheap to design in and expensive to add. The provider should
+carry a schema version at connect and refuse or force-reload a client that does not match. Which
+means `schemaVersion` is not only a migration stamp — it is the value that handshake compares.
+
+Two things follow, and both are cheap now and awkward later:
+
+- **[P9] Stamp a `schemaVersion` in `meta` from Stage 3**, even though nothing reads it yet.
+  Retrofitting a version stamp onto documents that do not carry one is the genuinely painful part of
+  any migration, and Phase 2's connect handshake needs the same value. Writing one costs a line.
+  Same argument as `trackedOrigins`.
+- **[P10] The mirror must be written in the same transaction as the fragment**, or it can go stale
+  and the escape hatch stops working. This is an invariant to test, not a convention to remember.
+
+*(To confirm when we get there: exactly how y-prosemirror behaves when a stored fragment contains a
+node the current schema does not know — whether it throws or drops the node. That decides whether a
+missed migration is loud or quiet, and a loud failure is much easier to live with.)*
+
 **[A2 — answered: last-write-wins]** Headline and body become fragments; **media caption, credit and
 alt stay plain LWW strings** —
 if two people edit one caption at the same time, the later edit wins outright rather than merging.
@@ -185,7 +270,8 @@ undo spec get judged here.
 - **Bundle size.** Yjs plus y-prosemirror plus the Tiptap extension. Authoring is already the heavy
   bundle and is not embedded anywhere, so this is worth measuring but unlikely to matter.
 - **Stage 3 schema lock-in.** Once prose is stored as ProseMirror nodes, changing the schema means
-  migrating documents (§3.2). Nothing planned, but Stage 3 is the point of no return.
+  migrating documents (§3.2) — but only *draft* documents, and the HTML mirror gives every one of
+  them a rebuild path. See the migration strategy above; this is a smaller risk than it first reads.
 
 ## Gates
 
@@ -214,3 +300,5 @@ Recorded so they are visible, not because they need your attention.
 | P6 | Migrate any existing `tl-draft-v1` rather than dropping it | |
 | P7 | Internal keys land in Stage 0, not Stage 4 | |
 | P8 | Nested `Y.Map`s for object fields; `blobRef` stored whole | Sub-field merging turns out not to be worth the read/write cost |
+| P9 | Stamp `schemaVersion` in meta from Stage 3, unread | |
+| P10 | The HTML mirror is written in the same transaction as the fragment | |
