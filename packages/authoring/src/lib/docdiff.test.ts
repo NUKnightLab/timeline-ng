@@ -1,4 +1,6 @@
 /**
+ * @vitest-environment happy-dom
+ *
  * What a slide write actually touches.
  *
  * `EventEditor` rebuilds the entire `TLEvent` and emits it on every keystroke —
@@ -67,10 +69,16 @@ describe('a whole-slide write touches only what changed', () => {
     });
   });
 
-  it('writes one field for a headline edit', () => {
+  it('ignores prose entirely, because the fragments own it', () => {
+    // EventEditor re-emits the whole event on every keystroke, including its
+    // copy of the HTML. Honouring that would overwrite whatever a collaborator
+    // just typed into the fragment, so writeSlide leaves those fields alone
+    // once a slide has fragments. Prose reaches the document through Tiptap.
     withSlide(({ slide, changes }) => {
-      const touched = changes(() => writeSlide(slide, reEmit({ text: { ...base.text, headline: 'The Moon Landings' } })));
-      expect(touched).toEqual(['text/headline']);
+      const touched = changes(() => writeSlide(slide, reEmit({
+        text: { headline: 'The Moon Landings', text: '<p>Also changed.</p>' },
+      })));
+      expect(touched).toEqual([]);
     });
   });
 
@@ -118,9 +126,10 @@ describe('a whole-slide write touches only what changed', () => {
   it('writes two fields when two change together', () => {
     withSlide(({ slide, changes }) => {
       const touched = changes(() => writeSlide(slide, reEmit({
-        text: { headline: 'Changed', text: '<p>Also changed.</p>' },
+        unique_id: 'apollo-11',
+        media: { ...base.media, caption: 'Apollo 11 crew' },
       })));
-      expect(touched.sort()).toEqual(['text/headline', 'text/text']);
+      expect(touched.sort()).toEqual(['media/caption', 'unique_id']);
     });
   });
 });

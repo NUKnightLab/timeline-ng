@@ -15,11 +15,21 @@
 import * as Y from 'yjs';
 import type { TLEvent, TLSettings, TLTimeline } from '@knight-lab/timeline-ng-core';
 import {
-  addSlide, createDoc, docToTimeline, hasTitleSlide, listSlides, loadTimeline,
-  readMeta, readSettings, readSlide, removeSlide, settingsMap, slidesMap, titleMap,
-  writeMeta, writeSlide,
+  addSlide, createDoc, docToTimeline, enclosingFragment, hasTitleSlide, listSlides,
+  loadTimeline, locateFragment, readMeta, readSettings, readSlide, removeSlide,
+  setMirror, settingsMap, slidesMap, titleMap, writeMeta, writeSlide,
 } from './doc.ts';
 import type { DocMeta, SlideEntry } from './doc.ts';
+import { RICH_TEXT_FIELDS, slideFragment } from './doc.ts';
+import { fragmentToHtml, schemaFor } from './richtext.ts';
+
+/**
+ * Marks the transactions this class makes to keep HTML mirrors in step with
+ * their fragments. Two things depend on being able to recognise them: the
+ * mirror pass itself, which must not re-trigger on its own writes, and Stage
+ * 6's `UndoManager`, which must not offer derived state as something to undo.
+ */
+export const MIRROR_ORIGIN = Symbol('mirror');
 
 export class TimelineDoc {
   readonly doc: Y.Doc = createDoc();
@@ -41,16 +51,58 @@ export class TimelineDoc {
     settings: this.#settings,
   });
 
+  /** Fragments whose HTML mirror is out of date. */
+  #staleMirrors = new Set<Y.XmlFragment>();
+  #mirrorScheduled = false;
+
   #onUpdate = () => this.#sync();
+
+  #onAfterTransaction = (tr: Y.Transaction) => {
+    if (tr.origin === MIRROR_ORIGIN) return;
+    for (const type of tr.changed.keys()) {
+      const fragment = enclosingFragment(type);
+      if (fragment) this.#staleMirrors.add(fragment);
+    }
+    // Only the fragments that actually changed, which is the point: a whole-
+    // document pass would serialize every field on the timeline per keystroke.
+    if (this.#staleMirrors.size > 0 && !this.#mirrorScheduled) {
+      this.#mirrorScheduled = true;
+      queueMicrotask(() => this.flushMirrors());
+    }
+  };
 
   constructor() {
     this.doc.on('update', this.#onUpdate);
+    this.doc.on('afterTransaction', this.#onAfterTransaction);
     this.#sync();
   }
 
   destroy(): void {
     this.doc.off('update', this.#onUpdate);
+    this.doc.off('afterTransaction', this.#onAfterTransaction);
     this.doc.destroy();
+  }
+
+  /**
+   * Bring every stale HTML mirror back in step with its fragment.
+   *
+   * Runs on a microtask after an edit, and synchronously before anything reads
+   * the document as a timeline. Deriving here rather than in the editor is what
+   * makes the mirror correct under concurrent edits and under undo — see
+   * richtext.ts and phase1-plan.md [P10].
+   */
+  flushMirrors(): void {
+    this.#mirrorScheduled = false;
+    if (this.#staleMirrors.size === 0) return;
+    const stale = [...this.#staleMirrors];
+    this.#staleMirrors.clear();
+    this.doc.transact(() => {
+      for (const fragment of stale) {
+        const located = locateFragment(fragment);
+        if (!located) continue;   // the slide was deleted out from under it
+        setMirror(located.slide, located.field.mirrorField, fragmentToHtml(fragment, schemaFor(located.field.options)));
+      }
+    }, MIRROR_ORIGIN);
   }
 
   #sync(): void {
@@ -107,6 +159,7 @@ export class TimelineDoc {
 
   /** Record the current content as the saved one. */
   markClean(): void {
+    this.flushMirrors();
     this.#savedSnapshot = JSON.stringify(this.#timeline);
   }
 
@@ -161,6 +214,15 @@ export class TimelineDoc {
 
   /** The document as a plain timeline, read straight from Yjs rather than the snapshot. */
   toTimeline(): TLTimeline {
+    this.flushMirrors();
     return docToTimeline(this.doc);
+  }
+
+  /** The `Y.XmlFragment` a rich-text editor binds to, by slide key and field. */
+  fragmentFor(slideKey: string | 'title', mirrorField: 'headline' | 'text'): Y.XmlFragment | null {
+    const slide = slideKey === 'title' ? titleMap(this.doc) : slidesMap(this.doc).get(slideKey);
+    if (!slide) return null;
+    const field = RICH_TEXT_FIELDS.find((f) => f.mirrorField === mirrorField);
+    return field ? slideFragment(slide, field) : null;
   }
 }

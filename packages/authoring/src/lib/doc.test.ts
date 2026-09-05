@@ -1,3 +1,8 @@
+/**
+ * @vitest-environment happy-dom
+ *
+ * Loading a timeline now parses HTML into `Y.XmlFragment`s, which needs a DOM.
+ */
 import { describe, it, expect } from 'vitest';
 import { fromTL3 } from '@knight-lab/timeline-ng-core';
 import type { TLEvent, TLTimeline } from '@knight-lab/timeline-ng-core';
@@ -136,7 +141,8 @@ describe('writeSlide', () => {
 
     writeSlide(slide, { unique_id: 'the-moon-landing' });
 
-    expect(readSlide(slide)).toEqual({ unique_id: 'the-moon-landing' });
+    // `text` survives: it is the fragments' mirror, not writeSlide's to clear.
+    expect(readSlide(slide)).toEqual({ unique_id: 'the-moon-landing', text: moon.text });
   });
 
   it('clears sub-fields that are absent from the new value', () => {

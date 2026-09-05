@@ -21,6 +21,7 @@
  * derived on read and never has to converge.
  */
 import * as Y from 'yjs';
+import { SCHEMA_VERSION, htmlToFragment, schemaFor } from './richtext.ts';
 import { compareDates, parseTLDate } from '@knight-lab/timeline-ng-core';
 import type {
   ATProtoBlobRef, TLBackground, TLDateInput, TLEvent, TLMedia, TLSettings, TLText, TLTimeline,
@@ -38,6 +39,28 @@ const SLIDES = 'slides';
  * on the same slide should not collide.
  */
 const GROUP_FIELDS = ['start_date', 'end_date', 'text', 'media', 'background'] as const;
+
+/**
+ * Prose lives twice: as a `Y.XmlFragment` that merges, and as an HTML string in
+ * the `text` group that does not.
+ *
+ * The fragment is the source of truth — it is what Tiptap edits and what two
+ * authors' edits merge into. The string is a derived mirror, kept because the
+ * published record carries HTML (§3.1) and because a Phase 3 server must be
+ * able to materialize a record without knowing the ProseMirror schema (§10.6).
+ * It is also what `readSlide` reads, so that rebuilding the editor's snapshot
+ * costs a string lookup rather than an HTML serialization per field.
+ *
+ * Keeping the mirror true to the fragment is the bridge's job, not this
+ * module's: see `doc.svelte.ts`. Nothing outside that should ever write these
+ * strings directly.
+ */
+export const RICH_TEXT_FIELDS = [
+  { fragmentKey: 'headlineXml', mirrorField: 'headline', options: { inlineOnly: true, singleLine: true } },
+  { fragmentKey: 'bodyXml', mirrorField: 'text', options: {} },
+] as const;
+
+export type RichTextField = (typeof RICH_TEXT_FIELDS)[number];
 type GroupField = (typeof GROUP_FIELDS)[number];
 
 /** Slide fields that are plain scalars. */
@@ -63,7 +86,12 @@ export interface SlideEntry {
 }
 
 export function createDoc(): Y.Doc {
-  return new Y.Doc();
+  const doc = new Y.Doc();
+  // Stamped from the start. Nothing reads it yet, but retrofitting a version
+  // onto documents that lack one is the painful part of any migration, and
+  // Phase 2's connect handshake wants the same value. See phase1-plan.md [P9].
+  metaMap(doc).set('schemaVersion', SCHEMA_VERSION);
+  return doc;
 }
 
 /**
@@ -126,18 +154,26 @@ function put(map: Y.Map<unknown>, key: string, value: unknown): void {
  * no usable keys is treated as absent: the editor never emits `text: {}`, and
  * round-tripping one into existence would be a difference with no meaning.
  */
-function writeGroup(slide: Y.Map<unknown>, name: string, value: Record<string, unknown> | undefined): void {
-  const entries = value ? Object.entries(value).filter(([, v]) => v !== undefined && v !== null) : [];
-  if (entries.length === 0) {
+function writeGroup(
+  slide: Y.Map<unknown>,
+  name: string,
+  value: Record<string, unknown> | undefined,
+  skip: ReadonlySet<string> = new Set(),
+): void {
+  const entries = value
+    ? Object.entries(value).filter(([k, v]) => v !== undefined && v !== null && !skip.has(k))
+    : [];
+  if (entries.length === 0 && skip.size === 0) {
     slide.delete(name);
     return;
   }
+  if (entries.length === 0 && !(slide.get(name) instanceof Y.Map)) return;
   let nested = slide.get(name) as Y.Map<unknown> | undefined;
   if (!(nested instanceof Y.Map)) {
     nested = new Y.Map<unknown>();
     slide.set(name, nested);
   }
-  const keep = new Set(entries.map(([k]) => k));
+  const keep = new Set([...entries.map(([k]) => k), ...skip]);
   for (const existing of [...nested.keys()]) {
     if (!keep.has(existing)) nested.delete(existing);
   }
@@ -149,10 +185,114 @@ function writeGroup(slide: Y.Map<unknown>, name: string, value: Record<string, u
 }
 
 /** Replace a slide map's contents with `event`. Used for load and for whole-slide writes. */
+/**
+ * Give a slide its rich-text fragments, seeded from whatever HTML it arrived
+ * with. Idempotent: a slide that already has them is left alone, so this is
+ * safe to call on every load.
+ */
+export function ensureFragments(slide: Y.Map<unknown>): void {
+  const text = slide.get('text') as Y.Map<unknown> | undefined;
+  for (const { fragmentKey, mirrorField, options } of RICH_TEXT_FIELDS) {
+    if (slide.get(fragmentKey) instanceof Y.XmlFragment) continue;
+    const fragment = new Y.XmlFragment();
+    slide.set(fragmentKey, fragment);
+    const html = text?.get(mirrorField);
+    if (typeof html === 'string' && html !== '') {
+      htmlToFragment(html, schemaFor(options), fragment);
+    }
+  }
+}
+
+/**
+ * Write a rich-text field's derived HTML into the slide's `text` group.
+ *
+ * Only the bridge should call this — the mirror is derived state, and anything
+ * else writing it would be inventing a second source of truth for prose.
+ */
+export function setMirror(slide: Y.Map<unknown>, mirrorField: string, html: string): void {
+  let text = slide.get('text');
+  if (!(text instanceof Y.Map)) {
+    text = new Y.Map<unknown>();
+    slide.set('text', text);
+  }
+  const map = text as Y.Map<unknown>;
+  if (html === '') {
+    if (map.has(mirrorField)) map.delete(mirrorField);
+  } else if (map.get(mirrorField) !== html) {
+    map.set(mirrorField, html);
+  }
+}
+
+/**
+ * The slide map a fragment belongs to, and which field it is, or `null` if this
+ * fragment is not one of ours. Identity comparison rather than internal Yjs
+ * APIs, so it stays correct if Yjs changes how parents are recorded.
+ */
+export function locateFragment(fragment: Y.XmlFragment): { slide: Y.Map<unknown>; field: RichTextField } | null {
+  const parent = fragment.parent;
+  if (!(parent instanceof Y.Map)) return null;
+  for (const field of RICH_TEXT_FIELDS) {
+    if (parent.get(field.fragmentKey) === fragment) return { slide: parent as Y.Map<unknown>, field };
+  }
+  return null;
+}
+
+/**
+ * The outermost plain fragment containing `type`, if any.
+ *
+ * Walks all the way to the root rather than stopping at the first match,
+ * because `Y.XmlElement` extends `Y.XmlFragment` — a paragraph inside a
+ * fragment would otherwise answer for the fragment itself.
+ */
+export function enclosingFragment(type: unknown): Y.XmlFragment | null {
+  let found: Y.XmlFragment | null = null;
+  let current = type;
+  while (current instanceof Y.AbstractType) {
+    if (current instanceof Y.XmlFragment && !(current instanceof Y.XmlElement)) found = current;
+    current = current.parent;
+  }
+  return found;
+}
+
+/** A slide's fragment for one rich-text field, creating it if it is missing. */
+export function slideFragment(slide: Y.Map<unknown>, field: RichTextField): Y.XmlFragment {
+  if (!(slide.get(field.fragmentKey) instanceof Y.XmlFragment)) ensureFragments(slide);
+  return slide.get(field.fragmentKey) as Y.XmlFragment;
+}
+
+/**
+ * The rich-text fields a slide's fragments own, and which `writeSlide` must
+ * therefore leave alone. Empty until the fragments exist, which is what lets
+ * `loadTimeline` seed them from incoming HTML before they are created.
+ */
+function fragmentOwnedFields(slide: Y.Map<unknown>): Set<string> {
+  const owned = new Set<string>();
+  for (const f of RICH_TEXT_FIELDS) {
+    if (slide.get(f.fragmentKey) instanceof Y.XmlFragment) owned.add(f.mirrorField);
+  }
+  return owned;
+}
+
+/**
+ * Replace a slide's fields from a plain event.
+ *
+ * Rich text is the exception. Once a slide has fragments, `text.headline` and
+ * `text.text` are derived from them and owned by the bridge, so an incoming
+ * event's copy of that HTML is ignored rather than written — `EventEditor`
+ * re-emits the whole event on every keystroke, and honouring its stale prose
+ * would overwrite what a collaborator just typed. Before the fragments exist
+ * the HTML *is* the content, which is how `loadTimeline` seeds them.
+ */
 export function writeSlide(slide: Y.Map<unknown>, event: TLEvent): void {
+  const owned = fragmentOwnedFields(slide);
   for (const field of SCALAR_FIELDS) put(slide, field, event[field]);
   for (const field of GROUP_FIELDS) {
-    writeGroup(slide, field, event[field] as Record<string, unknown> | undefined);
+    writeGroup(
+      slide,
+      field,
+      event[field] as Record<string, unknown> | undefined,
+      field === 'text' ? owned : undefined,
+    );
   }
 }
 
@@ -160,7 +300,10 @@ export function writeSlide(slide: Y.Map<unknown>, event: TLEvent): void {
 export function addSlide(doc: Y.Doc, event: TLEvent, key = newSlideKey()): string {
   const slide = new Y.Map<unknown>();
   slidesMap(doc).set(key, slide);
-  writeSlide(slide, event);
+  doc.transact(() => {
+    writeSlide(slide, event);
+    ensureFragments(slide);
+  });
   return key;
 }
 
@@ -191,7 +334,10 @@ export function loadTimeline(doc: Y.Doc, timeline: TLTimeline, meta: DocMeta = {
   doc.transact(() => {
     slidesMap(doc).clear();
     titleMap(doc).clear();
-    if (timeline.title) writeSlide(titleMap(doc), timeline.title);
+    if (timeline.title) {
+      writeSlide(titleMap(doc), timeline.title);
+      ensureFragments(titleMap(doc));
+    }
     for (const event of timeline.events) addSlide(doc, event);
     writeSettings(doc, timeline.settings);
     writeMeta(doc, meta);
