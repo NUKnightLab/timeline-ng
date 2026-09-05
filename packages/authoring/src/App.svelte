@@ -7,7 +7,7 @@
   import { generatePoster } from './lib/poster.ts';
   import { saveDraft, loadDraft, clearDraft } from './lib/draft.ts';
   import type { Draft } from './lib/draft.ts';
-  import { TimelineDoc } from './lib/doc.svelte.ts';
+  import { TimelineDoc, HEADLINE_FIELD, BODY_FIELD } from './lib/doc.svelte.ts';
   import { stripHtml } from './lib/text.ts';
   import HomeView from './components/HomeView.svelte';
   import EditorView from './components/EditorView.svelte';
@@ -71,6 +71,12 @@
   // The document already orders slides by date, so there is nothing left to sort.
   const sortedEvents = $derived(events);
   const timeline = $derived<TLTimeline>(tldoc.timeline);
+
+  // Null when this field has no fragment — a slide whose prose could not be
+  // represented without loss keeps plain HTML, and the editor edits that
+  // instead. See ensureFragments.
+  const headlineFragment = $derived(tldoc.fragmentFor(selectedId, HEADLINE_FIELD));
+  const bodyFragment = $derived(tldoc.fragmentFor(selectedId, BODY_FIELD));
 
   const selectedEvent = $derived.by<TLEvent | null>(() => {
     if (selectedId === 'title') return titleEvent;
@@ -438,6 +444,8 @@
     {deletedItem}
     {deletedItemLeaving}
     {settings}
+    {headlineFragment}
+    {bodyFragment}
     onback={goHome}
     onsignout={handleSignOut}
     ontitlechange={handleTitleChange}

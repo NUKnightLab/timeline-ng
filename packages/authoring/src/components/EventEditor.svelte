@@ -9,6 +9,8 @@
   import { getAuthState, getAvailableCollections, uploadBlob, blobUrl, cacheLocalBlobUrl, extractCid, localOrPdsBlobUrl } from '../lib/atproto.svelte.ts';
   import RepoBrowser from './RepoBrowser.svelte';
   import { describeMediaInput } from '../lib/mediaInput.js';
+  import { HEADLINE_FIELD, BODY_FIELD } from '../lib/doc.svelte.ts';
+  import type * as Y from 'yjs';
   import { fetchWikipediaImagePrefill } from '../lib/wikipediaPrefill.ts';
   import { fetchFlickrPrefill } from '../lib/flickrPrefill.ts';
 
@@ -18,6 +20,9 @@
     index?: number; // 0-based position in sorted events; undefined for title slide
     takenIds?: string[]; // slide IDs already in use elsewhere in the timeline
     onchange: (updated: TLEvent) => void;
+    /** Collaborative prose, when this slide's fields have fragments. */
+    headlineFragment?: Y.XmlFragment | null;
+    bodyFragment?: Y.XmlFragment | null;
     ondelete: () => void;
   }
 
@@ -30,7 +35,10 @@
     second: number | '';
   }
 
-  let { event, isTitle = false, index, takenIds = [], onchange, ondelete }: Props = $props();
+  let {
+    event, isTitle = false, index, takenIds = [], onchange, ondelete,
+    headlineFragment = null, bodyFragment = null,
+  }: Props = $props();
   // Snapshot the event prop — this component is keyed on selectedId and recreated
   // when the event changes, so $state fields only need the initial value.
   const ev = untrack(() => event);
@@ -1046,6 +1054,8 @@
               id="headline-rte"
               value={headline}
               onchange={(v) => { headline = v; buildAndEmit(); }}
+              fragment={headlineFragment}
+              field={HEADLINE_FIELD}
               inlineOnly
               singleLine
               rows={1}
@@ -1082,7 +1092,16 @@
               aria-label="Delete body text" title="Delete body text" onclick={clearBody}>🗑</button>
           </div>
           <div class="field-panel-body field-panel-body--richtext">
-            <RichTextEditor bind:this={bodyRte} id="body-rte" value={body} onchange={(v) => { body = v; buildAndEmit(); }} rows={5} autofocus />
+            <RichTextEditor
+              bind:this={bodyRte}
+              id="body-rte"
+              value={body}
+              onchange={(v) => { body = v; buildAndEmit(); }}
+              fragment={bodyFragment}
+              field={BODY_FIELD}
+              rows={5}
+              autofocus
+            />
           </div>
         </div>
       {:else}

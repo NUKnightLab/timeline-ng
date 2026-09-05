@@ -3,6 +3,14 @@ packages:
   - 'apps/*'
   - 'workers/*'
 
+# y-prosemirror and @tiptap/pm resolve prosemirror-model to different versions,
+# and two copies is not a tidiness problem: ProseMirror compares node types by
+# identity, so Tiptap warns that "wrapping and splitting nodes will fail" —
+# pressing Enter, or applying a blockquote. One copy, pinned here.
+overrides:
+  prosemirror-model: 1.25.11
+  prosemirror-view: 1.42.3
+
 minimumReleaseAgeExclude:
   - '@knight-lab/timeline-ng-core'
   - '@knight-lab/timeline-ng'

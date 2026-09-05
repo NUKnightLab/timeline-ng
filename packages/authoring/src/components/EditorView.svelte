@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { TLEvent, TLTimeline, TLSettings } from '@knight-lab/timeline-ng-core';
+  import type * as Y from 'yjs';
   import { fly } from 'svelte/transition';
 
   import EventList from './EventList.svelte';
@@ -37,12 +38,15 @@
     onexport: () => void;
     onexportcsv: () => void;
     onundo: () => void;
+    headlineFragment?: Y.XmlFragment | null;
+    bodyFragment?: Y.XmlFragment | null;
     onsettingschange: (patch: Partial<TLSettings>) => void;
   }
 
   let {
     timelineTitle, titleEvent, sortedEvents, selectedId, selectedEvent, isEditingTitle,
     timeline, atUri, pdsClean, saveStatus, canSave, deletedItem, deletedItemLeaving, settings,
+    headlineFragment = null, bodyFragment = null,
     onback, onsignout, ontitlechange, onselect, onadd, onaddtitle, ondelete, onupdate, onsave, onexport, onexportcsv, onundo,
     onsettingschange,
   }: Props = $props();
@@ -450,6 +454,8 @@
             takenIds={otherSlideIds}
             onchange={onupdate}
             ondelete={() => selectedId && ondelete(selectedId)}
+            {headlineFragment}
+            {bodyFragment}
           />
         {/key}
       {:else}

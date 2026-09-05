@@ -128,7 +128,7 @@ whole-event emit from `EventEditor` is safe as written, and the 2,069-line edito
 all; a headline edit, a caption edit, a date part, a rename and a removed sub-field each write
 exactly one field.
 
-### Stage 3 — rich text on `Y.XmlFragment`
+### Stage 3 — rich text on `Y.XmlFragment` ✅
 
 Wire `Collaboration` into `RichTextEditor`, with `StarterKit.configure({ undoRedo: false })`. Maintain
 the derived HTML mirror on the same transaction. Exclude these fields from the Stage 2 adapter.

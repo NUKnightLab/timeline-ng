@@ -20,7 +20,8 @@ import {
   setMirror, settingsMap, slidesMap, titleMap, writeMeta, writeSlide,
 } from './doc.ts';
 import type { DocMeta, SlideEntry } from './doc.ts';
-import { RICH_TEXT_FIELDS, slideFragment } from './doc.ts';
+import { RICH_TEXT_FIELDS } from './doc.ts';
+import type { RichTextField } from './doc.ts';
 import { fragmentToHtml, schemaFor } from './richtext.ts';
 
 /**
@@ -30,6 +31,10 @@ import { fragmentToHtml, schemaFor } from './richtext.ts';
  * 6's `UndoManager`, which must not offer derived state as something to undo.
  */
 export const MIRROR_ORIGIN = Symbol('mirror');
+
+/** The two rich-text fields, for callers wiring editors to them. */
+export const HEADLINE_FIELD = RICH_TEXT_FIELDS.find((f) => f.mirrorField === 'headline')!;
+export const BODY_FIELD = RICH_TEXT_FIELDS.find((f) => f.mirrorField === 'text')!;
 
 export class TimelineDoc {
   readonly doc: Y.Doc = createDoc();
@@ -218,11 +223,23 @@ export class TimelineDoc {
     return docToTimeline(this.doc);
   }
 
-  /** The `Y.XmlFragment` a rich-text editor binds to, by slide key and field. */
-  fragmentFor(slideKey: string | 'title', mirrorField: 'headline' | 'text'): Y.XmlFragment | null {
-    const slide = slideKey === 'title' ? titleMap(this.doc) : slidesMap(this.doc).get(slideKey);
-    if (!slide) return null;
-    const field = RICH_TEXT_FIELDS.find((f) => f.mirrorField === mirrorField);
-    return field ? slideFragment(slide, field) : null;
+  /**
+   * The fragment a rich-text editor binds to, addressed the way the editor
+   * addresses slides — by `unique_id`, or `'title'`.
+   *
+   * `null` means this field has no fragment, which is not an error: a field
+   * whose prose could not be represented without loss keeps plain HTML instead
+   * (see `ensureFragments`). The editor falls back to editing that string, and
+   * the only thing given up is merging.
+   */
+  fragmentFor(selectedId: string | null, field: RichTextField): Y.XmlFragment | null {
+    if (selectedId === null) return null;
+    const slide = selectedId === 'title'
+      ? titleMap(this.doc)
+      : slidesMap(this.doc).get(this.keyForUniqueId(selectedId) ?? '');
+    if (!slide || slide.size === 0) return null;
+    return slide.get(field.fragmentKey) instanceof Y.XmlFragment
+      ? (slide.get(field.fragmentKey) as Y.XmlFragment)
+      : null;
   }
 }

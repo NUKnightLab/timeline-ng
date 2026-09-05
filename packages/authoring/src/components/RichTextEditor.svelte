@@ -2,13 +2,27 @@
   import { tick } from 'svelte';
   import { onMount } from 'svelte';
   import { Editor } from '@tiptap/core';
+  import Collaboration from '@tiptap/extension-collaboration';
   import DOMPurify from 'dompurify';
+  import type * as Y from 'yjs';
   import { extensionsFor } from '../lib/richtext.ts';
+  import type { RichTextField } from '../lib/doc.ts';
 
   interface Props {
     id?: string;
     value: string;
     onchange: (html: string) => void;
+    /**
+     * Edit this fragment collaboratively instead of the `value` string.
+     *
+     * When present, the document owns the content: Tiptap writes into the
+     * fragment, the bridge derives the HTML, and `value` is ignored. `field`
+     * must be supplied with it, and is where the schema comes from — reading a
+     * fragment with a configuration other than the one that wrote it discards
+     * content silently, so the two cannot be allowed to drift.
+     */
+    fragment?: Y.XmlFragment | null;
+    field?: RichTextField;
     minimal?: boolean;
     inlineOnly?: boolean;
     singleLine?: boolean;
@@ -21,6 +35,8 @@
     id,
     value,
     onchange,
+    fragment = null,
+    field,
     minimal = false,
     inlineOnly = false,
     singleLine = false,
@@ -121,12 +137,22 @@
     // What this editor can express lives in lib/richtext.ts, because the
     // reactive bridge needs the identical schema to derive the HTML that gets
     // published. Two definitions that drift would be a silent corruption.
-    const extensions = extensionsFor({ minimal, inlineOnly, singleLine });
+    //
+    // For a collaborative field the options come from the field itself rather
+    // than from props, so there is exactly one place the mapping is recorded.
+    const collaborative = !!fragment;
+    const options = field ? field.options : { minimal, inlineOnly, singleLine };
+    const extensions = [
+      ...extensionsFor(options, collaborative),
+      ...(fragment ? [Collaboration.configure({ fragment })] : []),
+    ];
 
     const instance = new Editor({
       element,
       extensions,
-      content: value || '',
+      // Collaboration seeds the editor from the fragment; setting content here
+      // as well would write the old HTML over the document on every mount.
+      ...(collaborative ? {} : { content: value || '' }),
       autofocus: autofocus ? 'end' : false,
       editorProps: {
         attributes: {
@@ -154,8 +180,12 @@
     return () => instance.destroy();
   });
 
-  // Sync external value changes (e.g. event switched without key remount)
+  // Sync external value changes (e.g. event switched without key remount).
+  // Never for a collaborative field: there the document is the source of truth,
+  // and pushing `value` back in would overwrite whatever arrived from a
+  // collaborator, or from an undo, with this component's stale copy.
   $effect(() => {
+    if (fragment) return;
     if (editor && value !== editor.getHTML()) {
       editor.commands.setContent(value || '');
     }
