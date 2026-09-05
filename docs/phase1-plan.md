@@ -159,7 +159,13 @@ alt as plain strings, exactly two of them become fragments:
 | Field | Config | Schema |
 |---|---|---|
 | Body `text.text` | none | Full StarterKit + Link — headings, lists, blockquote, code block, rule, strike, code, hard break, bold, italic, underline, link |
-| Headline `text.headline` | `inlineOnly noLink singleLine` | Paragraph, text, bold, italic, underline, strike. |
+| Headline `text.headline` | `inlineOnly noLink singleLine` | Paragraph, text, bold, italic, underline, strike. No link, no inline code. |
+
+Inline marks default to **author freedom**: every mark StarterKit offers is available everywhere
+except two deliberate exclusions in the headline — `link`, which is a bad idea in a headline, and
+inline `code`, which there is far more often a paste artefact than an intention. Block structure is
+a different matter and stays excluded from headlines and captions, since removing it is what those
+configurations are for.
 
 Two consequences. Each field must always be bound to the editor configuration that wrote it, which
 holds today because the configuration is fixed per field in `EventEditor` — but it is now an
@@ -191,19 +197,22 @@ run at load, when nobody else is editing that document.
 
 Two things follow, and both are cheap now and awkward later:
 
-**The dangerous case is not a migration.** Everything above assumes a load-time hook: the document
-is opened, found stale, rebuilt. In Phase 2 there is a case with no such hook — two clients on
-different app versions editing the same document at once. The newer one writes a mark the older one
-has never heard of, and the older one receives it over the wire with the document already open.
-There is nothing to migrate and nowhere to intervene.
+**One case has no load-time hook**, though it is unlikely enough not to shape the design. Everything
+above assumes a document is opened, found stale and rebuilt. Two clients running *different app
+versions* against one document skip that: the newer writes a mark the older has never heard of, and
+the older receives it over the wire with the document already open.
 
-Note what that does to Case 1: an *additive* change, the free direction, is exactly the one that
-produces this. Adding a mark is safe for stored documents and unsafe for live ones.
+Note what that does to Case 1 — an *additive* change, the free direction for stored documents, is
+precisely what causes it.
 
-This is a Phase 2 problem and it does not need solving now, but it does need naming, because the
-answer is a handshake and handshakes are cheap to design in and expensive to add. The provider should
-carry a schema version at connect and refuse or force-reload a client that does not match. Which
-means `schemaVersion` is not only a migration stamp — it is the value that handshake compares.
+The probability is low, because the app is a hosted page and everyone reloads into the same build;
+Vite content-hashes its assets, so stale caching is not the vector. The vector is a tab left open
+across a deploy, which is somewhat more plausible in Phase 2 than elsewhere, since co-authoring
+sessions are exactly when a tab stays open all afternoon.
+
+Not worth engineering around, but worth a cheap guard: the Phase 2 provider should carry a schema
+version at connect and prompt a reload on mismatch. Which means `schemaVersion` is not only a
+migration stamp — it is the value that handshake compares.
 
 Two things follow, and both are cheap now and awkward later:
 

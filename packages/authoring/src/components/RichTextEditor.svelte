@@ -124,14 +124,13 @@
     const linkExt = Link.configure({ openOnClick: false, autolink: true });
     // `minimal` and `inlineOnly` remove *block structure* — a headline or a
     // caption is one line of prose, not a document. Inline marks are a separate
-    // question: `strike` stays because the body already keeps it and there is no
-    // reason a headline should quietly drop what a paragraph preserves. `code`
-    // stays out because inline code in a headline is more likely a paste
-    // artefact than an intention.
+    // question, and the default there is author freedom: every mark StarterKit
+    // offers is available everywhere, except inline `code` in a headline, where
+    // it is far more often a paste artefact than an intention.
     //
-    // Note that no configuration offers a toolbar button for strike; enabling it
-    // means pasted and imported strikethrough survives, which is what the body
-    // has always done.
+    // No configuration offers a toolbar button for strike or code, the body
+    // included, so for those this governs what survives paste and import rather
+    // than what an author can apply.
     const starter = StarterKit.configure({
       heading: minimal || inlineOnly ? false : undefined,
       blockquote: minimal || inlineOnly ? false : undefined,
@@ -139,7 +138,7 @@
       orderedList: minimal || inlineOnly ? false : undefined,
       codeBlock: minimal || inlineOnly ? false : undefined,
       horizontalRule: minimal || inlineOnly ? false : undefined,
-      code: minimal || inlineOnly ? false : undefined,
+      code: inlineOnly ? false : undefined,
       hardBreak: singleLine ? false : undefined,
     });
     const extensions = noLink ? [starter] : [starter, linkExt];
