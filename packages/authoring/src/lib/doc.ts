@@ -194,11 +194,26 @@ export function ensureFragments(slide: Y.Map<unknown>): void {
   const text = slide.get('text') as Y.Map<unknown> | undefined;
   for (const { fragmentKey, mirrorField, options } of RICH_TEXT_FIELDS) {
     if (slide.get(fragmentKey) instanceof Y.XmlFragment) continue;
+    const html = text?.get(mirrorField);
+    const wanted = typeof html === 'string' ? html : '';
+
     const fragment = new Y.XmlFragment();
     slide.set(fragmentKey, fragment);
-    const html = text?.get(mirrorField);
-    if (typeof html === 'string' && html !== '') {
-      htmlToFragment(html, schemaFor(options), fragment);
+    let seeded = true;
+    try {
+      if (wanted !== '') htmlToFragment(wanted, schemaFor(options), fragment);
+    } catch {
+      seeded = false;
+    }
+
+    // Refuse to keep a fragment that would lose the prose it was seeded from.
+    // Yjs does not roll a transaction back when a callback throws — measured —
+    // so without this a single unparseable slide could leave a half-built
+    // document behind. Dropping the fragment instead degrades that field to the
+    // pre-Stage-3 behaviour: the HTML stays where it is, `writeSlide` owns it
+    // again, and the text is still on screen and still publishable.
+    if (!seeded || (wanted !== '' && fragment.length === 0)) {
+      slide.delete(fragmentKey);
     }
   }
 }

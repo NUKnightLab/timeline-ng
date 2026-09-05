@@ -16,6 +16,7 @@ import StarterKit from '@tiptap/starter-kit';
 import { DOMParser as PMDOMParser, DOMSerializer } from '@tiptap/pm/model';
 import type { Schema } from '@tiptap/pm/model';
 import * as Y from 'yjs';
+import DOMPurify from 'dompurify';
 import { prosemirrorJSONToYXmlFragment, yXmlFragmentToProseMirrorRootNode } from 'y-prosemirror';
 
 /**
@@ -86,6 +87,18 @@ function normalizeEmpty(html: string): string {
 }
 
 /**
+ * Reading a fragment under a schema that did not write it **silently discards
+ * unknown nodes and everything inside them** — measured, not assumed: a
+ * `<blockquote><p>Quoted.</p></blockquote><p>After.</p>` body read under the
+ * headline schema comes back as `<p>After.</p>`, with the quoted text simply
+ * gone. Note this is the opposite of the *parse* path, where the same markup
+ * flattens to `<p>Quoted.</p>` and keeps its text.
+ *
+ * So there is no safety net here, and no loud failure to notice: a field must
+ * always be read with the configuration that wrote it. `RICH_TEXT_FIELDS` in
+ * doc.ts is the one place that mapping is recorded, and richtext.test.ts pins
+ * the loss so the behaviour cannot be rediscovered by accident.
+ *
  * Serialize a fragment to the HTML the published record carries.
  *
  * Derived from the *fragment*, never from an editor instance, for two reasons
@@ -111,10 +124,17 @@ export function fragmentToHtml(fragment: Y.XmlFragment, schema: Schema): string 
   return normalizeEmpty(host.innerHTML);
 }
 
-/** Parse HTML into an existing (empty) fragment. */
+/**
+ * Parse HTML into an existing (empty) fragment.
+ *
+ * Sanitized first. The schema would reject anything dangerous on the way into
+ * the fragment anyway, but parsing assigns `innerHTML` on a real element, and a
+ * detached node is not a guarantee in every browser — an `<img onerror>` is the
+ * classic case. Cheaper to remove the question than to reason about it.
+ */
 export function htmlToFragment(html: string, schema: Schema, fragment: Y.XmlFragment): void {
   const host = document.createElement('div');
-  host.innerHTML = html ?? '';
+  host.innerHTML = DOMPurify.sanitize(html ?? '', { ADD_ATTR: ['target'] });
   const node = PMDOMParser.fromSchema(schema).parse(host);
   prosemirrorJSONToYXmlFragment(schema, node.toJSON(), fragment);
 }

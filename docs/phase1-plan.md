@@ -238,9 +238,32 @@ Two things follow, and both are cheap now and awkward later:
   version of this said "written in the same transaction", which is neither achievable through
   Tiptap's update hook nor sufficient.
 
-*(To confirm when we get there: exactly how y-prosemirror behaves when a stored fragment contains a
-node the current schema does not know — whether it throws or drops the node. That decides whether a
-missed migration is loud or quiet, and a loud failure is much easier to live with.)*
+**Confirmed, and it is the bad answer.** A fragment containing a node the reading schema does not
+know **loses that node and everything inside it, silently**. Measured: a body of
+`<blockquote><p>Quoted.</p></blockquote><p>After.</p>` read under the headline schema comes back as
+`<p>After.</p>`. Nothing throws; the quoted sentence is simply gone.
+
+Note the asymmetry, because it is what makes the migration path safe while leaving the read path
+sharp. *Parsing* that markup under the headline schema flattens it to `<p>Quoted.</p>` and keeps the
+words. Only reading an existing fragment discards them. So rebuilding from the HTML mirror is a safe
+migration, and reading a fragment with the wrong configuration is silent data loss with no error to
+notice.
+
+Two consequences. `RICH_TEXT_FIELDS` in `doc.ts` must stay the single place the field-to-
+configuration mapping is recorded — a field read with a configuration other than the one that wrote
+it destroys content. And `schemaVersion` stops being bookkeeping: it is the only thing that can tell
+a client its stored fragments predate the schema it is about to read them with.
+
+Two related failure modes were fixed alongside, both now covered by `failure.test.ts`:
+
+- **Yjs does not roll back a transaction whose callback throws** (measured: a map keeps both writes
+  made before the throw). A slide whose prose cannot be parsed would therefore have left a half-built
+  document. `ensureFragments` now declines to keep a fragment it could not seed — and also declines
+  one that came back empty from non-empty HTML — so that field degrades to its pre-Stage-3
+  behaviour, HTML owned by `writeSlide`, text still on screen and still publishable.
+- **HTML is sanitized before it is parsed** into a fragment. The schema would reject anything
+  dangerous on the way in, but parsing assigns `innerHTML` on a real element, and a detached node is
+  not a guarantee in every browser.
 
 **[A2 — answered: last-write-wins]** Headline and body become fragments; **media caption, credit and
 alt stay plain LWW strings** —

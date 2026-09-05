@@ -2,6 +2,7 @@
  * @vitest-environment happy-dom
  */
 import { describe, it, expect } from 'vitest';
+import { flushSync } from 'svelte';
 import type { TLEvent } from '@knight-lab/timeline-ng-core';
 import { TimelineDoc } from './doc.svelte.ts';
 
@@ -134,17 +135,16 @@ describe('reactivity', () => {
     const t = new TimelineDoc();
     t.load({ events: [moon], settings: {} });
 
-    // Asserted through `$derived` rather than `$effect`: effects do not run at
-    // all under happy-dom in this setup — even a trivial $state counter never
-    // fires — while derivations recompute correctly. Since the point here is
-    // that the snapshot participates in the reactive graph, a derivation
-    // demonstrates it and an effect only tests vitest's environment.
     const cleanup = $effect.root(() => {
       const headlines = $derived(t.events.map((e) => e.text?.headline));
-      expect(headlines).toEqual(['The Moon Landing']);
+      let seen: (string | undefined)[] = [];
+      $effect(() => { seen = headlines; });
+      flushSync();
+      expect(seen).toEqual(['The Moon Landing']);
 
       t.addEvent(sputnik);
-      expect(headlines).toEqual(['Sputnik 1', 'The Moon Landing']);
+      flushSync();
+      expect(seen).toEqual(['Sputnik 1', 'The Moon Landing']);
     });
     cleanup();
   });
