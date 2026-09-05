@@ -481,34 +481,30 @@
   }
   .rte-body :global(.rte-content h2),
   .rte-body :global(.rte-content h3) {
-    font-family: var(--tl-font-headline, inherit);
+    font-family: var(--tl-font-heading, inherit);
   }
   .rte-body :global(.rte-content--singleline) {
-    font-family: var(--tl-font-headline, inherit);
+    font-family: var(--tl-font-heading, inherit);
   }
-  .rte-body :global(.rte-content blockquote) {
-    margin: 0;
-    padding-inline-start: var(--tl-blockquote-indent, 1em);
-    border-inline-start: var(--tl-blockquote-rule, 3px solid var(--tl-color-accent, currentColor));
-    font-style: var(--tl-blockquote-font-style, italic);
-  }
-
+  /* Layout and chrome only — typography is set above, from the timeline's own
+     tokens. These used to hard-code system-ui at 0.9rem, which came after the
+     token rule and silently beat it. */
   .rte-body :global(.rte-content) {
     padding: 0.45rem 0.6rem;
     min-height: calc(var(--rte-rows, 4) * 1.6em + 0.9rem);
-    font-size: 0.9rem;
-    line-height: 1.6;
-    font-family: system-ui, sans-serif;
     outline: none;
     color: #1d1f21;
   }
+  /* The headline field keeps a fixed editing size rather than the player's
+     fluid clamp(), which would be unusable in a one-line input — but takes its
+     face and weight from the timeline. */
   .rte-body :global(.rte-content--singleline) {
     min-height: auto;
     white-space: nowrap;
     overflow: hidden;
     line-height: 1.3;
     font-size: 1.35rem;
-    font-weight: 700;
+    font-weight: var(--tl-headline-weight, 700);
   }
   .rte-body :global(.rte-content--singleline strong),
   .rte-body :global(.rte-content--singleline b) {
@@ -524,15 +520,23 @@
   .rte-body :global(.rte-content--singleline p) { margin: 0; }
   .rte-body :global(.rte-content h2) { font-size: 1.1rem; font-weight: 700; margin: 0; }
   .rte-body :global(.rte-content h3) { font-size: 0.95rem; font-weight: 700; margin: 0; }
-  .rte-body :global(.rte-content ul) { margin: 0; padding-left: 1.4em; list-style: disc; }
-  .rte-body :global(.rte-content ol) { margin: 0; padding-left: 1.4em; list-style: decimal; }
+  .rte-body :global(.rte-content ul) {
+    margin: 0;
+    padding-inline-start: var(--tl-list-indent, 1.5em);
+    list-style: var(--tl-list-style-bullet, disc);
+  }
+  .rte-body :global(.rte-content ol) {
+    margin: 0;
+    padding-inline-start: var(--tl-list-indent, 1.5em);
+    list-style: var(--tl-list-style-number, decimal);
+  }
   .rte-body :global(.rte-content li) { margin: 0; }
   .rte-body :global(.rte-content blockquote) {
     margin: 0;
-    padding-left: 0.75em;
-    border-left: 3px solid #d4d4d4;
-    color: #666;
-    font-style: italic;
+    padding-inline-start: var(--tl-blockquote-indent, 1em);
+    border-inline-start: var(--tl-blockquote-rule, 3px solid var(--tl-color-accent, #d4d4d4));
+    color: var(--tl-blockquote-color, #666);
+    font-style: var(--tl-blockquote-font-style, italic);
   }
   .rte-body :global(.rte-content a) { color: #13a4df; text-decoration: underline; }
 </style>

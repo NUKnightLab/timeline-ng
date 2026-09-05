@@ -388,6 +388,35 @@
   .tl-slide__body :global(blockquote:last-child) {
     margin-bottom: 0;
   }
+
+  /*
+   * Same story as blockquote: base.css strips list markers so a host page's
+   * navigation lists cannot inherit them, which also left an authored list
+   * looking like a run of paragraphs. Body copy is where a list is the
+   * author's own, so the markers come back.
+   */
+  .tl-slide__body :global(ul),
+  .tl-slide__body :global(ol) {
+    margin: 0 0 0.75rem;
+    padding-inline-start: var(--tl-list-indent, 1.5em);
+  }
+  .tl-slide__body :global(ul) {
+    list-style: var(--tl-list-style-bullet, disc);
+  }
+  .tl-slide__body :global(ol) {
+    list-style: var(--tl-list-style-number, decimal);
+  }
+  .tl-slide__body :global(li) {
+    margin: 0 0 0.25rem;
+  }
+  .tl-slide__body :global(li > p) {
+    margin: 0;
+  }
+  .tl-slide__body :global(ul:last-child),
+  .tl-slide__body :global(ol:last-child),
+  .tl-slide__body :global(li:last-child) {
+    margin-bottom: 0;
+  }
   .tl-slide__body :global(blockquote p:last-child) {
     margin-bottom: 0;
   }

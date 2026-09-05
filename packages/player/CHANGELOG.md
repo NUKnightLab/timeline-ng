@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **List markers in body copy are visible again.** Same cause as blockquote:
+  `base.css` strips `list-style` so a host page's navigation lists cannot
+  inherit it, which also left an authored bullet or numbered list looking like a
+  run of paragraphs. Body copy now restores markers and an indent, tunable with
+  `--tl-list-indent`, `--tl-list-style-bullet` and `--tl-list-style-number`.
 - **Blockquotes in body copy are visible again.** `base.css` flattens
   `blockquote` so a host page's styles cannot bleed into a slide, which also
   meant an authored quote rendered identically to a paragraph — the tag was in

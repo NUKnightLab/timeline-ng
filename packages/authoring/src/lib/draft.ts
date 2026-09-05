@@ -19,6 +19,26 @@ function stripBlobUrl(ev: TLEvent): TLEvent {
   return { ...ev, media: rest };
 }
 
+/**
+ * Whether the browser copy of a timeline is still the only copy worth keeping.
+ *
+ * The rule used to be "clean means saved, so drop it", which held while
+ * `pdsClean` was a flag that could not return to true without an explicit save.
+ * It is now derived by comparing content (see `TimelineDoc.clean`) and reports
+ * clean again when an edit is reversed — so on a timeline that was never
+ * published, undoing back to where you started would have deleted the only
+ * copy there was.
+ *
+ * A draft is disposable only when the same content exists on the PDS, which
+ * means clean *and* published. Empty timelines have nothing to protect.
+ */
+export function draftIsWorthKeeping(
+  { clean, atUri, hasContent }: { clean: boolean; atUri: string | null | undefined; hasContent: boolean },
+): boolean {
+  if (!hasContent) return false;
+  return !(clean && !!atUri);
+}
+
 export function saveDraft(draft: Draft): void {
   try {
     const clean: Draft = {

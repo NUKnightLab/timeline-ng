@@ -5,7 +5,7 @@
   import { getAuthState, saveTimeline, signOut, uploadBlob, blobUrl, extractCid } from './lib/atproto.svelte.ts';
   import { initAuth } from './lib/atproto.svelte.ts';
   import { generatePoster } from './lib/poster.ts';
-  import { saveDraft, loadDraft, clearDraft } from './lib/draft.ts';
+  import { saveDraft, loadDraft, clearDraft, draftIsWorthKeeping } from './lib/draft.ts';
   import type { Draft } from './lib/draft.ts';
   import { TimelineDoc, HEADLINE_FIELD, BODY_FIELD } from './lib/doc.svelte.ts';
   import { stripHtml } from './lib/text.ts';
@@ -102,9 +102,7 @@
 
     if (_draftTimer !== null) clearTimeout(_draftTimer);
 
-    // Clean means the editor matches the last save (or load) — nothing to protect
-    // against a crash/reload, so there's no reason to keep a local draft around.
-    if (clean) {
+    if (!draftIsWorthKeeping({ clean, atUri: uri, hasContent: !!te || ev.length > 0 })) {
       clearDraft();
       return;
     }
@@ -172,7 +170,7 @@
     if (_undoTimer !== null) { clearTimeout(_undoTimer); _undoTimer = null; }
     deletedItem = null;
     deletedItemLeaving = false;
-    if (!pdsClean && (titleEvent || events.length > 0)) {
+    if (draftIsWorthKeeping({ clean: pdsClean, atUri, hasContent: !!titleEvent || events.length > 0 })) {
       const draft: Draft = { title: timelineTitle || undefined, titleEvent, events, atUri: atUri ?? undefined, pdsClean, settings };
       saveDraft(draft);
       pendingDraft = draft;
