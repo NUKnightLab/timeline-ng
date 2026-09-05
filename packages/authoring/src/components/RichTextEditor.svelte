@@ -2,9 +2,8 @@
   import { tick } from 'svelte';
   import { onMount } from 'svelte';
   import { Editor } from '@tiptap/core';
-  import StarterKit from '@tiptap/starter-kit';
-  import Link from '@tiptap/extension-link';
   import DOMPurify from 'dompurify';
+  import { extensionsFor } from '../lib/richtext.ts';
 
   interface Props {
     id?: string;
@@ -121,27 +120,10 @@
   }
 
   onMount(() => {
-    const linkExt = Link.configure({ openOnClick: false, autolink: true });
-    // `minimal` and `inlineOnly` remove *block structure* — a headline or a
-    // caption is one line of prose, not a document. Inline marks are a separate
-    // question, and the default there is author freedom: every mark StarterKit
-    // offers is available everywhere, except inline `code` in a headline, where
-    // it is far more often a paste artefact than an intention.
-    //
-    // No configuration offers a toolbar button for strike or code, the body
-    // included, so for those this governs what survives paste and import rather
-    // than what an author can apply.
-    const starter = StarterKit.configure({
-      heading: minimal || inlineOnly ? false : undefined,
-      blockquote: minimal || inlineOnly ? false : undefined,
-      bulletList: minimal || inlineOnly ? false : undefined,
-      orderedList: minimal || inlineOnly ? false : undefined,
-      codeBlock: minimal || inlineOnly ? false : undefined,
-      horizontalRule: minimal || inlineOnly ? false : undefined,
-      code: inlineOnly ? false : undefined,
-      hardBreak: singleLine ? false : undefined,
-    });
-    const extensions = noLink ? [starter] : [starter, linkExt];
+    // What this editor can express lives in lib/richtext.ts, because the
+    // reactive bridge needs the identical schema to derive the HTML that gets
+    // published. Two definitions that drift would be a silent corruption.
+    const extensions = extensionsFor({ minimal, inlineOnly, noLink, singleLine });
 
     const instance = new Editor({
       element,

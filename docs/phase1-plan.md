@@ -172,9 +172,17 @@ holds today because the configuration is fixed per field in `EventEditor` — bu
 invariant rather than an accident. And the headline schema is a strict *subset* of the body schema,
 so relaxing a headline restriction later is additive and free; tightening one needs a rebuild.
 
-Worth recording so it is not later blamed on this work: headlines **already** discard links and
-inline code on paste or import, because those extensions are not loaded. That is current behaviour,
-unchanged by Stage 3.
+One correction to an earlier version of this section, which claimed headlines already discarded
+links. They did not. **StarterKit v3 bundles the Link extension itself**, so `noLink` — which only
+omitted a *separately added* `Link` — removed nothing from the schema; it dropped `autolink` and
+nothing else. Headlines have accepted links all along.
+
+Stage 3 makes `noLink` mean what it says, by turning StarterKit's own link off. That is a real
+behaviour change: a link already saved in a headline loses its anchor, keeping its text, the next
+time that timeline is opened. Deliberate — a link in a headline was never intended — but it is a
+content change rather than a no-op, and it is the only one in Stage 3.
+
+Inline code in a headline genuinely was and remains excluded.
 
 Strikethrough used to be in that list and no longer is. It had been swept up with the block-level
 exclusions — `heading`, `blockquote`, lists, `codeBlock`, `horizontalRule` — where dropping it makes
