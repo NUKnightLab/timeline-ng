@@ -93,3 +93,39 @@ describe('writeSlide against a slide whose fragments failed to build', () => {
     expect(readSlide(slide).text?.text).toBe('<p>Edited.</p>');
   });
 });
+
+describe('markup the schema has no node for', () => {
+  const seed = (bodyHtml: string) => {
+    const doc = createDoc();
+    const key = addSlide(doc, { unique_id: 'x', text: { text: bodyHtml } });
+    return slidesMap(doc).get(key)!;
+  };
+
+  it.each([
+    ['an inline image', '<p>Before <img src="https://example.com/a.jpg" alt="a"> after</p>'],
+    ['an embed', '<p>Watch:</p><iframe src="https://example.com/v"></iframe>'],
+  ])('keeps %s by declining to build a fragment', (_label, html) => {
+    // ProseMirror is allowlist-only and these carry no text, so they vanish
+    // rather than degrading. That field forgoes merging and keeps its HTML.
+    const slide = seed(html);
+    expect(slide.get(BODY.fragmentKey)).toBeUndefined();
+    expect(readSlide(slide).text?.text).toBe(html);
+  });
+
+  it.each([
+    ['a table', '<table><tbody><tr><td>Apollo</td></tr></tbody></table>'],
+    ['a definition list', '<dl><dt>Term</dt><dd>Definition</dd></dl>'],
+    ['a styled span', '<div><span style="color:red">Red</span> text</div>'],
+  ])('accepts %s, which flattens but keeps its words', (_label, html) => {
+    const slide = seed(html);
+    expect(slide.get(BODY.fragmentKey)).toBeInstanceOf(Y.XmlFragment);
+    const kept = readSlide(slide).text?.text ?? '';
+    const words = html.replace(/<[^>]*>/g, '').replace(/\s+/g, '');
+    expect(kept.replace(/<[^>]*>/g, '').replace(/\s+/g, '')).toBe(words);
+  });
+
+  it('accepts ordinary prose', () => {
+    const slide = seed('<p>One <em>small</em> step.</p>');
+    expect(slide.get(BODY.fragmentKey)).toBeInstanceOf(Y.XmlFragment);
+  });
+});

@@ -21,7 +21,7 @@
  * derived on read and never has to converge.
  */
 import * as Y from 'yjs';
-import { SCHEMA_VERSION, htmlToFragment, schemaFor } from './richtext.ts';
+import { SCHEMA_VERSION, htmlToFragment, schemaFor, seedingLosesContent } from './richtext.ts';
 import { compareDates, parseTLDate } from '@knight-lab/timeline-ng-core';
 import type {
   ATProtoBlobRef, TLBackground, TLDateInput, TLEvent, TLMedia, TLSettings, TLText, TLTimeline,
@@ -212,7 +212,14 @@ export function ensureFragments(slide: Y.Map<unknown>): void {
     // document behind. Dropping the fragment instead degrades that field to the
     // pre-Stage-3 behaviour: the HTML stays where it is, `writeSlide` owns it
     // again, and the text is still on screen and still publishable.
-    if (!seeded || (wanted !== '' && fragment.length === 0)) {
+    //
+    // `seedingLosesContent` is the interesting half. ProseMirror is
+    // allowlist-only, so an `<img>` or an `<iframe>` in body prose has no node
+    // to become and vanishes without leaving any text behind. Rather than
+    // publish a paragraph with the photograph quietly removed, that field keeps
+    // its HTML and gives up being mergeable.
+    if (!seeded || (wanted !== '' && fragment.length === 0)
+        || (wanted !== '' && seedingLosesContent(wanted, schemaFor(options), fragment))) {
       slide.delete(fragmentKey);
     }
   }

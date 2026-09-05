@@ -151,6 +151,39 @@ last as long as someone is working. From Phase 3 they are server-held under a 90
 not contain it, and the new schema accepts everything the old one produced. That covers the realistic
 cases — highlight, strikethrough, superscript.
 
+#### Remediation strategy
+
+Surprises are certain, so what matters is what we can detect and what we can put back. Three assets,
+and one operational rule.
+
+**The published record is untouched HTML on the owner's PDS.** For any timeline that has ever been
+published, the original prose exists in a form nothing in this plan can damage — re-importing it
+restores the text exactly. That is the backstop behind everything below, and the reason §10.7's
+invariant (the player never depends on our service) is worth defending for more than uptime.
+
+**The HTML mirror is a rebuild path.** Parsing HTML into a fragment is lenient and keeps text, even
+for markup the schema does not know — a table flattens to a paragraph reading `Apollo1969`, a
+definition list becomes two paragraphs. So `rebuildFragmentFromHtml` can always recover a fragment
+from its mirror, and a schema migration is a safe operation.
+
+**A field that cannot be a fragment keeps working.** `ensureFragments` declines rather than forces:
+if seeding throws, comes back empty, loses text, or would drop embedded content, that field stays
+plain HTML owned by `writeSlide` — the pre-Stage-3 behaviour. It gives up merging and loses nothing.
+This is what protects the case that actually bites, which is not exotic markup but an ordinary
+`<img>` or `<iframe>` in body prose: ProseMirror is allowlist-only, and those carry no text to
+degrade into, so they vanish outright.
+
+**The rule: never narrow a schema without rebuilding fragments from mirrors first.** Reading an
+existing fragment under a narrower schema destroys content silently — no error, no text left behind.
+Parsing the same markup does not. So a narrowing migration must rebuild from the mirror *before* the
+new schema is ever used to read a stored fragment, and `schemaVersion` is what tells a client which
+of those two situations it is in. Widening a schema is free and needs none of this.
+
+What remains genuinely unprotected is an **unpublished draft** whose prose was never on a PDS. The
+guards above mean nothing can be lost while seeding or editing, since the schema is fixed for the
+life of a document — but there is no external copy to recover from, which is another way of saying
+the retention window (§10.5) is the only backstop a draft has.
+
 **There is more than one schema.** `RichTextEditor`'s `minimal`, `inlineOnly`, `singleLine` and
 `noLink` props do not merely hide toolbar buttons — they pass `false` to StarterKit extensions and to
 `Link`, so each configuration is a different ProseMirror schema. Since [A2] keeps caption, credit and
@@ -158,7 +191,7 @@ alt as plain strings, exactly two of them become fragments:
 
 | Field | Config | Schema |
 |---|---|---|
-| Body `text.text` | none | Full StarterKit + Link — headings, lists, blockquote, code block, rule, strike, code, hard break, bold, italic, underline, link |
+| Body `text.text` | none | Full StarterKit + Link — headings, lists, blockquote, code block, rule, strike, code, hard break, bold, italic, underline, link. Nothing here is prohibited that StarterKit offers. |
 | Headline `text.headline` | `inlineOnly singleLine` | Paragraph, text, bold, italic, underline, strike, link. No inline code. |
 
 Inline marks default to **author freedom**: every mark StarterKit offers is available everywhere,

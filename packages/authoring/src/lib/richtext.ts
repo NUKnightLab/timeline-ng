@@ -139,6 +139,44 @@ export function htmlToFragment(html: string, schema: Schema, fragment: Y.XmlFrag
   prosemirrorJSONToYXmlFragment(schema, node.toJSON(), fragment);
 }
 
+/**
+ * Elements a ProseMirror schema built from StarterKit cannot represent, and
+ * which therefore vanish rather than degrading when prose is parsed.
+ *
+ * ProseMirror is allowlist-only: a schema names the nodes and marks that exist,
+ * and the parser discards everything else. That is usually benign, because most
+ * unknown markup keeps its text — a table flattens to a paragraph reading
+ * `Apollo1969`, a definition list becomes two paragraphs. These are the
+ * exceptions, because they carry no text to fall back to. An `<img>` in body
+ * prose simply disappears.
+ */
+const UNREPRESENTABLE = 'img,iframe,video,audio,embed,object,svg,canvas,picture,source';
+
+/** Text content, whitespace-normalized, for comparing before against after. */
+function textOf(html: string): string {
+  const host = document.createElement('div');
+  host.innerHTML = DOMPurify.sanitize(html ?? '', { ADD_ATTR: ['target'] });
+  return (host.textContent ?? '').replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Whether turning `html` into `fragment` cost anything that cannot be got back.
+ *
+ * Two different losses. Text that failed to survive the trip, which would be a
+ * schema bug rather than an unsupported element, and embedded content that the
+ * schema has no node for and which leaves nothing behind when dropped.
+ *
+ * A field that fails this keeps its HTML and forgoes a fragment. It stops being
+ * collaboratively mergeable — the pre-Stage-3 behaviour — which is a far better
+ * outcome than publishing a paragraph with the photograph quietly removed.
+ */
+export function seedingLosesContent(html: string, schema: Schema, fragment: Y.XmlFragment): boolean {
+  if (textOf(html) !== textOf(fragmentToHtml(fragment, schema))) return true;
+  const host = document.createElement('div');
+  host.innerHTML = DOMPurify.sanitize(html ?? '', { ADD_ATTR: ['target'], ADD_TAGS: ['iframe'] });
+  return host.querySelector(UNREPRESENTABLE) !== null;
+}
+
 /** Replace a fragment's contents from HTML — the migration path (see the plan). */
 export function rebuildFragmentFromHtml(html: string, schema: Schema, fragment: Y.XmlFragment): void {
   if (fragment.length > 0) fragment.delete(0, fragment.length);
