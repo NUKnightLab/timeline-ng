@@ -7,8 +7,22 @@
 
   <!-- Knight Lab typography -->
   <link rel="stylesheet" href="https://cloud.typenetwork.com/projects/5433/fontface.css" />
-  <!-- Orangeline design system -->
-  <link rel="stylesheet" href="https://cdn.knightlab.com/libs/orangeline/latest/css/orangeline.min.css" />
+  <!--
+    Orangeline design system, loaded into a cascade layer.
+
+    A layered rule always loses to an unlayered one, whatever the specificity.
+    That inverts the relationship we had: Orangeline used to win any battle it
+    happened to be more specific in, which is why it kept turning up in places
+    nobody invited it — margins on buttons, text-transform on links, and a body
+    editor that looked nothing like a published timeline. Now every rule this
+    app writes is authoritative by default, and Orangeline supplies only what we
+    have not spoken for.
+
+    `@import` cannot be preloaded by the parser the way a <link> can, hence the
+    preload hint above it.
+  -->
+  <link rel="preload" as="style" href="https://cdn.knightlab.com/libs/orangeline/latest/css/orangeline.min.css" />
+  <style>@import url("https://cdn.knightlab.com/libs/orangeline/latest/css/orangeline.min.css") layer(orangeline);</style>
 
   <!-- Favicons -->
   <link rel="apple-touch-icon" sizes="180x180" href="https://cdn.knightlab.com/libs/orangeline/latest/assets/favicons/apple-touch-icon.png">

@@ -10,6 +10,8 @@
   import HelpLink from './HelpLink.svelte';
   import SettingsPanel from './SettingsPanel.svelte';
   import { getAuthState } from '../lib/atproto.svelte.ts';
+  import { getPairing, DEFAULT_PAIRING } from '@knight-lab/timeline-ng-core';
+
 
   interface Props {
     timelineTitle: string;
@@ -50,6 +52,23 @@
     onback, onsignout, ontitlechange, onselect, onadd, onaddtitle, ondelete, onupdate, onsave, onexport, onexportcsv, onundo,
     onsettingschange,
   }: Props = $props();
+
+  /**
+   * The timeline's own font tokens, as an inline style declaration.
+   *
+   * The pairing data lives in core and already carries the `--tl-*` values the
+   * player uses, so the editor can set prose in the face it will be published
+   * in without importing any player CSS — and the two cannot drift, because
+   * they read the same source. Custom properties inherit, so declaring them on
+   * the shell reaches every editor below it.
+   */
+  const fontTokens = $derived(
+    Object.entries(
+      (getPairing(settings.fontPairing) ?? getPairing(DEFAULT_PAIRING)!).tokens,
+    )
+      .map(([k, v]) => `${k}:${v}`)
+      .join(';'),
+  );
 
   /* Every slide ID except the one being edited — so the editor can offer a
      generated ID that will not collide with a slide the author already has. */
@@ -216,7 +235,19 @@
   }
 </script>
 
-<div class="editor-shell" class:show-eventlist={showEventList} class:show-publish={showPublish}>
+<!--
+  The timeline's own font tokens, so the editor sets prose in the face it will
+  be published in. The pairing data lives in core and already carries the
+  `--tl-*` values the player uses, so this needs no player CSS and cannot drift
+  from it — the two read the same source. Custom properties inherit, so
+  declaring them here reaches every editor below.
+-->
+<div
+  class="editor-shell"
+  class:show-eventlist={showEventList}
+  class:show-publish={showPublish}
+  style={fontTokens}
+>
 
   <!-- ── Navbar ─────────────────────────────────────────────────────────────── -->
   <AppNavbar />

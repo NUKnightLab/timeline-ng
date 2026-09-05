@@ -464,6 +464,35 @@
   }
 
   /* Editor content */
+  /*
+   * Prose is set in the timeline's own faces, so what is typed here looks like
+   * what gets published. The tokens come from the shell (see EditorView) and
+   * ultimately from core's font pairings, which is also where the player gets
+   * them. Fallbacks keep this sane anywhere the tokens are not present.
+   *
+   * This works because Orangeline is confined to a cascade layer (index.html):
+   * a layered rule loses to an unlayered one whatever its specificity, so the
+   * design system no longer reaches into the editor uninvited.
+   */
+  .rte-body :global(.rte-content) {
+    font-family: var(--tl-font-body, inherit);
+    font-size: var(--tl-body-size, 1rem);
+    line-height: var(--tl-body-line-height, 1.65);
+  }
+  .rte-body :global(.rte-content h2),
+  .rte-body :global(.rte-content h3) {
+    font-family: var(--tl-font-headline, inherit);
+  }
+  .rte-body :global(.rte-content--singleline) {
+    font-family: var(--tl-font-headline, inherit);
+  }
+  .rte-body :global(.rte-content blockquote) {
+    margin: 0;
+    padding-inline-start: var(--tl-blockquote-indent, 1em);
+    border-inline-start: var(--tl-blockquote-rule, 3px solid var(--tl-color-accent, currentColor));
+    font-style: var(--tl-blockquote-font-style, italic);
+  }
+
   .rte-body :global(.rte-content) {
     padding: 0.45rem 0.6rem;
     min-height: calc(var(--rte-rows, 4) * 1.6em + 0.9rem);
