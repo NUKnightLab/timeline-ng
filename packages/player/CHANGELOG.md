@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Blockquotes in body copy are visible again.** `base.css` flattens
+  `blockquote` so a host page's styles cannot bleed into a slide, which also
+  meant an authored quote rendered identically to a paragraph — the tag was in
+  the markup and nothing showed on screen. Body copy now restores an indent,
+  rule and italic, tunable with `--tl-blockquote-indent`, `--tl-blockquote-rule`,
+  `--tl-blockquote-font-style` and `--tl-blockquote-color`.
+
 ## [0.4.0] - 2026-08-25
 
 ### Added

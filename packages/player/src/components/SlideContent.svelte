@@ -371,6 +371,27 @@
     color: var(--tl-body-link-color, var(--tl-color-accent));
   }
 
+  /*
+   * base.css flattens `blockquote` to nothing, deliberately: that reset exists
+   * so a host page's own styles cannot bleed into a slide. It also meant an
+   * authored quote rendered identically to a paragraph — the tag was in the
+   * markup and invisible on screen. Body copy is the one place a blockquote is
+   * the author's choice rather than the host's, so it gets its indent back here.
+   */
+  .tl-slide__body :global(blockquote) {
+    margin: 0 0 0.75rem;
+    padding-inline-start: var(--tl-blockquote-indent, 1em);
+    border-inline-start: var(--tl-blockquote-rule, 3px solid var(--tl-color-accent));
+    font-style: var(--tl-blockquote-font-style, italic);
+    color: var(--tl-blockquote-color, inherit);
+  }
+  .tl-slide__body :global(blockquote:last-child) {
+    margin-bottom: 0;
+  }
+  .tl-slide__body :global(blockquote p:last-child) {
+    margin-bottom: 0;
+  }
+
   @container tl-player (max-width: 600px) {
     /* Stack single-column: text first so the headline is visible without
        scrolling past media, regardless of media_position. */
