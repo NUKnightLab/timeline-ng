@@ -106,3 +106,59 @@ describe('a field with no fragment', () => {
     expect(tl.events[0].text?.text).toContain('<img');
   });
 });
+
+describe('binding to a fragment does not change how commands behave', () => {
+  // Structural commands — wrapping, splitting — are the ones that break when
+  // prosemirror-model is loaded twice, because the schema's node type and the
+  // document's are then different objects. Rather than assert particular HTML
+  // (a headless editor has no real selection, and produces artefacts that say
+  // nothing about the browser), each command is run through a collaborative
+  // editor and a plain one and the results compared. That is the property that
+  // matters: Stage 3 must not have changed what these commands do.
+  const run = (html: string, act: (e: Editor) => void) => {
+    const results: string[] = [];
+    for (const collaborative of [false, true]) {
+      const tl = new TimelineDoc();
+      tl.load(withBody(html));
+      const fragment = tl.fragmentFor('moon', BODY_FIELD)!;
+      const editor = new Editor({
+        element: document.createElement('div'),
+        extensions: [
+          ...extensionsFor(BODY_FIELD.options, collaborative),
+          ...(collaborative ? [Collaboration.configure({ fragment })] : []),
+        ],
+        ...(collaborative ? {} : { content: html }),
+      });
+      editors.push(editor);
+      act(editor);
+      results.push(editor.getHTML());
+    }
+    return results;
+  };
+
+  it.each([
+    ['blockquote', '<p>Quote me.</p>', (e: Editor) => { e.commands.selectAll(); e.commands.toggleBlockquote(); }],
+    ['unwrapping a blockquote', '<blockquote><p>Quote me.</p></blockquote>', (e: Editor) => { e.commands.selectAll(); e.commands.toggleBlockquote(); }],
+    ['bullet list', '<p>An item.</p>', (e: Editor) => { e.commands.selectAll(); e.commands.toggleBulletList(); }],
+    ['splitting on Enter', '<p>Before after</p>', (e: Editor) => { e.commands.setTextSelection(7); e.commands.splitBlock(); }],
+    ['heading', '<p>A title</p>', (e: Editor) => { e.commands.selectAll(); e.commands.toggleHeading({ level: 2 }); }],
+  ])('%s matches a plain editor', (_label, html, act) => {
+    const [plain, collab] = run(html, act);
+    expect(collab).toBe(plain);
+  });
+
+  it('can wrap a paragraph in a blockquote at all', () => {
+    // The half of the duplicate-module symptom that is unambiguous: with two
+    // copies of prosemirror-model, `can()` returns false because the node type
+    // cannot be matched, so the button removes quotes but never creates one.
+    const tl = new TimelineDoc();
+    tl.load(withBody('<p>Quote me.</p>'));
+    const editor = mount(tl, 'moon');
+    editor.commands.selectAll();
+    expect(editor.can().toggleBlockquote()).toBe(true);
+    expect(editor.can().toggleBulletList()).toBe(true);
+    expect(editor.getHTML()).not.toContain('blockquote');
+    editor.commands.toggleBlockquote();
+    expect(editor.getHTML()).toContain('<blockquote>');
+  });
+});
