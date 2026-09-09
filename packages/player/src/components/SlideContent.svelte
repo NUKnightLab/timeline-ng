@@ -9,6 +9,7 @@
     resolveBackgroundImageUrl,
   } from "@knight-lab/timeline-ng-core";
   import { sanitizeHtml } from "../lib/sanitize.js";
+  import '../styles/prose.css';
   import MediaDisplay from "../media/MediaDisplay.svelte";
 
   interface Props {
@@ -170,7 +171,7 @@
         </h2>
       {/if}
       {#if event.text?.text}
-        <div class="tl-slide__body">{@html sanitizeHtml(event.text.text)}</div>
+        <div class="tl-slide__body tl-prose">{@html sanitizeHtml(event.text.text)}</div>
       {/if}
     </div>
   </div>
@@ -357,141 +358,7 @@
     margin-inline: var(--tl-slide-text-only-margin, 0);
   }
 
-  /*
-   * These target user-authored HTML inside body copy — unavoidably "deep".
-   * Customise via --tl-body-link-color and --tl-color-accent.
-   */
-  .tl-slide__body :global(p) {
-    margin: 0 0 0.75rem;
-  }
-  .tl-slide__body :global(p:last-child) {
-    margin-bottom: 0;
-  }
-  /*
-   * base.css strips `text-decoration` from every anchor so a host page's link
-   * styling cannot reach the player's own controls. Restoring only the colour
-   * here left body-copy links identified by colour alone, which fails WCAG
-   * 1.4.1 unless the link and its surrounding text differ by 3:1 — not
-   * something a theme can promise. The underline comes back.
-   */
-  .tl-slide__body :global(a) {
-    color: var(--tl-body-link-color, var(--tl-color-accent));
-    text-decoration: var(--tl-body-link-decoration, underline);
-    text-underline-offset: var(--tl-body-link-underline-offset, 0.15em);
-  }
 
-  /*
-   * Headings an author wrote inside body copy. They had no rule at all, so they
-   * fell back to the browser's defaults — an `<h1>` at 2em with 0.67em margins,
-   * competing with the slide's own headline and ignoring the theme's type
-   * scale. Sized relative to body copy instead, and in the heading face.
-   */
-  .tl-slide__body :global(h1),
-  .tl-slide__body :global(h2),
-  .tl-slide__body :global(h3),
-  .tl-slide__body :global(h4),
-  .tl-slide__body :global(h5),
-  .tl-slide__body :global(h6) {
-    font-family: var(--tl-font-heading, inherit);
-    font-weight: var(--tl-body-heading-weight, 700);
-    line-height: 1.25;
-    margin: 1em 0 0.4em;
-  }
-  .tl-slide__body :global(h1),
-  .tl-slide__body :global(h2) {
-    font-size: var(--tl-body-heading-size, 1.25em);
-  }
-  .tl-slide__body :global(h3),
-  .tl-slide__body :global(h4),
-  .tl-slide__body :global(h5),
-  .tl-slide__body :global(h6) {
-    font-size: var(--tl-body-subheading-size, 1.1em);
-  }
-  .tl-slide__body :global(h1:first-child),
-  .tl-slide__body :global(h2:first-child),
-  .tl-slide__body :global(h3:first-child),
-  .tl-slide__body :global(h4:first-child),
-  .tl-slide__body :global(h5:first-child),
-  .tl-slide__body :global(h6:first-child) {
-    margin-top: 0;
-  }
-
-  /* Code and rules: also unstyled before, also authorable from the editor. */
-  .tl-slide__body :global(code),
-  .tl-slide__body :global(pre) {
-    font-family: var(--tl-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
-    font-size: 0.9em;
-  }
-  .tl-slide__body :global(code) {
-    padding: 0.1em 0.3em;
-    border-radius: 0.2em;
-    background: var(--tl-code-bg, color-mix(in srgb, currentColor 10%, transparent));
-  }
-  .tl-slide__body :global(pre) {
-    margin: 0 0 0.75rem;
-    padding: 0.6em 0.8em;
-    overflow-x: auto;
-    background: var(--tl-code-bg, color-mix(in srgb, currentColor 10%, transparent));
-  }
-  .tl-slide__body :global(pre code) {
-    padding: 0;
-    background: none;
-  }
-  .tl-slide__body :global(hr) {
-    margin: 1em 0;
-    border: 0;
-    border-top: var(--tl-rule, 1px solid color-mix(in srgb, currentColor 25%, transparent));
-  }
-
-  /*
-   * base.css flattens `blockquote` to nothing, deliberately: that reset exists
-   * so a host page's own styles cannot bleed into a slide. It also meant an
-   * authored quote rendered identically to a paragraph — the tag was in the
-   * markup and invisible on screen. Body copy is the one place a blockquote is
-   * the author's choice rather than the host's, so it gets its indent back here.
-   */
-  .tl-slide__body :global(blockquote) {
-    margin: 0 0 0.75rem;
-    padding-inline-start: var(--tl-blockquote-indent, 1em);
-    border-inline-start: var(--tl-blockquote-rule, 3px solid var(--tl-color-accent));
-    font-style: var(--tl-blockquote-font-style, italic);
-    color: var(--tl-blockquote-color, inherit);
-  }
-  .tl-slide__body :global(blockquote:last-child) {
-    margin-bottom: 0;
-  }
-
-  /*
-   * Same story as blockquote: base.css strips list markers so a host page's
-   * navigation lists cannot inherit them, which also left an authored list
-   * looking like a run of paragraphs. Body copy is where a list is the
-   * author's own, so the markers come back.
-   */
-  .tl-slide__body :global(ul),
-  .tl-slide__body :global(ol) {
-    margin: 0 0 0.75rem;
-    padding-inline-start: var(--tl-list-indent, 1.5em);
-  }
-  .tl-slide__body :global(ul) {
-    list-style: var(--tl-list-style-bullet, disc);
-  }
-  .tl-slide__body :global(ol) {
-    list-style: var(--tl-list-style-number, decimal);
-  }
-  .tl-slide__body :global(li) {
-    margin: 0 0 0.25rem;
-  }
-  .tl-slide__body :global(li > p) {
-    margin: 0;
-  }
-  .tl-slide__body :global(ul:last-child),
-  .tl-slide__body :global(ol:last-child),
-  .tl-slide__body :global(li:last-child) {
-    margin-bottom: 0;
-  }
-  .tl-slide__body :global(blockquote p:last-child) {
-    margin-bottom: 0;
-  }
 
   @container tl-player (max-width: 600px) {
     /* Stack single-column: text first so the headline is visible without

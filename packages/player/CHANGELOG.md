@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **Body-copy styling has one definition.** The rules for author-written HTML
+  now live in `styles/prose.css`, keyed by a `tl-prose` class that the slide
+  body carries — and that the authoring editor applies too, so what is typed is
+  set the way it will be published. They are bundled into `styles.css` as
+  before, so nothing changes for embedders.
+
 ### Fixed
 
 - **Links in body copy are underlined again.** The isolation reset strips

@@ -13,6 +13,7 @@ export default defineConfig({
     conditions: ['browser'],
     alias: {
       '@knight-lab/timeline-ng-core': `${root}../core/src/index.ts`,
+      '@knight-lab/timeline-ng/prose.css': `${root}../player/src/styles/prose.css`,
       '@knight-lab/timeline-ng': `${root}../player/src/index.ts`,
     },
   },

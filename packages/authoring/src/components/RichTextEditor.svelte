@@ -6,6 +6,9 @@
   import DOMPurify from 'dompurify';
   import type * as Y from 'yjs';
   import { extensionsFor } from '../lib/richtext.ts';
+  // The player's body-copy rules, so what is typed here is set the way it will
+  // be published. One definition, two consumers — see prose.css.
+  import '@knight-lab/timeline-ng/prose.css';
   import type { RichTextField } from '../lib/doc.ts';
 
   interface Props {
@@ -156,7 +159,14 @@
       autofocus: autofocus ? 'end' : false,
       editorProps: {
         attributes: {
-          class: `rte-content${singleLine ? ' rte-content--singleline' : ''}`,
+          // `tl-prose` is for full body copy only. The headline and the
+          // caption fields are one-line form controls that happen to accept
+          // marks, not prose blocks, and paragraph spacing would be wrong there.
+          class: [
+            'rte-content',
+            singleLine ? 'rte-content--singleline' : '',
+            minimal || inlineOnly || singleLine ? '' : 'tl-prose',
+          ].filter(Boolean).join(' '),
           ...(id ? { id } : {}),
         },
         handleKeyDown: (_view, event) => {
@@ -514,29 +524,10 @@
     font-weight: bolder;
   }
 
-  .rte-body :global(.rte-content > * + *) { margin-top: 0.4em; }
-  .rte-body :global(.rte-content p)  { margin: 0; }
+  /* Paragraphs, headings, lists, quotes, code and links all come from
+     prose.css now. Only the fields that are *not* prose need rules here. */
   .rte-body :global(.rte-content--singleline > * + *) { margin-top: 0; }
   .rte-body :global(.rte-content--singleline p) { margin: 0; }
-  .rte-body :global(.rte-content h2) { font-size: 1.1rem; font-weight: 700; margin: 0; }
-  .rte-body :global(.rte-content h3) { font-size: 0.95rem; font-weight: 700; margin: 0; }
-  .rte-body :global(.rte-content ul) {
-    margin: 0;
-    padding-inline-start: var(--tl-list-indent, 1.5em);
-    list-style: var(--tl-list-style-bullet, disc);
-  }
-  .rte-body :global(.rte-content ol) {
-    margin: 0;
-    padding-inline-start: var(--tl-list-indent, 1.5em);
-    list-style: var(--tl-list-style-number, decimal);
-  }
-  .rte-body :global(.rte-content li) { margin: 0; }
-  .rte-body :global(.rte-content blockquote) {
-    margin: 0;
-    padding-inline-start: var(--tl-blockquote-indent, 1em);
-    border-inline-start: var(--tl-blockquote-rule, 3px solid var(--tl-color-accent, #d4d4d4));
-    color: var(--tl-blockquote-color, #666);
-    font-style: var(--tl-blockquote-font-style, italic);
-  }
-  .rte-body :global(.rte-content a) { color: #13a4df; text-decoration: underline; }
+  .rte-body :global(.rte-content:not(.tl-prose) > * + *) { margin-top: 0.4em; }
+  .rte-body :global(.rte-content:not(.tl-prose) p) { margin: 0; }
 </style>
