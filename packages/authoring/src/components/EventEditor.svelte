@@ -1595,7 +1595,16 @@
     flex-direction: column;
     gap: 0.25rem;
   }
-  .slide-credit-text { display: block; text-align: right; font-style: italic; font-size: 0.68rem; }
+  .slide-caption-text {
+    font-family: var(--tl-font-body, inherit);
+  }
+  .slide-credit-text {
+    display: block;
+    text-align: right;
+    font-style: italic;
+    font-size: 0.68rem;
+    font-family: var(--tl-font-body, inherit);
+  }
   .media-alt-summary {
     margin: 0;
     font-size: 0.72rem;
@@ -1698,9 +1707,11 @@
   }
 
   .slide-h {
-    /* Explicit font-family so Orangeline's global h1-h6 rule (a serif display
-       font) can't win — matches --tl-font-heading in the rendered player. */
-    font-family: system-ui, sans-serif;
+    /* The timeline's own heading face, from the tokens EditorView puts on the
+       shell — not an approximation of it. This used to hard-code system-ui with
+       a comment saying it "matches --tl-font-heading in the rendered player",
+       which is exactly the kind of hand-maintained copy that drifts. */
+    font-family: var(--tl-font-heading, system-ui, sans-serif);
     font-size: 1.65rem;
     font-weight: 700;
     color: #1d1f21;
@@ -1716,19 +1727,14 @@
     font-weight: bolder;
   }
 
+  /* Paragraphs, headings, lists and links come from prose.css — this element
+     carries `tl-prose`. Only the container's own type is set here. */
   .slide-body-text {
-    /* Matches --tl-font-body in the rendered player. */
-    font-family: system-ui, sans-serif;
-    font-size: 0.9rem;
-    line-height: 1.65;
+    font-family: var(--tl-font-body, system-ui, sans-serif);
+    font-size: var(--tl-body-size, 0.9rem);
+    line-height: var(--tl-body-line-height, 1.65);
     color: #333;
   }
-  .slide-body-text :global(p) { margin: 0 0 0.4em; }
-  .slide-body-text :global(p:last-child) { margin-bottom: 0; }
-  .slide-body-text :global(h2) { font-size: 1.05rem; font-weight: 700; margin: 0.5em 0 0.25em; }
-  .slide-body-text :global(h3) { font-size: 0.95rem; font-weight: 700; margin: 0.5em 0 0.2em; }
-  .slide-body-text :global(ul), .slide-body-text :global(ol) { margin: 0 0 0.4em; padding-left: 1.4em; }
-  .slide-body-text :global(a) { color: #13a4df; }
 
 
   /* ── Field editing panels ──────────────────────────────────── */

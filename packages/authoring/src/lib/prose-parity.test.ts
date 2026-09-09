@@ -42,6 +42,26 @@ describe('prose.css owns body-copy styling', () => {
     expect(styleBlock(slideContent)).not.toMatch(new RegExp(`tl-slide__body :global\\(${el}[):]`));
   });
 
+  /*
+   * Every element that carries a prose class, not just the editable one. The
+   * read-only panels restated paragraph, heading, list and link rules of their
+   * own, which beat prose.css on specificity and drifted from it — the same
+   * failure as the player/editor split, one level in.
+   */
+  const PROSE_CONTAINERS = ['rte-content', 'slide-body-text', 'slide-h'];
+
+  it.each(
+    PROSE_CONTAINERS.flatMap((container) => OWNED.map((el) => [container, el] as const)),
+  )('%s does not restate a rule for %s', (container, el) => {
+    // Both files' style blocks — concatenating the *files* first would slice
+    // from the last <style> and silently inspect only one of them.
+    const rules = [styleBlock(richText), styleBlock(read('../components/EventEditor.svelte'))]
+      .join('\n')
+      .split('\n')
+      .filter((l) => !l.includes('--singleline') && !l.includes(':not(.tl-prose)'));
+    expect(rules.join('\n')).not.toMatch(new RegExp(`\\.${container} :global\\(${el}[):]`));
+  });
+
   it.each(OWNED)('is not restated for %s by the editor', (el) => {
     // `.rte-content--singleline` is exempt: the headline field is a one-line
     // form control, not a prose block, and deliberately opts out of .tl-prose.
