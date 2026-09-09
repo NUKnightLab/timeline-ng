@@ -102,7 +102,7 @@
 
     if (_draftTimer !== null) clearTimeout(_draftTimer);
 
-    if (!draftIsWorthKeeping({ clean, atUri: uri, hasContent: !!te || ev.length > 0 })) {
+    if (!draftIsWorthKeeping({ clean, durableCopyExists: !!uri, hasContent: !!te || ev.length > 0 })) {
       clearDraft();
       return;
     }
@@ -170,7 +170,7 @@
     if (_undoTimer !== null) { clearTimeout(_undoTimer); _undoTimer = null; }
     deletedItem = null;
     deletedItemLeaving = false;
-    if (draftIsWorthKeeping({ clean: pdsClean, atUri, hasContent: !!titleEvent || events.length > 0 })) {
+    if (draftIsWorthKeeping({ clean: pdsClean, durableCopyExists: !!atUri, hasContent: !!titleEvent || events.length > 0 })) {
       const draft: Draft = { title: timelineTitle || undefined, titleEvent, events, atUri: atUri ?? undefined, pdsClean, settings };
       saveDraft(draft);
       pendingDraft = draft;

@@ -319,6 +319,16 @@ explaining this). Once it is an ordinary field, that constraint disappears.
 *Verify:* rename a slide ID while typing, with no remount and no focus loss. Round-trip tests from
 Stage 0 still pass.
 
+> **Carried into Stage 5:** the localStorage draft is kept or cleared by
+> `draftIsWorthKeeping`, whose real question is "does this content also exist
+> somewhere it cannot be lost from?" Today that is the PDS. **For a collaborator
+> it will not be** — a collaborator cannot publish, so `atUri` says nothing about
+> whether their work is safe, and the durable copy becomes the collaboration
+> server. `y-indexeddb` mostly dissolves the question, since it persists the
+> document unconditionally as a local replica rather than as a conditional
+> backup; what survives is the decision about when a local replica may be
+> discarded, and its input has to change from "published" to "synced".
+
 ### Stage 5 — persistence and the drafts list
 
 `y-indexeddb` per document. A local drafts list in `HomeView`. **[P6]** Migrate any existing

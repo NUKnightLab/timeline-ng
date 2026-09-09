@@ -12,27 +12,27 @@ import { draftIsWorthKeeping } from './draft.ts';
  */
 describe('draftIsWorthKeeping', () => {
   const keep = (o: Partial<Parameters<typeof draftIsWorthKeeping>[0]>) =>
-    draftIsWorthKeeping({ clean: false, atUri: null, hasContent: true, ...o });
+    draftIsWorthKeeping({ clean: false, durableCopyExists: false, hasContent: true, ...o });
 
   it('keeps unsaved work', () => {
-    expect(keep({ clean: false, atUri: null })).toBe(true);
+    expect(keep({ clean: false, durableCopyExists: false })).toBe(true);
   });
 
-  it('keeps a never-published timeline even when it matches what was loaded', () => {
+  it('keeps a timeline with no durable copy even when it matches what was loaded', () => {
     // The regression: undo back to the start on a timeline with no atUri.
-    expect(keep({ clean: true, atUri: null })).toBe(true);
+    expect(keep({ clean: true, durableCopyExists: false })).toBe(true);
   });
 
   it('keeps a published timeline that has unpublished changes', () => {
-    expect(keep({ clean: false, atUri: 'at://did:plc:x/com.knightlab.timeline/1' })).toBe(true);
+    expect(keep({ clean: false, durableCopyExists: true })).toBe(true);
   });
 
   it('drops a published timeline that matches the published copy', () => {
-    expect(keep({ clean: true, atUri: 'at://did:plc:x/com.knightlab.timeline/1' })).toBe(false);
+    expect(keep({ clean: true, durableCopyExists: true })).toBe(false);
   });
 
   it('drops an empty timeline whatever its state', () => {
-    expect(keep({ hasContent: false, clean: false, atUri: null })).toBe(false);
-    expect(keep({ hasContent: false, clean: true, atUri: null })).toBe(false);
+    expect(keep({ hasContent: false, clean: false, durableCopyExists: false })).toBe(false);
+    expect(keep({ hasContent: false, clean: true, durableCopyExists: false })).toBe(false);
   });
 });
