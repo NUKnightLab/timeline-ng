@@ -20,6 +20,43 @@
  */
 
 /*
+ * Step one: take back the elements from whatever framework is on the page.
+ *
+ * The rules below set only what they mean to set, and a design system fills
+ * every gap they leave — which is how a blockquote in the authoring editor
+ * ended up serif, bold, oversized and wrapped in decorative quote glyphs, none
+ * of which any rule here mentions. Confining the framework to a cascade layer
+ * does not help with that: a layered rule loses only where an unlayered rule
+ * competes, and silence is not competition.
+ *
+ * So: neutralise first, then state opinions. `font: inherit` collapses family,
+ * size, weight, style and line-height in one declaration.
+ *
+ * Inline marks — `strong`, `em`, `s`, `u` — are deliberately absent. Their
+ * appearance comes from the UA stylesheet, and an author-origin `font: inherit`
+ * would override it and quietly stop bold being bold.
+ *
+ * Single class here (0,1,0) against the doubled class below (0,2,0), so the
+ * rules that follow always win regardless of source order.
+ */
+.tl-prose :where(p, h1, h2, h3, h4, h5, h6, ul, ol, li, blockquote, pre, code, hr, a) {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  text-transform: none;
+  letter-spacing: normal;
+  text-shadow: none;
+  quotes: none;
+}
+.tl-prose :where(blockquote, q)::before,
+.tl-prose :where(blockquote, q)::after {
+  content: none;
+}
+
+/*
  * These target user-authored HTML inside body copy — unavoidably "deep".
  * Customise via --tl-body-link-color and --tl-color-accent.
  */
