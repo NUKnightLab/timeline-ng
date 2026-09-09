@@ -47,7 +47,15 @@
     );
   }
 
-  let selectedId = $state<string | null>(_startInEditor ? (_restoreDraft?.titleEvent ? 'title' : (_restoreDraft?.events?.[0]?.unique_id ?? null)) : null);
+  /**
+   * Which slide the editor is on: an internal slide key, or `'title'`.
+   *
+   * Not a `unique_id`. That is an author-facing, editable field with no
+   * uniqueness guarantee once two people can edit at once, so it cannot serve
+   * as identity — see TimelineDoc.eventForKey.
+   */
+  let selectedId = $state<string | null>(null);
+  if (_startInEditor) selectedId = tldoc.titleEvent ? 'title' : (tldoc.entries[0]?.key ?? null);
   let saveStatus = $state<string | null>(null);
 
   const timelineTitle = $derived(tldoc.title);
@@ -78,10 +86,7 @@
   const headlineFragment = $derived(tldoc.fragmentFor(selectedId, HEADLINE_FIELD));
   const bodyFragment = $derived(tldoc.fragmentFor(selectedId, BODY_FIELD));
 
-  const selectedEvent = $derived.by<TLEvent | null>(() => {
-    if (selectedId === 'title') return titleEvent;
-    return selectedId === null ? null : tldoc.eventForUniqueId(selectedId);
-  });
+  const selectedEvent = $derived(tldoc.eventForKey(selectedId));
 
   const isEditingTitle = $derived(selectedId === 'title');
 
@@ -162,7 +167,7 @@
       { title: opts.title, titleSetByUser: opts.titleSetByUser ?? false, atUri: opts.atUri },
       { clean: opts.clean ?? true },
     );
-    selectedId = opts.titleEvent ? 'title' : (opts.events?.[0]?.unique_id ?? null);
+    selectedId = opts.titleEvent ? 'title' : (tldoc.entries[0]?.key ?? null);
     view = 'editor';
   }
 
@@ -250,9 +255,7 @@
   // ── Editor actions ────────────────────────────────────────────────────────────
 
   function addEvent() {
-    const id = uid();
-    tldoc.addEvent({ unique_id: id });
-    selectedId = id;
+    selectedId = tldoc.addEvent({ unique_id: uid() });
   }
 
   function addTitleSlide() {
@@ -261,31 +264,23 @@
   }
 
   function updateEvent(updated: TLEvent) {
-    if (selectedId === 'title') {
-      tldoc.setTitleSlide(updated);
-    } else if (selectedId !== null) {
-      // Match on the id the event had *before* this update, not updated.unique_id —
-      // when a rename is in the update, updated.unique_id is the new value, which
-      // won't match any slide yet.
-      tldoc.updateEvent(selectedId, updated);
-      if (updated.unique_id && updated.unique_id !== selectedId) {
-        selectedId = updated.unique_id;
-      }
-    }
+    // No special case for a rename any more: `unique_id` is an ordinary field
+    // and a slide's identity does not move when it changes.
+    if (selectedId !== null) tldoc.updateEvent(selectedId, updated);
   }
 
-  function deleteEvent(id: string) {
-    if (id === 'title') {
+  function deleteEvent(key: string) {
+    if (key === 'title') {
       deletedItem = { event: titleEvent!, isTitle: true, sortedIndex: -1 };
       tldoc.removeTitleSlide();
-      selectedId = tldoc.events[0]?.unique_id ?? null;
+      selectedId = tldoc.entries[0]?.key ?? null;
     } else {
-      const sortedIndex = sortedEvents.findIndex(e => e.unique_id === id);
-      deletedItem = { event: tldoc.eventForUniqueId(id)!, isTitle: false, sortedIndex };
-      tldoc.removeEvent(id);
-      if (selectedId === id) {
-        const remaining = tldoc.events;
-        selectedId = remaining.length > 0 ? remaining[remaining.length - 1].unique_id! : null;
+      const sortedIndex = tldoc.entries.findIndex(e => e.key === key);
+      deletedItem = { event: tldoc.eventForKey(key)!, isTitle: false, sortedIndex };
+      tldoc.removeEvent(key);
+      if (selectedId === key) {
+        const remaining = tldoc.entries;
+        selectedId = remaining.length > 0 ? remaining[remaining.length - 1].key : null;
       }
     }
     deletedItemLeaving = false;
@@ -310,8 +305,7 @@
       tldoc.setTitleSlide(event);
       selectedId = 'title';
     } else {
-      tldoc.addEvent(event);
-      selectedId = event.unique_id!;
+      selectedId = tldoc.addEvent(event);
     }
   }
 
@@ -430,7 +424,7 @@
   <EditorView
     {timelineTitle}
     {titleEvent}
-    {sortedEvents}
+    entries={tldoc.entries}
     {selectedId}
     {selectedEvent}
     {isEditingTitle}

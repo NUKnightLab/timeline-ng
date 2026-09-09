@@ -307,7 +307,7 @@ a photo credit. Easy to promote later if that turns out wrong.
 *Verify:* the first real proof of merge — two `RichTextEditor` instances bound to the same fragment
 in one page, typed into simultaneously, converging without loss.
 
-### Stage 4 — internal keys
+### Stage 4 — internal keys ✅
 
 Key the slide map by an internal id; demote `unique_id` to an ordinary field. Touches `selectedId`
 throughout App.svelte, EventList, EditorView, and the `'title'` sentinel.
@@ -316,8 +316,17 @@ A payoff worth noting: the slide-ID field currently commits on blur rather than 
 *because* it doubles as the parent's identity key (there is a comment at `EventEditor.svelte:255`
 explaining this). Once it is an ordinary field, that constraint disappears.
 
-*Verify:* rename a slide ID while typing, with no remount and no focus loss. Round-trip tests from
-Stage 0 still pass.
+*Verified:* `selectedId` is an internal key or `'title'` throughout — App, EditorView and EventList
+— and the ID field commits on `oninput` rather than `onblur`, since renaming no longer moves the
+slide. Tests cover a mid-word rename leaving identity untouched, and two slides sharing one
+`unique_id` staying separately addressable, which is the case that was quietly broken before: an
+author-facing field with no uniqueness guarantee cannot serve as identity once two people edit at
+once.
+
+One thing this surfaced, worth knowing before Stage 6: **prose cannot be written through
+`updateEvent` at all.** `writeSlide` skips the fields the fragments own (Stage 3b), so a headline
+changes through its fragment or not at all. That is correct, and it is also the reason undo has to
+go through `Y.UndoManager` rather than through any event-shaped path.
 
 > **Carried into Stage 5:** the localStorage draft is kept or cleared by
 > `draftIsWorthKeeping`, whose real question is "does this content also exist

@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { TLEvent } from '@knight-lab/timeline-ng-core';
+  import type { SlideEntry } from '../lib/doc.ts';
   import { resolveBackgroundImageUrl, isValidSlideId } from '@knight-lab/timeline-ng-core';
   import { stripHtml } from '../lib/text.ts';
 
@@ -11,7 +12,8 @@
 
   interface Props {
     titleEvent: TLEvent | null;
-    events: TLEvent[];
+    entries: SlideEntry[];
+    /** An internal slide key, or `'title'`. Never a `unique_id`. */
     selectedId: string | null;
     panelId?: string;
     deletedItem: DeletedItem | null;
@@ -23,15 +25,19 @@
     onundo: () => void;
   }
 
-  let { titleEvent, events, selectedId, panelId = 'event-editor-panel', deletedItem, deletedItemLeaving, onselect, onadd, onaddtitle, ondelete, onundo }: Props = $props();
+  let { titleEvent, entries, selectedId, panelId = 'event-editor-panel', deletedItem, deletedItemLeaving, onselect, onadd, onaddtitle, ondelete, onundo }: Props = $props();
   let filmstripScrollEl: HTMLDivElement | null = null;
   let resolvedBackgrounds = $state<Record<string, string | null>>({});
   const pendingBackgrounds = new Set<string>();
 
-  type DisplayItem = { type: 'event'; event: TLEvent } | { type: 'undo'; event: TLEvent };
+  // `key` is the slide's internal identity; the pending-undo row has none,
+  // because the slide it stands for has been removed from the document.
+  type DisplayItem =
+    | { type: 'event'; key: string; event: TLEvent }
+    | { type: 'undo'; event: TLEvent };
 
   const displayEvents = $derived.by((): DisplayItem[] => {
-    const items: DisplayItem[] = events.map(e => ({ type: 'event', event: e }));
+    const items: DisplayItem[] = entries.map(e => ({ type: 'event', key: e.key, event: e.event }));
     if (deletedItem && !deletedItem.isTitle) {
       const idx = Math.min(deletedItem.sortedIndex, items.length);
       items.splice(idx, 0, { type: 'undo', event: deletedItem.event });
@@ -94,7 +100,7 @@
     const ids: string[] = [];
     if (titleEvent) ids.push('title');
     for (const item of displayEvents) {
-      if (item.type === 'event' && item.event.unique_id) ids.push(item.event.unique_id);
+      if (item.type === 'event') ids.push(item.key);
     }
     return ids;
   });
@@ -152,9 +158,9 @@
       requests.push({ id: 'title', url: titleEvent.background.url.trim() });
     }
     for (const item of displayEvents) {
-      if (item.type !== 'event' || !item.event.unique_id) continue;
+      if (item.type !== 'event') continue;
       const url = item.event.background?.url?.trim();
-      if (url) requests.push({ id: item.event.unique_id, url });
+      if (url) requests.push({ id: item.key, url });
     }
 
     for (const { id, url } of requests) {
@@ -243,7 +249,7 @@
   <div class="filmstrip__divider" role="separator"></div>
 
   <!-- Events -->
-  {#each displayEvents as item, i (item.type === 'event' ? item.event.unique_id : '__undo__')}
+  {#each displayEvents as item, i (item.type === 'event' ? item.key : '__undo__')}
     {#if item.type === 'undo'}
       <div class="slide-card slide-card--deleted" class:slide-card--leaving={deletedItemLeaving}>
         <div class="slide-num">—</div>
@@ -256,7 +262,7 @@
       </div>
     {:else}
       {@const event = item.event}
-      {@const id = event.unique_id!}
+      {@const id = item.key}
       {@const eventBgSrc = backgroundSrc(id, event)}
       {@const evErrors = validationErrors(event, false)}
       <div class="slide-entry">

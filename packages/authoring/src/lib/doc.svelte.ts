@@ -144,13 +144,18 @@ export class TimelineDoc {
     return this.#savedSnapshot !== null && JSON.stringify(this.#timeline) === this.#savedSnapshot;
   }
 
-  /** The internal key a slide is stored under, found by its author-facing ID. */
-  keyForUniqueId(uniqueId: string): string | undefined {
-    return this.#entries.find((e) => e.event.unique_id === uniqueId)?.key;
-  }
-
-  eventForUniqueId(uniqueId: string): TLEvent | null {
-    return this.#entries.find((e) => e.event.unique_id === uniqueId)?.event ?? null;
+  /**
+   * A slide by its internal key, or the title slide.
+   *
+   * There is deliberately no lookup by `unique_id`. That field is author-facing
+   * and editable, and nothing guarantees it is unique — two collaborators can
+   * choose the same one at once, and uniqueness is only enforced as a
+   * validation pass at publish. Identity is the key.
+   */
+  eventForKey(key: string | null): TLEvent | null {
+    if (key === null) return null;
+    if (key === 'title') return this.#titleEvent;
+    return this.#entries.find((e) => e.key === key)?.event ?? null;
   }
 
   // ── Writing ─────────────────────────────────────────────────────────────────
@@ -168,8 +173,9 @@ export class TimelineDoc {
     this.#savedSnapshot = JSON.stringify(this.#timeline);
   }
 
-  addEvent(event: TLEvent): void {
-    addSlide(this.doc, event);
+  /** Add a slide, returning the internal key it was stored under. */
+  addEvent(event: TLEvent): string {
+    return addSlide(this.doc, event);
   }
 
   setTitleSlide(event: TLEvent): void {
@@ -181,22 +187,22 @@ export class TimelineDoc {
   }
 
   /**
-   * Write a whole slide, found by the ID it had *before* this update — a rename
-   * arrives with the new ID already in `updated`, which would match nothing.
+   * Write a whole slide by its internal key.
    *
-   * Stage 2 replaces the body of this with a field-level diff so that a
-   * one-character headline edit stops rewriting the entire slide.
+   * A rename used to need the ID the slide had *before* the update, because the
+   * new one matched nothing yet. Keying by an internal id removes the problem
+   * rather than handling it: `unique_id` is now an ordinary field that changes
+   * like any other.
    */
-  updateEvent(previousUniqueId: string, updated: TLEvent): void {
-    const key = this.keyForUniqueId(previousUniqueId);
-    const slide = key === undefined ? undefined : slidesMap(this.doc).get(key);
+  updateEvent(key: string, updated: TLEvent): void {
+    if (key === 'title') { this.setTitleSlide(updated); return; }
+    const slide = slidesMap(this.doc).get(key);
     if (!slide) return;
     this.doc.transact(() => writeSlide(slide, updated));
   }
 
-  removeEvent(uniqueId: string): void {
-    const key = this.keyForUniqueId(uniqueId);
-    if (key !== undefined) removeSlide(this.doc, key);
+  removeEvent(key: string): void {
+    removeSlide(this.doc, key);
   }
 
   patchSettings(patch: Partial<TLSettings>): void {
@@ -232,11 +238,9 @@ export class TimelineDoc {
    * (see `ensureFragments`). The editor falls back to editing that string, and
    * the only thing given up is merging.
    */
-  fragmentFor(selectedId: string | null, field: RichTextField): Y.XmlFragment | null {
-    if (selectedId === null) return null;
-    const slide = selectedId === 'title'
-      ? titleMap(this.doc)
-      : slidesMap(this.doc).get(this.keyForUniqueId(selectedId) ?? '');
+  fragmentFor(key: string | null, field: RichTextField): Y.XmlFragment | null {
+    if (key === null) return null;
+    const slide = key === 'title' ? titleMap(this.doc) : slidesMap(this.doc).get(key);
     if (!slide || slide.size === 0) return null;
     return slide.get(field.fragmentKey) instanceof Y.XmlFragment
       ? (slide.get(field.fragmentKey) as Y.XmlFragment)

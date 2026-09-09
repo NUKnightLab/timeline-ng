@@ -34,7 +34,7 @@ describe('TimelineDoc snapshot', () => {
     t.addEvent(moon);
     expect(t.events).toHaveLength(1);
 
-    t.removeEvent('the-moon-landing');
+    t.removeEvent(t.entries[0].key);
     expect(t.events).toEqual([]);
   });
 
@@ -43,7 +43,7 @@ describe('TimelineDoc snapshot', () => {
     t.load({ events: [moon], settings: {} });
     const before = t.entries[0].key;
 
-    t.updateEvent('the-moon-landing', { ...moon, unique_id: 'apollo-11' });
+    t.updateEvent(t.entries[0].key, { ...moon, unique_id: 'apollo-11' });
 
     expect(t.entries[0].key).toBe(before);
     expect(t.events[0].unique_id).toBe('apollo-11');
@@ -58,7 +58,7 @@ describe('clean', () => {
 
     // Not a prose edit: those reach the document through the fragments, not
     // through updateEvent, which ignores its copy of the HTML entirely.
-    t.updateEvent('the-moon-landing', { ...moon, group: 'Missions' });
+    t.updateEvent(t.entries[0].key, { ...moon, group: 'Missions' });
     expect(t.clean).toBe(false);
   });
 
@@ -74,10 +74,10 @@ describe('clean', () => {
     const t = new TimelineDoc();
     t.load({ events: [moon], settings: {} });
 
-    t.updateEvent('the-moon-landing', { ...moon, group: 'Missions' });
+    t.updateEvent(t.entries[0].key, { ...moon, group: 'Missions' });
     expect(t.clean).toBe(false);
 
-    t.updateEvent('the-moon-landing', moon);
+    t.updateEvent(t.entries[0].key, moon);
     expect(t.clean).toBe(true);
   });
 
@@ -147,5 +147,45 @@ describe('reactivity', () => {
       expect(seen).toEqual(['Sputnik 1', 'The Moon Landing']);
     });
     cleanup();
+  });
+});
+
+describe('identity is the internal key, not unique_id', () => {
+  // `unique_id` is author-facing and editable, and nothing makes it unique:
+  // two collaborators can pick the same one at the same time, and uniqueness is
+  // only enforced as a validation pass at publish. Anything that treated it as
+  // identity — the editor's selection, list keying, "which slide am I writing
+  // to" — would address the wrong slide, or two slides at once.
+  it('keeps duplicate-named slides separately addressable', () => {
+    const t = new TimelineDoc();
+    t.load({ events: [], settings: {} });
+    const a = t.addEvent({ unique_id: 'apollo', text: { headline: 'First' } });
+    const b = t.addEvent({ unique_id: 'apollo', text: { headline: 'Second' } });
+
+    expect(a).not.toBe(b);
+    expect(t.eventForKey(a)?.text?.headline).toBe('First');
+    expect(t.eventForKey(b)?.text?.headline).toBe('Second');
+
+    // Not prose: `writeSlide` ignores the fields the fragments own, so a
+    // headline changes through its fragment and never through here.
+    t.updateEvent(b, { unique_id: 'apollo', group: 'Missions' });
+    expect(t.eventForKey(a)?.group).toBeUndefined();
+    expect(t.eventForKey(b)?.group).toBe('Missions');
+    expect(t.eventForKey(a)?.text?.headline).toBe('First');
+
+    t.removeEvent(a);
+    expect(t.entries.map((e) => e.key)).toEqual([b]);
+  });
+
+  it('survives a rename mid-word, which is what lets the ID field commit on input', () => {
+    const t = new TimelineDoc();
+    t.load({ events: [], settings: {} });
+    const key = t.addEvent({ unique_id: 'm', text: { headline: 'Moon' } });
+
+    for (const id of ['mo', 'moo', 'moon', 'moon-l', 'moon-landing']) {
+      t.updateEvent(key, { unique_id: id, text: { headline: 'Moon' } });
+      expect(t.entries.map((e) => e.key)).toEqual([key]);
+    }
+    expect(t.eventForKey(key)?.unique_id).toBe('moon-landing');
   });
 });

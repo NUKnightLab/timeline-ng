@@ -15,8 +15,15 @@ import { extensionsFor } from './richtext.ts';
 const editors: Editor[] = [];
 afterEach(() => { editors.splice(0).forEach((e) => e.destroy()); });
 
-function mount(tl: TimelineDoc, selectedId: string) {
-  const fragment = tl.fragmentFor(selectedId, BODY_FIELD);
+/** Slides are addressed by their internal key, not by `unique_id`. */
+function keyOf(tl: TimelineDoc): string {
+  const key = tl.entries[0]?.key;
+  if (!key) throw new Error('expected a slide');
+  return key;
+}
+
+function mount(tl: TimelineDoc, slideKey: string) {
+  const fragment = tl.fragmentFor(slideKey, BODY_FIELD);
   if (!fragment) throw new Error('expected a fragment');
   const editor = new Editor({
     element: document.createElement('div'),
@@ -32,13 +39,13 @@ describe('an editor bound to a fragment', () => {
   it('opens showing the prose already in the document', () => {
     const tl = new TimelineDoc();
     tl.load(withBody('<p>One small step.</p>'));
-    expect(mount(tl, 'moon').getHTML()).toBe('<p>One small step.</p>');
+    expect(mount(tl, keyOf(tl)).getHTML()).toBe('<p>One small step.</p>');
   });
 
   it('writes typing into the document, and the mirror follows', () => {
     const tl = new TimelineDoc();
     tl.load(withBody('<p>One small step.</p>'));
-    const editor = mount(tl, 'moon');
+    const editor = mount(tl, keyOf(tl));
 
     editor.commands.insertContentAt(1, 'That is ');
     tl.flushMirrors();
@@ -51,9 +58,9 @@ describe('an editor bound to a fragment', () => {
     // undo looks like in Phase 1 — neither goes through this editor.
     const tl = new TimelineDoc();
     tl.load(withBody('<p>One small step.</p>'));
-    const editor = mount(tl, 'moon');
+    const editor = mount(tl, keyOf(tl));
 
-    const fragment = tl.fragmentFor('moon', BODY_FIELD)!;
+    const fragment = tl.fragmentFor(keyOf(tl), BODY_FIELD)!;
     tl.doc.transact(() => {
       const para = fragment.get(0) as import('yjs').XmlElement;
       (para.get(0) as import('yjs').XmlText).insert(0, 'Remote: ');
@@ -65,7 +72,7 @@ describe('an editor bound to a fragment', () => {
   it('has no undo of its own, so Yjs can own history', () => {
     const tl = new TimelineDoc();
     tl.load(withBody('<p>Body.</p>'));
-    const editor = mount(tl, 'moon');
+    const editor = mount(tl, keyOf(tl));
     // StarterKit's undoRedo is off for a collaborative field, so ProseMirror's
     // own history plugin is absent and cannot fight Yjs. Stage 6 supplies undo
     // through Y.UndoManager instead.
@@ -80,8 +87,8 @@ describe('an editor bound to a fragment', () => {
     const b = new TimelineDoc();
     Y.applyUpdate(b.doc, Y.encodeStateAsUpdate(a.doc));
 
-    const ea = mount(a, 'moon');
-    const eb = mount(b, 'moon');
+    const ea = mount(a, keyOf(a));
+    const eb = mount(b, keyOf(b));
     ea.commands.insertContentAt(1, 'That is ');
     eb.commands.insertContentAt(17, ' For a man.');
 
@@ -102,7 +109,7 @@ describe('a field with no fragment', () => {
     const tl = new TimelineDoc();
     // An inline image cannot be represented, so ensureFragments declines.
     tl.load(withBody('<p>Before <img src="https://example.com/a.jpg"> after</p>'));
-    expect(tl.fragmentFor('moon', BODY_FIELD)).toBeNull();
+    expect(tl.fragmentFor(keyOf(tl), BODY_FIELD)).toBeNull();
     expect(tl.events[0].text?.text).toContain('<img');
   });
 });
@@ -120,7 +127,7 @@ describe('binding to a fragment does not change how commands behave', () => {
     for (const collaborative of [false, true]) {
       const tl = new TimelineDoc();
       tl.load(withBody(html));
-      const fragment = tl.fragmentFor('moon', BODY_FIELD)!;
+      const fragment = tl.fragmentFor(keyOf(tl), BODY_FIELD)!;
       const editor = new Editor({
         element: document.createElement('div'),
         extensions: [
@@ -153,7 +160,7 @@ describe('binding to a fragment does not change how commands behave', () => {
     // cannot be matched, so the button removes quotes but never creates one.
     const tl = new TimelineDoc();
     tl.load(withBody('<p>Quote me.</p>'));
-    const editor = mount(tl, 'moon');
+    const editor = mount(tl, keyOf(tl));
     editor.commands.selectAll();
     expect(editor.can().toggleBlockquote()).toBe(true);
     expect(editor.can().toggleBulletList()).toBe(true);

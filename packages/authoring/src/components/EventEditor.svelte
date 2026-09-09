@@ -440,6 +440,18 @@
   let slideId         = $state(ev.unique_id ?? '');
   const slideIdValid  = $derived(!slideId.trim() || isValidSlideId(slideId.trim()));
 
+  /**
+   * Commits on every keystroke, not on blur.
+   *
+   * It used to wait for blur because `unique_id` doubled as the slide's
+   * identity: writing it mid-word moved the slide, remounting this editor and
+   * taking the caret with it. Slides are keyed internally now, so the ID is an
+   * ordinary field and can behave like one.
+   *
+   * Invalid intermediate values are simply not written — typing a leading digit
+   * holds the last good value in the document until the text becomes legal
+   * again, rather than rejecting the keystroke.
+   */
   function commitSlideId() {
     const customId = slideId.trim();
     if (customId && slideIdValid && customId !== event.unique_id) buildAndEmit(customId);
@@ -1205,7 +1217,8 @@
 
       <div class="field">
         <label class="field-label" for="slide-id">Slide ID</label>
-        <input id="slide-id" type="text" bind:value={slideId} onblur={commitSlideId} onkeydown={handleSlideIdKeydown}
+        <input id="slide-id" type="text" bind:value={slideId}
+          oninput={commitSlideId} onblur={commitSlideId} onkeydown={handleSlideIdKeydown}
           class:field-id-error={slideId.trim() && !slideIdValid}
           placeholder={event.unique_id ?? ''} />
         {#if slideId.trim() && !slideIdValid}

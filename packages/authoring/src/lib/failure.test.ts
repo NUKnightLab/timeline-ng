@@ -75,7 +75,7 @@ describe('a mirror flush racing a deletion', () => {
 
     // Edit and delete in the same tick, before the queued flush can run.
     ((fragment.get(0) as Y.XmlElement).get(0) as Y.XmlText).insert(0, 'Edited ');
-    t.removeEvent('doomed');
+    t.removeEvent(key);
 
     expect(() => t.flushMirrors()).not.toThrow();
     expect(t.events).toEqual([]);

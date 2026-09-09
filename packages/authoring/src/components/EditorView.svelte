@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { TLEvent, TLTimeline, TLSettings } from '@knight-lab/timeline-ng-core';
   import type * as Y from 'yjs';
+  import type { SlideEntry } from '../lib/doc.ts';
   import { fly } from 'svelte/transition';
 
   import EventList from './EventList.svelte';
@@ -16,7 +17,9 @@
   interface Props {
     timelineTitle: string;
     titleEvent: TLEvent | null;
-    sortedEvents: TLEvent[];
+    /** Slides in display order, each with the internal key that identifies it. */
+    entries: SlideEntry[];
+    /** An internal slide key, or `'title'`. Never a `unique_id`. */
     selectedId: string | null;
     selectedEvent: TLEvent | null;
     isEditingTitle: boolean;
@@ -46,7 +49,7 @@
   }
 
   let {
-    timelineTitle, titleEvent, sortedEvents, selectedId, selectedEvent, isEditingTitle,
+    timelineTitle, titleEvent, entries, selectedId, selectedEvent, isEditingTitle,
     timeline, atUri, pdsClean, saveStatus, canSave, deletedItem, deletedItemLeaving, settings,
     headlineFragment = null, bodyFragment = null,
     onback, onsignout, ontitlechange, onselect, onadd, onaddtitle, ondelete, onupdate, onsave, onexport, onexportcsv, onundo,
@@ -73,7 +76,7 @@
   /* Every slide ID except the one being edited — so the editor can offer a
      generated ID that will not collide with a slide the author already has. */
   const otherSlideIds = $derived(
-    [titleEvent?.unique_id, ...sortedEvents.map(e => e.unique_id)]
+    [titleEvent?.unique_id, ...entries.map(e => e.event.unique_id)]
       .filter((id): id is string => !!id && id !== selectedEvent?.unique_id),
   );
 
@@ -177,7 +180,7 @@
 
   const previewStartIndex = $derived.by(() => {
     if (selectedId === 'title' && titleEvent) return 0;
-    const idx = sortedEvents.findIndex(e => e.unique_id === selectedId);
+    const idx = entries.findIndex(e => e.key === selectedId);
     if (idx === -1) return 0;
     return titleEvent ? idx + 1 : idx;
   });
@@ -295,7 +298,7 @@
       {/if}
       <button class="button button-complement btn-publish" onclick={() => { showPreview = false; showPublish = !showPublish; }}
         aria-pressed={showPublish}
-        disabled={sortedEvents.length === 0 && !titleEvent}>
+        disabled={entries.length === 0 && !titleEvent}>
         Publish<span class="btn-publish__arrow" aria-hidden="true"> ▾</span>
       </button>
     </div>
@@ -440,7 +443,7 @@
       <div class="eventlist-panel">
         <EventList
           {titleEvent}
-          events={sortedEvents}
+          {entries}
           {selectedId}
           panelId="event-editor-panel"
           {deletedItem}
@@ -456,7 +459,7 @@
     <aside class="app-sidebar">
       <EventList
         {titleEvent}
-        events={sortedEvents}
+        {entries}
         {selectedId}
         panelId="event-editor-panel"
         {deletedItem}
@@ -481,7 +484,7 @@
           <EventEditor
             event={selectedEvent}
             isTitle={isEditingTitle}
-            index={isEditingTitle ? undefined : sortedEvents.findIndex(e => e.unique_id === selectedId)}
+            index={isEditingTitle ? undefined : entries.findIndex(e => e.key === selectedId)}
             takenIds={otherSlideIds}
             onchange={onupdate}
             ondelete={() => selectedId && ondelete(selectedId)}
