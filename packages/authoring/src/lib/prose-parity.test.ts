@@ -10,7 +10,7 @@
  * wrong in one of the two places.
  */
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const read = (rel: string) => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8');
@@ -49,5 +49,38 @@ describe('prose.css owns body-copy styling', () => {
       .split('\n')
       .filter((l) => !l.includes('--singleline') && !l.includes(':not(.tl-prose)'));
     expect(rules.join('\n')).not.toMatch(new RegExp(`\\.rte-content ${el}[\\s{,:]`));
+  });
+});
+
+describe('every place the app renders authored HTML is protected', () => {
+  // The bug this catches: `prose.css` reached the editor but not the read-only
+  // panels beside it, so a blockquote was styled by the design system there —
+  // serif, bold, oversized, with decorative quote glyphs. Anywhere authored
+  // markup is printed needs the reset, whether or not it is editable.
+  const componentDir = fileURLToPath(new URL('../components/', import.meta.url));
+  const components = readdirSync(componentDir).filter((f) => f.endsWith('.svelte'));
+
+  /*
+   * Not every `{@html}` renders authored prose. Third-party embed markup —
+   * an oEmbed response, a pasted iframe — brings its own layout, and the prose
+   * reset would strip it. Exemptions are listed by the function that produced
+   * the HTML, so adding one is a deliberate act rather than a weakened test.
+   */
+  const NOT_PROSE = ['sanitizeEmbedHtml'];
+
+  const lines = components.flatMap((file) =>
+    readFileSync(componentDir + file, 'utf8')
+      .split('\n')
+      .map((text, i) => ({ file, line: i + 1, text }))
+      .filter((l) => l.text.includes('{@html'))
+      .filter((l) => !NOT_PROSE.some((fn) => l.text.includes(fn))),
+  );
+
+  it('finds the places that render authored HTML', () => {
+    expect(lines.length).toBeGreaterThan(0);
+  });
+
+  it.each(lines.map((l) => [`${l.file}:${l.line}`, l.text]))('%s carries a prose class', (_where, text) => {
+    expect(text).toMatch(/tl-prose(-inline)?\b/);
   });
 });

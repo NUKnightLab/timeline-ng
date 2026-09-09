@@ -39,7 +39,7 @@
  * Single class here (0,1,0) against the doubled class below (0,2,0), so the
  * rules that follow always win regardless of source order.
  */
-.tl-prose :where(p, h1, h2, h3, h4, h5, h6, ul, ol, li, blockquote, pre, code, hr, a) {
+:is(.tl-prose, .tl-prose-inline) :where(p, h1, h2, h3, h4, h5, h6, ul, ol, li, blockquote, pre, code, hr, a) {
   font: inherit;
   color: inherit;
   background: none;
@@ -51,9 +51,19 @@
   text-shadow: none;
   quotes: none;
 }
-.tl-prose :where(blockquote, q)::before,
-.tl-prose :where(blockquote, q)::after {
+:is(.tl-prose, .tl-prose-inline) :where(blockquote, q)::before,
+:is(.tl-prose, .tl-prose-inline) :where(blockquote, q)::after {
   content: none;
+}
+
+/*
+ * `tl-prose-inline` is the reset without the block rules, for the places that
+ * render authored markup one line at a time — a headline, a caption, a credit.
+ * They need the same protection from a host framework, and none of the
+ * paragraph spacing or heading scale that makes sense in a body.
+ */
+.tl-prose-inline.tl-prose-inline :where(p) {
+  margin: 0;
 }
 
 /*

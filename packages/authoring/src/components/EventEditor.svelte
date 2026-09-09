@@ -10,6 +10,9 @@
   import RepoBrowser from './RepoBrowser.svelte';
   import { describeMediaInput } from '../lib/mediaInput.js';
   import { HEADLINE_FIELD, BODY_FIELD } from '../lib/doc.svelte.ts';
+  // These panels render authored HTML directly, so they need the same
+  // neutralise-then-style treatment the editor itself gets.
+  import '@knight-lab/timeline-ng/prose.css';
   import type * as Y from 'yjs';
   import { fetchWikipediaImagePrefill } from '../lib/wikipediaPrefill.ts';
   import { fetchFlickrPrefill } from '../lib/flickrPrefill.ts';
@@ -915,8 +918,8 @@
           <div class="media-thumb-meta">
             {#if mediaCaption || mediaCredit}
               <div class="slide-media-caption">
-                {#if mediaCredit}<cite class="slide-credit-text">{@html mediaCredit}</cite>{/if}
-                {#if mediaCaption}<span class="slide-caption-text">{@html mediaCaption}</span>{/if}
+                {#if mediaCredit}<cite class="slide-credit-text tl-prose-inline">{@html mediaCredit}</cite>{/if}
+                {#if mediaCaption}<span class="slide-caption-text tl-prose-inline">{@html mediaCaption}</span>{/if}
               </div>
             {/if}
             <p class="media-alt-summary" class:media-alt-summary--empty={!mediaAlt.trim()}>
@@ -1072,7 +1075,7 @@
           role="button" tabindex="0" aria-label="Edit headline" title="Edit headline">
           <span class="slide-field-edit-icon" aria-hidden="true">✎</span>
           {#if headline}
-            <h2 class="slide-h">{@html headline}</h2>
+            <h2 class="slide-h tl-prose-inline">{@html headline}</h2>
           {:else}
             <p class="set-prompt" role="presentation">Set headline</p>
           {/if}
@@ -1112,7 +1115,7 @@
           role="button" tabindex="0" aria-label="Edit body text" title="Edit body text">
           <span class="slide-field-edit-icon" aria-hidden="true">✎</span>
           {#if body}
-            <div class="slide-body-text">{@html body}</div>
+            <div class="slide-body-text tl-prose">{@html body}</div>
           {:else}
             <p class="set-prompt" role="presentation">Set body text</p>
           {/if}

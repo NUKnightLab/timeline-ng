@@ -165,7 +165,7 @@
           class: [
             'rte-content',
             singleLine ? 'rte-content--singleline' : '',
-            minimal || inlineOnly || singleLine ? '' : 'tl-prose',
+            minimal || inlineOnly || singleLine ? 'tl-prose-inline' : 'tl-prose',
           ].filter(Boolean).join(' '),
           ...(id ? { id } : {}),
         },
