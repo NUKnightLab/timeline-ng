@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Links in body copy are underlined again.** The isolation reset strips
+  `text-decoration` from every anchor so a host page cannot restyle the player's
+  own controls, and only colour was being restored — leaving body-copy links
+  identified by colour alone, which fails WCAG 1.4.1 unless link and body text
+  differ by 3:1. Tunable with `--tl-body-link-decoration` and
+  `--tl-body-link-underline-offset`.
+- **Headings, code and horizontal rules in body copy are styled.** These had no
+  rule at all and fell back to browser defaults — an authored `<h1>` rendered at
+  2em with large margins, competing with the slide's own headline and ignoring
+  the theme's type scale. Headings are now sized relative to body copy and set
+  in the heading face; `code`, `pre` and `hr` pick up the theme. See
+  `--tl-body-heading-size`, `--tl-body-subheading-size`,
+  `--tl-body-heading-weight`, `--tl-font-mono`, `--tl-code-bg` and `--tl-rule`.
 - **List markers in body copy are visible again.** Same cause as blockquote:
   `base.css` strips `list-style` so a host page's navigation lists cannot
   inherit it, which also left an authored bullet or numbered list looking like a

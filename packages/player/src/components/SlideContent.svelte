@@ -367,8 +367,80 @@
   .tl-slide__body :global(p:last-child) {
     margin-bottom: 0;
   }
+  /*
+   * base.css strips `text-decoration` from every anchor so a host page's link
+   * styling cannot reach the player's own controls. Restoring only the colour
+   * here left body-copy links identified by colour alone, which fails WCAG
+   * 1.4.1 unless the link and its surrounding text differ by 3:1 — not
+   * something a theme can promise. The underline comes back.
+   */
   .tl-slide__body :global(a) {
     color: var(--tl-body-link-color, var(--tl-color-accent));
+    text-decoration: var(--tl-body-link-decoration, underline);
+    text-underline-offset: var(--tl-body-link-underline-offset, 0.15em);
+  }
+
+  /*
+   * Headings an author wrote inside body copy. They had no rule at all, so they
+   * fell back to the browser's defaults — an `<h1>` at 2em with 0.67em margins,
+   * competing with the slide's own headline and ignoring the theme's type
+   * scale. Sized relative to body copy instead, and in the heading face.
+   */
+  .tl-slide__body :global(h1),
+  .tl-slide__body :global(h2),
+  .tl-slide__body :global(h3),
+  .tl-slide__body :global(h4),
+  .tl-slide__body :global(h5),
+  .tl-slide__body :global(h6) {
+    font-family: var(--tl-font-heading, inherit);
+    font-weight: var(--tl-body-heading-weight, 700);
+    line-height: 1.25;
+    margin: 1em 0 0.4em;
+  }
+  .tl-slide__body :global(h1),
+  .tl-slide__body :global(h2) {
+    font-size: var(--tl-body-heading-size, 1.25em);
+  }
+  .tl-slide__body :global(h3),
+  .tl-slide__body :global(h4),
+  .tl-slide__body :global(h5),
+  .tl-slide__body :global(h6) {
+    font-size: var(--tl-body-subheading-size, 1.1em);
+  }
+  .tl-slide__body :global(h1:first-child),
+  .tl-slide__body :global(h2:first-child),
+  .tl-slide__body :global(h3:first-child),
+  .tl-slide__body :global(h4:first-child),
+  .tl-slide__body :global(h5:first-child),
+  .tl-slide__body :global(h6:first-child) {
+    margin-top: 0;
+  }
+
+  /* Code and rules: also unstyled before, also authorable from the editor. */
+  .tl-slide__body :global(code),
+  .tl-slide__body :global(pre) {
+    font-family: var(--tl-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+    font-size: 0.9em;
+  }
+  .tl-slide__body :global(code) {
+    padding: 0.1em 0.3em;
+    border-radius: 0.2em;
+    background: var(--tl-code-bg, color-mix(in srgb, currentColor 10%, transparent));
+  }
+  .tl-slide__body :global(pre) {
+    margin: 0 0 0.75rem;
+    padding: 0.6em 0.8em;
+    overflow-x: auto;
+    background: var(--tl-code-bg, color-mix(in srgb, currentColor 10%, transparent));
+  }
+  .tl-slide__body :global(pre code) {
+    padding: 0;
+    background: none;
+  }
+  .tl-slide__body :global(hr) {
+    margin: 1em 0;
+    border: 0;
+    border-top: var(--tl-rule, 1px solid color-mix(in srgb, currentColor 25%, transparent));
   }
 
   /*
