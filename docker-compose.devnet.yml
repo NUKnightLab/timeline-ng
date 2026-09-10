@@ -24,6 +24,17 @@ services:
       - "${DEVNET_MAILDEV_SMTP_PORT:-1026}:1025"
     networks:
       - atproto-devnet
+    # The image ships a healthcheck that interpolates MAILDEV_WEB_PORT and
+    # MAILDEV_BASE_PATHNAME. We set neither, so it probed http://localhost/…
+    # on port 80 and failed forever — which made `up --wait` exit non-zero even
+    # though maildev was working perfectly. `127.0.0.1` rather than `localhost`
+    # because the name resolves to ::1 in this container while maildev binds
+    # 1080 on IPv4 only.
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://127.0.0.1:1080/api/healthz || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
 
   # Wire PLC to our postgres
   plc:

@@ -28,12 +28,39 @@ fi
 
 # ── Start stack ───────────────────────────────────────────────────────────────
 echo "Starting atproto devnet..."
+
+# Deliberately not `--wait`. The stack includes `init`, a one-shot that seeds
+# accounts and exits 0 when it succeeds; `up --wait` counts any container that
+# exits as a failure, so a completely healthy devnet reported an error and this
+# script died on `set -e`. Wait for the thing that actually matters instead.
 docker compose \
   -f "$DEVNET_DIR/docker-compose.yml" \
   -f docker-compose.devnet.yml \
   --env-file .env.devnet \
   --project-directory . \
-  up -d --wait
+  up -d
+
+echo -n "Waiting for the PDS to answer through Caddy"
+for _ in $(seq 1 60); do
+  if curl -sf -o /dev/null https://devnet.internal/xrpc/_health; then
+    echo " ok"
+    break
+  fi
+  echo -n "."
+  sleep 1
+done
+
+if ! curl -sf -o /dev/null https://devnet.internal/xrpc/_health; then
+  echo ""
+  echo "PDS did not become ready. Recent container states:" >&2
+  docker compose \
+    -f "$DEVNET_DIR/docker-compose.yml" \
+    -f docker-compose.devnet.yml \
+    --env-file .env.devnet \
+    --project-directory . \
+    ps --format '  {{.Service}}\t{{.State}}\t{{.Health}}' >&2
+  exit 1
+fi
 
 echo ""
 echo "Devnet is up:"
