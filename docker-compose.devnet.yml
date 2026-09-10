@@ -8,6 +8,14 @@ services:
       POSTGRES_DB: ${DEVNET_DB_NAME:-plc}
     ports:
       - "${DEVNET_POSTGRES_PORT:-5433}:5432"
+    # PLC's DID registry lives in here. Without a volume it sat in the
+    # container's writable layer, so recreating postgres — which happens on any
+    # `down`, or while debugging an unrelated service — silently emptied the
+    # directory while the PDS kept its accounts on a real volume. The two then
+    # disagree: handles still resolve to DIDs that PLC has never heard of, and
+    # sign-in fails with nothing obviously wrong anywhere.
+    volumes:
+      - plc-postgres-data:/var/lib/postgresql/data
     networks:
       - atproto-devnet
     healthcheck:
@@ -85,3 +93,4 @@ services:
 
 volumes:
   caddy-data:
+  plc-postgres-data:

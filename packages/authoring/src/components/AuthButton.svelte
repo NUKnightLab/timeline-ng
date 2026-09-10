@@ -124,6 +124,18 @@
 
   let suggestions = $state<TypeaheadActor[]>([]);
   let suggestionIndex = $state(-1);
+  /**
+   * Where handle suggestions come from, or `null` to offer none.
+   *
+   * Defaults to a service indexing the public network, which is right in
+   * production and wrong against a devnet — see the check in the lookup below.
+   */
+  const TYPEAHEAD_URL: string | null =
+    import.meta.env.VITE_ATPROTO_HANDLE_TYPEAHEAD === 'off'
+      ? null
+      : (import.meta.env.VITE_ATPROTO_HANDLE_TYPEAHEAD
+        ?? 'https://typeahead.waow.tech/xrpc/app.bsky.actor.searchActorsTypeahead');
+
   let typeaheadTimer: ReturnType<typeof setTimeout> | null = null;
 
   function clearSuggestions() {
@@ -142,10 +154,20 @@
       return;
     }
 
+    // No suggestions when pointed at a local devnet. The service below indexes
+    // the public network, so it would offer real accounts that cannot sign in
+    // here — and would send every keystroke of a devnet handle to a third
+    // party, which is a poor trade for autocomplete nobody needs on two seeded
+    // test accounts.
+    if (TYPEAHEAD_URL === null) {
+      suggestions = [];
+      return;
+    }
+
     typeaheadTimer = setTimeout(async () => {
       try {
         const resp = await fetch(
-          `https://typeahead.waow.tech/xrpc/app.bsky.actor.searchActorsTypeahead?q=${encodeURIComponent(q)}&limit=8`,
+          `${TYPEAHEAD_URL}?q=${encodeURIComponent(q)}&limit=8`,
           { headers: { 'X-Client': 'timeline-ng' } }
         );
         if (!resp.ok) return;
