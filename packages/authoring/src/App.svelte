@@ -5,8 +5,10 @@
   import { getAuthState, saveTimeline, signOut, uploadBlob, blobUrl, extractCid } from './lib/atproto.svelte.ts';
   import { initAuth } from './lib/atproto.svelte.ts';
   import { generatePoster } from './lib/poster.ts';
-  import { saveDraft, loadDraft, clearDraft, draftIsWorthKeeping } from './lib/draft.ts';
-  import type { Draft } from './lib/draft.ts';
+  import { listDrafts, newDocId, noteDraft, forgetDraft, persistDoc } from './lib/localStore.ts';
+  import type { DraftSummary } from './lib/localStore.ts';
+  import { migrateLegacyDraft } from './lib/draftMigration.ts';
+  import type { IndexeddbPersistence } from 'y-indexeddb';
   import { TimelineDoc, HEADLINE_FIELD, BODY_FIELD } from './lib/doc.svelte.ts';
   import { stripHtml } from './lib/text.ts';
   import HomeView from './components/HomeView.svelte';
@@ -14,10 +16,13 @@
 
   // ── Synchronous OAuth restore check (must run before first render) ───────────
 
+  /** Which draft the editor has open, so a redirect or reload can return to it. */
+  const CURRENT_DOC_KEY = 'tl-current-doc';
+
   const _restoreFlag = sessionStorage.getItem('tl-post-auth-restore');
   const _restoreView = sessionStorage.getItem('tl-post-auth-view');
-  const _restoreDraft = _restoreFlag ? loadDraft() : null;
-  const _startInEditor = _restoreFlag === '1' && _restoreView === 'editor';
+  const _restoreDocId = sessionStorage.getItem(CURRENT_DOC_KEY);
+  const _startInEditor = _restoreFlag === '1' && _restoreView === 'editor' && !!_restoreDocId;
   if (_restoreFlag) {
     sessionStorage.removeItem('tl-post-auth-restore');
     sessionStorage.removeItem('tl-post-auth-view');
@@ -33,19 +38,18 @@
 
   // The Yjs document is the source of truth; everything below reads a plain
   // snapshot of it. See lib/doc.svelte.ts and docs/coauthoring.md §3.2.
-  const tldoc = new TimelineDoc();
+  //
+  // Reassigned when a different draft is opened, rather than reloaded in place:
+  // a Yjs document carries its whole history, so pouring a second timeline into
+  // the same one would persist both into that draft's store.
+  let tldoc = $state(new TimelineDoc());
+  let docId = $state<string | null>(null);
+  let provider: IndexeddbPersistence | null = null;
 
-  if (_startInEditor && _restoreDraft) {
-    tldoc.load(
-      {
-        ...(_restoreDraft.titleEvent ? { title: _restoreDraft.titleEvent } : {}),
-        events: _restoreDraft.events ?? [],
-        settings: _restoreDraft.settings ?? { ...DEFAULT_SETTINGS },
-      },
-      { title: _restoreDraft.title, titleSetByUser: !!_restoreDraft.title, atUri: _restoreDraft.atUri },
-      { clean: _restoreDraft.pdsClean ?? true },
-    );
-  }
+  /** Set when the browser will not store drafts locally — see persistDoc. */
+  let persistWarning = $state<string | null>(null);
+
+  let drafts = $state<DraftSummary[]>([]);
 
   /**
    * Which slide the editor is on: an internal slide key, or `'title'`.
@@ -55,7 +59,6 @@
    * as identity — see TimelineDoc.eventForKey.
    */
   let selectedId = $state<string | null>(null);
-  if (_startInEditor) selectedId = tldoc.titleEvent ? 'title' : (tldoc.entries[0]?.key ?? null);
   let saveStatus = $state<string | null>(null);
 
   const timelineTitle = $derived(tldoc.title);
@@ -67,7 +70,7 @@
 
   // ── Draft ────────────────────────────────────────────────────────────────────
 
-  let pendingDraft = $state<Draft | null>(null);
+
   let deletedItem = $state<{ event: TLEvent; isTitle: boolean; sortedIndex: number } | null>(null);
   let deletedItemLeaving = $state(false);
   let _undoTimer: ReturnType<typeof setTimeout> | null = null;
@@ -92,33 +95,34 @@
 
   const canSave = $derived(auth.status === 'signed-in' && (events.length > 0 || !!titleEvent));
 
-  // ── Autosave to localStorage ──────────────────────────────────────────────────
+  // ── Keeping the drafts list current ───────────────────────────────────────────
+  //
+  // The document persists itself — that is what y-indexeddb is for, and there is
+  // no longer any "save the draft" step. What still needs writing is the *index*
+  // the home screen lists from, which holds a title and a timestamp so drafts
+  // can be shown without opening every one of them.
 
-  let _draftTimer: ReturnType<typeof setTimeout> | null = null;
+  let _indexTimer: ReturnType<typeof setTimeout> | null = null;
 
   $effect(() => {
-    if (view !== 'editor') return;
-    const t = timelineTitle;
-    const te = titleEvent;
-    const ev = events;
+    if (view !== 'editor' || docId === null) return;
+    const id = docId;
+    const title = timelineTitle;
     const uri = atUri;
-    const st = settings;
-    const clean = pdsClean;
+    const hasContent = !!titleEvent || events.length > 0;
+    void settings;
 
-    if (_draftTimer !== null) clearTimeout(_draftTimer);
+    if (_indexTimer !== null) clearTimeout(_indexTimer);
+    if (!hasContent) return;
 
-    if (!draftIsWorthKeeping({ clean, durableCopyExists: !!uri, hasContent: !!te || ev.length > 0 })) {
-      clearDraft();
-      return;
-    }
-
-    _draftTimer = setTimeout(() => {
-      _draftTimer = null;
-      saveDraft({ title: t || undefined, titleEvent: te, events: ev, atUri: uri ?? undefined, settings: st });
+    _indexTimer = setTimeout(() => {
+      _indexTimer = null;
+      noteDraft({ id, title, atUri: uri ?? undefined });
+      drafts = listDrafts();
     }, 600);
 
     return () => {
-      if (_draftTimer !== null) { clearTimeout(_draftTimer); _draftTimer = null; }
+      if (_indexTimer !== null) { clearTimeout(_indexTimer); _indexTimer = null; }
     };
   });
 
@@ -132,23 +136,85 @@
     if (fromHeadline !== tldoc.title) tldoc.setTitle(fromHeadline, false);
   });
 
+  // ── Opening, closing and swapping drafts ──────────────────────────────────────
+
+  /** Detach persistence and let the current document go. */
+  async function closeDraft() {
+    if (_indexTimer !== null) { clearTimeout(_indexTimer); _indexTimer = null; }
+    if (provider) {
+      await provider.destroy();
+      provider = null;
+    }
+    tldoc.destroy();
+    docId = null;
+    sessionStorage.removeItem(CURRENT_DOC_KEY);
+  }
+
+  /** Attach local persistence, tolerating a browser that will not store anything. */
+  async function attach(id: string) {
+    const result = await persistDoc(id, tldoc.doc);
+    provider = result.provider;
+    persistWarning = result.error;
+  }
+
+  /** Start a new draft holding `timeline`. */
+  async function createDraft(
+    timeline: TLTimeline,
+    meta: { title?: string; titleSetByUser?: boolean; atUri?: string },
+    opts: { clean?: boolean } = {},
+  ) {
+    await closeDraft();
+    tldoc = new TimelineDoc();
+    tldoc.load(timeline, meta, opts);
+
+    const id = newDocId();
+    docId = id;
+    sessionStorage.setItem(CURRENT_DOC_KEY, id);
+    await attach(id);
+    noteDraft({ id, title: tldoc.title, atUri: meta.atUri });
+    drafts = listDrafts();
+
+    selectedId = tldoc.titleEvent ? 'title' : (tldoc.entries[0]?.key ?? null);
+    view = 'editor';
+  }
+
+  /**
+   * Reopen a stored draft.
+   *
+   * The document is left empty and filled by the persistence provider, rather
+   * than loaded and then attached: attaching merges, so seeding it first would
+   * duplicate everything the store already holds.
+   */
+  async function openDraft(id: string) {
+    await closeDraft();
+    tldoc = new TimelineDoc();
+    docId = id;
+    sessionStorage.setItem(CURRENT_DOC_KEY, id);
+    await attach(id);
+
+    selectedId = tldoc.titleEvent ? 'title' : (tldoc.entries[0]?.key ?? null);
+    view = 'editor';
+  }
+
   // ── Init ─────────────────────────────────────────────────────────────────────
 
   onMount(() => {
-    const draft = loadDraft();
-    if (draft && (draft.events.length > 0 || draft.titleEvent)) {
-      pendingDraft = draft;
-    }
+    void (async () => {
+      // Any draft left in the old single-slot key becomes a draft in the new
+      // store. It throws only when the browser cannot store anything, in which
+      // case the legacy key is deliberately left where it is.
+      try {
+        await migrateLegacyDraft();
+      } catch (cause) {
+        persistWarning = cause instanceof Error ? cause.message : String(cause);
+      }
+      drafts = listDrafts();
+
+      // Returning from an OAuth redirect, reopen whatever was being edited.
+      if (_startInEditor && _restoreDocId) await openDraft(_restoreDocId);
+    })();
 
     void initAuth();
-
-    const flush = () => {
-      if (view === 'editor' && !pdsClean) {
-        saveDraft({ title: timelineTitle || undefined, titleEvent, events, atUri: atUri ?? undefined, settings });
-      }
-    };
-    window.addEventListener('beforeunload', flush);
-    return () => window.removeEventListener('beforeunload', flush);
   });
 
   // ── Navigation ────────────────────────────────────────────────────────────────
@@ -157,8 +223,8 @@
     return 'e' + Math.random().toString(36).slice(2, 9);
   }
 
-  function enterEditor(opts: { title?: string; titleSetByUser?: boolean; titleEvent?: TLEvent | null; events?: TLEvent[]; atUri?: string; clean?: boolean; settings?: TLSettings } = {}) {
-    tldoc.load(
+  async function enterEditor(opts: { title?: string; titleSetByUser?: boolean; titleEvent?: TLEvent | null; events?: TLEvent[]; atUri?: string; clean?: boolean; settings?: TLSettings } = {}) {
+    await createDraft(
       {
         ...(opts.titleEvent ? { title: opts.titleEvent } : {}),
         events: opts.events ?? [],
@@ -167,89 +233,69 @@
       { title: opts.title, titleSetByUser: opts.titleSetByUser ?? false, atUri: opts.atUri },
       { clean: opts.clean ?? true },
     );
-    selectedId = opts.titleEvent ? 'title' : (tldoc.entries[0]?.key ?? null);
-    view = 'editor';
   }
 
-  function goHome() {
+  async function goHome() {
     if (_undoTimer !== null) { clearTimeout(_undoTimer); _undoTimer = null; }
     deletedItem = null;
     deletedItemLeaving = false;
-    if (draftIsWorthKeeping({ clean: pdsClean, durableCopyExists: !!atUri, hasContent: !!titleEvent || events.length > 0 })) {
-      const draft: Draft = { title: timelineTitle || undefined, titleEvent, events, atUri: atUri ?? undefined, pdsClean, settings };
-      saveDraft(draft);
-      pendingDraft = draft;
-    } else {
-      clearDraft();
-      pendingDraft = null;
-    }
+
+    // An empty draft is not worth listing; anything with content stays, because
+    // the document has already persisted itself and this is where it lives.
+    const id = docId;
+    const empty = !titleEvent && events.length === 0;
+    if (id !== null && !empty) noteDraft({ id, title: timelineTitle, atUri: atUri ?? undefined });
+
+    await closeDraft();
+    if (id !== null && empty) await forgetDraft(id);
+
+    drafts = listDrafts();
     view = 'home';
   }
 
-  function handleSignOut() {
-    const hasUnsavedContent = view === 'editor'
-      ? (!pdsClean && (!!titleEvent || events.length > 0))
-      : !!(pendingDraft && !pendingDraft.pdsClean && (pendingDraft.events.length > 0 || pendingDraft.titleEvent));
-    if (hasUnsavedContent && !window.confirm('Your timeline is only saved in this browser. Sign out anyway?')) return;
-    // atUri is the only link back to the PDS record this draft should overwrite
-    // on next save; leave it (and pdsClean) untouched so goHome() persists it
-    // correctly. EditorView already hides "Saved ✓"/publish UI once signed out,
-    // since those are gated on auth.status too, so there's no stale-UI risk.
-    if (view === 'editor') goHome();
+  async function handleSignOut() {
+    // No confirmation about losing work any more: drafts persist locally on
+    // their own and are listed on the home screen, so signing out costs the
+    // session and nothing else. atUri stays on the document, which is what
+    // links a draft back to the record it should overwrite when saved again.
+    if (view === 'editor') await goHome();
     void signOut();
   }
 
   // ── Home actions ─────────────────────────────────────────────────────────────
 
-  function hasPendingContent() {
-    return !!(pendingDraft && (pendingDraft.events.length > 0 || pendingDraft.titleEvent));
+  // Nothing here asks "this will discard your current draft, continue?" any
+  // more. Drafts coexist now, so starting or importing one costs nothing.
+
+  async function handleNew() {
+    await enterEditor();
   }
 
-  function handleNew() {
-    if (hasPendingContent() && !window.confirm('Starting a new timeline will discard your current draft. Continue?')) return;
-    clearDraft();
-    pendingDraft = null;
-    enterEditor();
-  }
-
-  function handleImport(tl: TLTimeline) {
-    if (hasPendingContent() && !window.confirm('Importing will discard your current draft. Continue?')) return;
-    clearDraft();
-    pendingDraft = null;
+  async function handleImport(tl: TLTimeline) {
     // Legacy files (and older saved records) can arrive with missing or illegal
     // slide IDs; normalize before they reach the editor rather than flagging them.
     assignSlideIds(tl);
     const te = tl.title ?? null;
-    enterEditor({ titleEvent: te, events: tl.events, clean: false, settings: tl.settings });
+    await enterEditor({ titleEvent: te, events: tl.events, clean: false, settings: tl.settings });
   }
 
-  function handleOpenRecord(uri: string, result: { title?: string; timeline: TLTimeline }) {
-    if (hasPendingContent() && !window.confirm('Opening this timeline will discard your current draft. Continue?')) return;
-    clearDraft();
-    pendingDraft = null;
+  async function handleOpenRecord(uri: string, result: { title?: string; timeline: TLTimeline }) {
     const tl = result.timeline;
     assignSlideIds(tl);
     const te = tl.title ?? null;
-    enterEditor({ title: result.title, titleSetByUser: !!result.title, titleEvent: te, events: tl.events, atUri: uri, clean: true, settings: tl.settings });
+    await enterEditor({ title: result.title, titleSetByUser: !!result.title, titleEvent: te, events: tl.events, atUri: uri, clean: true, settings: tl.settings });
   }
 
-  function handleRestoreDraft() {
-    const draft = pendingDraft!;
-    pendingDraft = null;
-    enterEditor({
-      title: draft.title,
-      titleSetByUser: !!draft.title,
-      titleEvent: draft.titleEvent,
-      events: draft.events,
-      atUri: draft.atUri,
-      clean: !draft.atUri,
-      settings: draft.settings,
-    });
+  async function handleOpenDraft(id: string) {
+    await openDraft(id);
   }
 
-  function handleDiscardDraft() {
-    clearDraft();
-    pendingDraft = null;
+  async function handleDeleteDraft(id: string) {
+    const draft = drafts.find((d) => d.id === id);
+    const name = draft?.title ? `"${draft.title}"` : 'this untitled draft';
+    if (!window.confirm(`Delete ${name} from this browser? Anything already published stays published.`)) return;
+    await forgetDraft(id);
+    drafts = listDrafts();
   }
 
   // ── Editor actions ────────────────────────────────────────────────────────────
@@ -412,9 +458,10 @@
 
 {#if view === 'home'}
   <HomeView
-    {pendingDraft}
-    onrestore={handleRestoreDraft}
-    ondiscard={handleDiscardDraft}
+    {drafts}
+    {persistWarning}
+    onopendraft={handleOpenDraft}
+    ondeletedraft={handleDeleteDraft}
     onnew={handleNew}
     onimport={handleImport}
     onopen={handleOpenRecord}

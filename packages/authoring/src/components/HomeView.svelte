@@ -1,7 +1,7 @@
 <script lang="ts">
   import { fromTL3, fromTL3CSV, normalizeTimelineSourceUrl, parseTimelineText } from '@knight-lab/timeline-ng-core';
   import type { TLTimeline } from '@knight-lab/timeline-ng-core';
-  import type { Draft } from '../lib/draft.ts';
+  import type { DraftSummary } from '../lib/localStore.ts';
   import { getAuthState, listTimelines, getTimeline, deleteTimeline } from '../lib/atproto.svelte.ts';
   import AppNavbar from './AppNavbar.svelte';
   import AuthButton from './AuthButton.svelte';
@@ -24,16 +24,19 @@
   });
 
   interface Props {
-    pendingDraft: Draft | null;
-    onrestore: () => void;
-    ondiscard: () => void;
+    /** Drafts held in this browser, most recently edited first. */
+    drafts: DraftSummary[];
+    /** Set when the browser will not store drafts locally. */
+    persistWarning: string | null;
+    onopendraft: (id: string) => void;
+    ondeletedraft: (id: string) => void;
     onnew: () => void;
     onimport: (tl: TLTimeline) => void;
     onopen: (uri: string, result: { title?: string; timeline: TLTimeline }) => void;
     onsignout: () => void;
   }
 
-  let { pendingDraft, onrestore, ondiscard, onnew, onimport, onopen, onsignout }: Props = $props();
+  let { drafts, persistWarning, onopendraft, ondeletedraft, onnew, onimport, onopen, onsignout }: Props = $props();
 
   const auth = $derived(getAuthState());
 
@@ -230,15 +233,7 @@
     return formatDate(iso);
   }
 
-  function draftBarText(draft: Draft | null): string {
-    if (!draft) return '';
-    const title = draft.title?.trim() || 'Untitled draft';
-    const bits = [title];
-    if (draft.savedAt) bits.push(`edited ${formatRelativeTime(draft.savedAt)}`);
-    // not sure this is helpful
-    // bits.push(draft.atUri ? 'editing a saved timeline' : 'never saved');
-    return `Draft — ${bits.join(' · ')}`;
-  }
+  const draftName = (d: DraftSummary): string => d.title?.trim() || 'Untitled draft';
 </script>
 
 <div class="home-shell">
@@ -246,12 +241,24 @@
   <!-- ── Navbar ─────────────────────────────────────────────────────────────── -->
   <AppNavbar hidetitle />
 
-  {#snippet draftBar()}
-    <div class="draft-bar">
-      <span class="draft-bar-label">{draftBarText(pendingDraft)}</span>
-      <button class="draft-bar-continue" onclick={onrestore}>Continue editing</button>
-      <button class="draft-bar-discard" onclick={ondiscard}>Discard</button>
-    </div>
+  {#snippet draftList()}
+    <ul class="draft-list">
+      {#each drafts as draft (draft.id)}
+        <li class="draft-row">
+          <button class="draft-row-open" onclick={() => onopendraft(draft.id)}>
+            <span class="draft-row-title">{draftName(draft)}</span>
+            <span class="draft-row-meta">
+              edited {formatRelativeTime(draft.savedAt)}{draft.atUri ? '' : ' · never published'}
+            </span>
+          </button>
+          <button
+            class="draft-row-delete"
+            aria-label={`Delete ${draftName(draft)}`}
+            onclick={() => ondeletedraft(draft.id)}
+          >Delete</button>
+        </li>
+      {/each}
+    </ul>
   {/snippet}
 
   <!-- ── Main ──────────────────────────────────────────────────────────────── -->
@@ -358,8 +365,15 @@
           <h2 class="section-heading">Your timelines</h2>
           <AuthButton {onsignout} restoreView="home" />
         </div>
-        {#if pendingDraft && (pendingDraft.events.length > 0 || pendingDraft.titleEvent)}
-          {@render draftBar()}
+        {#if persistWarning}
+          <p class="draft-warning" role="status">
+            This browser isn’t storing drafts, so anything you write here will be
+            gone when you close the tab. Save to your account to keep it.
+          </p>
+        {/if}
+        {#if drafts.length > 0}
+          <h3 class="draft-list-heading">In this browser</h3>
+          {@render draftList()}
         {/if}
         {#if auth.status === 'signed-in'}
           {#if listLoading}
@@ -463,57 +477,9 @@
   }
 
   /* ── Draft bar ───────────────────────────────────────────────── */
-  .draft-bar {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.2rem 1.25rem;
-    background: #fffbeb;
-    border-bottom: 1px solid #fcd34d;
-    font-size: 0.8rem;
-  }
 
-  .draft-bar-label {
-    flex: 1;
-    color: #a16207;
-    font-weight: 300;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
 
-  .draft-bar-continue {
-    background: #f59e0b;
-    border: none;
-    color: #fff;
-    padding: 0.2rem 0.65rem;
-    font-size: 0.78rem;
-    font-family: inherit;
-    font-weight: 600;
-    text-transform: none;
-    cursor: pointer;
-    border-radius: 2px;
-    white-space: nowrap;
-    flex-shrink: 0;
-    margin: 0;
-  }
-  .draft-bar-continue:hover { background: #d97706; }
 
-  .draft-bar-discard {
-    background: transparent;
-    border: none;
-    color: #92400e;
-    font-size: 0.78rem;
-    font-family: inherit;
-    font-weight: 400;
-    text-transform: none;
-    cursor: pointer;
-    text-decoration: underline;
-    padding: 0.2rem 0.5rem;
-    flex-shrink: 0;
-    margin: 0;
-  }
-  .draft-bar-discard:hover { color: #78350f; }
 
   /* ── Demo timeline ───────────────────────────────────────────── */
   .demo-section { gap: 0; }
@@ -989,5 +955,57 @@
     .demo-loading {
       height: 600px;
     }
+  }
+
+  .draft-list-heading {
+    margin: 1.25rem 0 0.4rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #666;
+  }
+  .draft-list { list-style: none; margin: 0; padding: 0; }
+  .draft-row {
+    display: flex;
+    align-items: stretch;
+    gap: 0.5rem;
+    border-bottom: 1px solid #e6e6e6;
+  }
+  .draft-row:last-child { border-bottom: none; }
+  .draft-row-open {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    padding: 0.55rem 0.2rem;
+    background: none;
+    border: none;
+    text-align: left;
+    cursor: pointer;
+    font: inherit;
+  }
+  .draft-row-open:hover .draft-row-title { text-decoration: underline; }
+  .draft-row-title { font-weight: 600; color: #1d1f21; }
+  .draft-row-meta { font-size: 0.75rem; color: #666; }
+  .draft-row-delete {
+    align-self: center;
+    padding: 0.3rem 0.6rem;
+    background: none;
+    border: 1px solid #d4d4d4;
+    border-radius: 3px;
+    font-size: 0.75rem;
+    color: #666;
+    cursor: pointer;
+  }
+  .draft-row-delete:hover { border-color: #b00; color: #b00; }
+  .draft-warning {
+    margin: 0.75rem 0;
+    padding: 0.5rem 0.7rem;
+    border-left: 3px solid #d97706;
+    background: #fffbeb;
+    font-size: 0.8rem;
+    line-height: 1.45;
+    color: #5b4508;
   }
 </style>

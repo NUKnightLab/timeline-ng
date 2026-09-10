@@ -328,24 +328,33 @@ One thing this surfaced, worth knowing before Stage 6: **prose cannot be written
 changes through its fragment or not at all. That is correct, and it is also the reason undo has to
 go through `Y.UndoManager` rather than through any event-shaped path.
 
-> **Carried into Stage 5:** the localStorage draft is kept or cleared by
-> `draftIsWorthKeeping`, whose real question is "does this content also exist
-> somewhere it cannot be lost from?" Today that is the PDS. **For a collaborator
-> it will not be** — a collaborator cannot publish, so `atUri` says nothing about
+> **Carried into Phase 2:** `draftIsWorthKeeping` is gone — a draft is no longer
+> kept or discarded on a rule, it simply persists and is listed until deleted.
+> Its question survives, though, for whenever a draft may be *dropped*: "does
+> this content also exist somewhere it cannot be lost from?" Locally that is now
+> IndexedDB. **For a collaborator it will not be** — a collaborator cannot publish, so `atUri` says nothing about
 > whether their work is safe, and the durable copy becomes the collaboration
 > server. `y-indexeddb` mostly dissolves the question, since it persists the
 > document unconditionally as a local replica rather than as a conditional
 > backup; what survives is the decision about when a local replica may be
 > discarded, and its input has to change from "published" to "synced".
 
-### Stage 5 — persistence and the drafts list
+### Stage 5 — persistence and the drafts list ✅
 
 `y-indexeddb` per document. A local drafts list in `HomeView`. **[P6]** Migrate any existing
 `tl-draft-v1` into the new store on first load rather than discarding it — some people have unsaved
 work in there right now.
 
-*Verify:* two tabs on one draft converge; reload restores; an existing `tl-draft-v1` survives the
-upgrade.
+*Verified by test:* documents round-trip through IndexedDB, separate drafts stay separate, an
+existing `tl-draft-v1` is carried across rather than dropped, the index survives being corrupt, and
+a browser that stores nothing degrades instead of throwing.
+
+*Still wants hands:* two tabs on one draft converging, and a private window — the case the shim
+cannot reproduce, and now the case where local drafts could actually be lost.
+
+Two things fell out rather than being built. The "starting a new timeline will discard your current
+draft" confirmations are gone, because drafts coexist and it stopped being true; and signing out no
+longer warns about losing work, since a draft persists locally and is listed on the home screen.
 
 ### Stage 6 — undo
 
