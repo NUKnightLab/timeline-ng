@@ -70,8 +70,14 @@ echo "  PLC:          http://localhost:$(grep DEVNET_PLC_PORT .env.devnet | cut 
 echo "  MailDev:      http://localhost:$(grep DEVNET_MAILDEV_WEB_PORT .env.devnet | cut -d= -f2)"
 echo ""
 
-# Show seeded accounts if available
+# Show seeded accounts if available. On a first run `init` is still creating
+# them when the PDS starts answering, so give it a moment rather than printing
+# nothing and leaving the operator to guess the handles.
 ACCOUNTS_FILE="$DEVNET_DIR/data/accounts.json"
+for _ in $(seq 1 30); do
+  [ -f "$ACCOUNTS_FILE" ] && break
+  sleep 1
+done
 if [ -f "$ACCOUNTS_FILE" ]; then
   echo "Seeded accounts (from $ACCOUNTS_FILE):"
   cat "$ACCOUNTS_FILE"
