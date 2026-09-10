@@ -83,13 +83,37 @@ export async function forgetDraft(id: string): Promise<void> {
   });
 }
 
+export interface PersistResult {
+  /** `null` when local persistence is unavailable — see below. */
+  provider: IndexeddbPersistence | null;
+  /** Why persistence is unavailable, for the warning shown to the author. */
+  error: string | null;
+}
+
 /**
  * Attach IndexedDB persistence to a document, resolving once the stored state
  * has been applied — so callers can tell an empty draft from an unloaded one.
+ *
+ * **Never throws.** IndexedDB is not always there: Safari and Firefox have both
+ * withheld or emptied it in private windows, storage can be blocked by
+ * policy, and a quota can be exhausted. None of that should cost someone their
+ * editor — it should cost them local persistence, loudly. The caller degrades
+ * to an unsaved session and says so rather than failing to start.
+ *
+ * This is also the one part of the store that cannot be tested honestly:
+ * `fake-indexeddb` implements the specification, not the ways real browsers
+ * depart from it.
  */
-export async function persistDoc(id: string, doc: Y.Doc): Promise<IndexeddbPersistence> {
-  const { IndexeddbPersistence } = await import('y-indexeddb');
-  const provider = new IndexeddbPersistence(dbNameFor(id), doc);
-  await provider.whenSynced;
-  return provider;
+export async function persistDoc(id: string, doc: Y.Doc): Promise<PersistResult> {
+  if (typeof indexedDB === 'undefined') {
+    return { provider: null, error: 'This browser is not storing data for this site.' };
+  }
+  try {
+    const { IndexeddbPersistence } = await import('y-indexeddb');
+    const provider = new IndexeddbPersistence(dbNameFor(id), doc);
+    await provider.whenSynced;
+    return { provider, error: null };
+  } catch (cause) {
+    return { provider: null, error: cause instanceof Error ? cause.message : String(cause) };
+  }
 }

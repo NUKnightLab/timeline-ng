@@ -38,7 +38,13 @@ export async function migrateLegacyDraft(): Promise<string | null> {
     atUri: draft.atUri,
   }, { clean: draft.pdsClean ?? false });
 
-  const provider = await persistDoc(id, doc.doc);
+  const { provider, error } = await persistDoc(id, doc.doc);
+  if (!provider) {
+    // Leave the legacy key alone: without somewhere to put the draft, removing
+    // it would destroy the only copy. Retry on the next load.
+    doc.destroy();
+    throw new Error(`cannot migrate draft: ${error}`);
+  }
   noteDraft({
     id,
     title: doc.title,

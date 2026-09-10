@@ -44,12 +44,6 @@ export class TimelineDoc {
   #settings = $state<TLSettings>({});
   #meta = $state<DocMeta>({});
 
-  /**
-   * The document's content as of the last save or load, serialized. `null`
-   * means "known dirty" — an import, say, which has never been saved anywhere.
-   */
-  #savedSnapshot = $state<string | null>(null);
-
   readonly #timeline = $derived<TLTimeline>({
     ...(this.#titleEvent ? { title: this.#titleEvent } : {}),
     events: this.#entries.map((e) => e.event),
@@ -141,7 +135,8 @@ export class TimelineDoc {
    * saved text reports clean again, which the flag could not do.
    */
   get clean(): boolean {
-    return this.#savedSnapshot !== null && JSON.stringify(this.#timeline) === this.#savedSnapshot;
+    const saved = this.#meta.savedSnapshot;
+    return typeof saved === 'string' && JSON.stringify(this.#timeline) === saved;
   }
 
   /**
@@ -164,13 +159,17 @@ export class TimelineDoc {
   load(timeline: TLTimeline, meta: DocMeta = {}, opts: { clean?: boolean } = {}): void {
     loadTimeline(this.doc, timeline, meta);
     if (opts.clean ?? true) this.markClean();
-    else this.#savedSnapshot = null;
   }
 
-  /** Record the current content as the saved one. */
+  /**
+   * Record the current content as the saved one.
+   *
+   * Kept in the document rather than on this object, so that reopening a draft
+   * from storage still knows whether it matches what was published.
+   */
   markClean(): void {
     this.flushMirrors();
-    this.#savedSnapshot = JSON.stringify(this.#timeline);
+    writeMeta(this.doc, { ...this.#meta, savedSnapshot: JSON.stringify(this.#timeline) });
   }
 
   /** Add a slide, returning the internal key it was stored under. */
