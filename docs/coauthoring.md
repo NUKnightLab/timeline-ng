@@ -441,9 +441,12 @@ Not because collaboration needs it staged — because it **pays for itself befor
   the change is off screen. Note that `trackedOrigins` must be set in Phase 1 even with a single
   user — it is what stops undo from reverting a *collaborator's* edits in Phase 2, and retrofitting
   it means re-auditing every mutation site.
-- **Multi-tab safety.** Autosave today is whole-state to localStorage (`lib/draft.ts`), so two open
-  tabs are a live data-loss bug — last save wins. `y-indexeddb` makes persistence incremental and
-  syncs tabs.
+- **Multi-tab safety.** Autosave was whole-state to localStorage, so two open tabs were a live
+  data-loss bug — last save wins. `y-indexeddb` makes persistence incremental, so both tabs' edits
+  land in the store and a reload merges them. It does **not** sync tabs live: it reads its store
+  once on open and has no cross-tab channel. Live convergence between tabs of one browser needs a
+  BroadcastChannel provider on top — small, and no server involved. *(Corrected 2026-09-11 after
+  hand-testing; this line previously claimed live sync.)*
 - **Offline editing**, as a side effect.
 
 And it de-risks the sequencing: the decomposition falls out of a **real implementation** rather than a

@@ -349,8 +349,19 @@ work in there right now.
 existing `tl-draft-v1` is carried across rather than dropped, the index survives being corrupt, and
 a browser that stores nothing degrades instead of throwing.
 
-*Still wants hands:* two tabs on one draft converging, and a private window — the case the shim
-cannot reproduce, and now the case where local drafts could actually be lost.
+*What this does not do, corrected after testing by hand:* **tabs do not converge live.**
+`y-indexeddb` reads its store once when it opens and writes local changes after that — there is no
+BroadcastChannel, storage listener or polling in it. Two tabs on one draft each keep their own view;
+both append to the same store without clobbering each other, and a *reload* merges them. That is
+real multi-tab safety — no last-save-wins loss — but it is not live sync, and an earlier version of
+this plan said it was. Live convergence between tabs of one browser needs a BroadcastChannel
+provider, which is small and needs no server.
+
+Private windows behave as the browser intends: storage works for the life of the private session
+and is discarded when the last private window closes. The degraded-mode warning does **not** fire
+there, because IndexedDB is available, only ephemeral — it catches browsers that withhold storage
+outright, which is not how current private modes behave. There is no reliable way to detect a
+private session; browsers hide it deliberately.
 
 Two things fell out rather than being built. The "starting a new timeline will discard your current
 draft" confirmations are gone, because drafts coexist and it stopped being true; and signing out no
