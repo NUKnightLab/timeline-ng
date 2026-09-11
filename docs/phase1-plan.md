@@ -367,6 +367,12 @@ Two things fell out rather than being built. The "starting a new timeline will d
 draft" confirmations are gone, because drafts coexist and it stopped being true; and signing out no
 longer warns about losing work, since a draft persists locally and is listed on the home screen.
 
+### Stage 5c — local drafts and the published record
+
+Specified in [phase1-sync-conflicts.md](phase1-sync-conflicts.md), awaiting markup. Two existing
+bugs motivate it more than the feature does: saving a stale local draft silently overwrites a newer
+publish, and opening a saved timeline always creates a duplicate draft. Not blocking Stage 6.
+
 ### Stage 6 — undo
 
 `UndoManager` with `trackedOrigins` set, then the seven scripts. Depends on Stages 3, 4 and 5, and on
