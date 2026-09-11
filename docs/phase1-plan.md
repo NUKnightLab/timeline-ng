@@ -373,7 +373,7 @@ Specified in [phase1-sync-conflicts.md](phase1-sync-conflicts.md), awaiting mark
 bugs motivate it more than the feature does: publishing a stale local draft silently overwrites a
 newer version, and opening a published timeline always creates a duplicate draft. Not blocking Stage 6.
 
-### Stage 6 — undo
+### Stage 6 — undo ✅
 
 `UndoManager` with `trackedOrigins` set, then the seven scripts. Depends on Stages 3, 4 and 5, and on
 the **[A1]** work, which is why it is last.
@@ -415,6 +415,16 @@ Two corrections to [phase1-undo.md](phase1-undo.md), from reading the code it de
 - **Script 5 and Script 6 contradicted each other**, because the settings panel lives *inside* the
   preview overlay. "Open settings" and "close overlays first" cannot both hold. Resolved as: reveal
   whatever contains the target, close whatever hides it.
+
+*Verified by hand, with three adjustments that only trying it could have produced:* the reveal pause
+went 250ms → 450ms and the target is now marked before the change as well as after, because an undo
+that empties a field left nothing to flash and the move read as a single blur; undoing a setting
+flashes that one field rather than the whole right rail, which meant recording *which* setting
+changed; and the deleted-slide restore row dismisses itself when Cmd-Z restores the slide, since
+clicking it afterwards would have added a second copy.
+
+**Phase 1 is complete.** Stage 5c ([phase1-sync-conflicts.md](phase1-sync-conflicts.md)) is specified
+but not built, and is not part of Phase 1 — it came out of hand-testing Stage 5.
 
 *Verify:* each script by hand, since they are about sequencing and focus. The *(feel)* items in the
 undo spec get judged here.
