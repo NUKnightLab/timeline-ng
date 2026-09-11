@@ -48,7 +48,7 @@ export async function migrateLegacyDraft(): Promise<string | null> {
   noteDraft({
     id,
     title: doc.title,
-    savedAt: draft.savedAt ?? new Date().toISOString(),
+    editedAt: draft.savedAt ?? new Date().toISOString(),
     atUri: draft.atUri,
   });
   await provider.destroy();

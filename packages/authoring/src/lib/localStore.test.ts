@@ -21,14 +21,14 @@ describe('the index', () => {
   });
 
   it('lists most recently edited first', () => {
-    noteDraft({ id: 'a', title: 'Older', savedAt: '2026-01-01T00:00:00.000Z' });
-    noteDraft({ id: 'b', title: 'Newer', savedAt: '2026-06-01T00:00:00.000Z' });
+    noteDraft({ id: 'a', title: 'Older', editedAt: '2026-01-01T00:00:00.000Z' });
+    noteDraft({ id: 'b', title: 'Newer', editedAt: '2026-06-01T00:00:00.000Z' });
     expect(listDrafts().map((d) => d.title)).toEqual(['Newer', 'Older']);
   });
 
   it('updates an entry rather than duplicating it', () => {
-    noteDraft({ id: 'a', title: 'First name', savedAt: '2026-01-01T00:00:00.000Z' });
-    noteDraft({ id: 'a', title: 'Renamed', savedAt: '2026-02-01T00:00:00.000Z' });
+    noteDraft({ id: 'a', title: 'First name', editedAt: '2026-01-01T00:00:00.000Z' });
+    noteDraft({ id: 'a', title: 'Renamed', editedAt: '2026-02-01T00:00:00.000Z' });
     expect(listDrafts()).toHaveLength(1);
     expect(listDrafts()[0].title).toBe('Renamed');
   });
@@ -43,7 +43,7 @@ describe('the index', () => {
   });
 
   it('ignores entries that are not drafts', () => {
-    localStorage.setItem('tl-drafts-v1', JSON.stringify([{ nope: true }, { id: 'ok', title: 'x', savedAt: 'z' }]));
+    localStorage.setItem('tl-drafts-v1', JSON.stringify([{ nope: true }, { id: 'ok', title: 'x', editedAt: 'z' }]));
     expect(listDrafts().map((d) => d.id)).toEqual(['ok']);
   });
 
@@ -105,7 +105,7 @@ describe('the legacy single draft', () => {
     expect(id).not.toBeNull();
 
     expect(listDrafts().map((d) => d.title)).toEqual(['Apollo']);
-    expect(listDrafts()[0].savedAt).toBe('2026-03-01T00:00:00.000Z');
+    expect(listDrafts()[0].editedAt).toBe('2026-03-01T00:00:00.000Z');
     expect(localStorage.getItem(LEGACY_DRAFT_KEY)).toBeNull();
 
     const restored = new TimelineDoc();

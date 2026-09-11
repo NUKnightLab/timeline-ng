@@ -935,7 +935,7 @@
                   {/if}
                 {:else}
                   <div class="media-signin-notice">
-                    <p>Sign in to upload media and save your timeline.</p>
+                    <p>Sign in to upload media and publish your timeline.</p>
                     <a href="#" class="learn-more-link" onclick={(e) => { e.preventDefault(); modal = 'sign-in'; }}>Learn more</a>
                   </div>
                 {/if}
@@ -1396,7 +1396,7 @@
 
         <dl class="modal-list">
           <dt>Save your timeline</dt>
-          <dd>Signed-in users can save timelines to their AT Protocol account. Each timeline gets a permanent, shareable link (an AT URI) that works in any compatible app.</dd>
+          <dd>Signed-in users can publish timelines to their AT Protocol account. Each timeline gets a permanent, shareable link (an AT URI) that works in any compatible app.</dd>
 
           <dt>Upload media</dt>
           <dd>Upload images, audio, and video directly. Files are stored on your Personal Data Server (PDS) — a server attached to your account that you control, not one we run.</dd>

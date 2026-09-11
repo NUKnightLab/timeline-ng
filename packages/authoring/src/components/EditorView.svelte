@@ -30,8 +30,8 @@
     timeline: TLTimeline;
     atUri: string | null;
     pdsClean: boolean;
-    saveStatus: string | null;
-    canSave: boolean;
+    publishStatus: string | null;
+    canPublish: boolean;
     deletedItem: { event: TLEvent; isTitle: boolean; sortedIndex: number } | null;
     deletedItemLeaving: boolean;
     settings: TLSettings;
@@ -43,7 +43,7 @@
     onaddtitle: () => void;
     ondelete: (id: string) => void;
     onupdate: (event: TLEvent) => void;
-    onsave: () => void;
+    onpublish: () => void;
     onexport: () => void;
     onexportcsv: () => void;
     onundo: () => void;
@@ -60,9 +60,9 @@
 
   let {
     timelineTitle, titleEvent, entries, selectedId, selectedEvent, isEditingTitle,
-    timeline, atUri, pdsClean, saveStatus, canSave, deletedItem, deletedItemLeaving, settings,
+    timeline, atUri, pdsClean, publishStatus, canPublish, deletedItem, deletedItemLeaving, settings,
     headlineFragment = null, bodyFragment = null,
-    onback, onsignout, ontitlechange, onselect, onadd, onaddtitle, ondelete, onupdate, onsave, onexport, onexportcsv, onundo,
+    onback, onsignout, ontitlechange, onselect, onadd, onaddtitle, ondelete, onupdate, onpublish, onexport, onexportcsv, onundo,
     onsettingschange, onpeekhistory, onapplyhistory, historyVersion,
   }: Props = $props();
 
@@ -168,14 +168,14 @@
   });
 
   $effect(() => {
-    if (!showPreview && !showPublish) return;
+    if (!showPreview && !showShare) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { showPreview = false; showPublish = false; }
+      if (e.key === 'Escape') { showPreview = false; showShare = false; }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   });
-  let showPublish = $state(false);
+  let showShare = $state(false);
   let warnBack = $state(false);
   let copiedEmbed = $state<'uri' | 'iframe' | 'aturi' | null>(null);
   let editingTitle = $state(false);
@@ -196,12 +196,12 @@
   });
 
   function openPreview() {
-    showPublish = false;
+    showShare = false;
     showPreview = true;
   }
 
   function openSettings() {
-    showPublish = false;
+    showShare = false;
     showPreview = true;
     showSettingsPanel = true;
   }
@@ -277,7 +277,7 @@
       // yet, so there is nothing to reveal until the change has been applied.
       if (target.kind === 'slide' && target.field === 'slide' && !slideExists(target.slideKey)) {
         showPreview = false;
-        showPublish = false;
+        showShare = false;
         if (!onapplyhistory(direction)) return;
         onselect(target.slideKey);   // D7
         await tick();
@@ -292,9 +292,9 @@
       // opening it, where every other target means closing it.
       if (target.kind === 'settings') {
         if (!showPreview || !showSettingsPanel) { openSettings(); moved = true; }
-      } else if (showPreview || showPublish) {
+      } else if (showPreview || showShare) {
         showPreview = false;
-        showPublish = false;
+        showShare = false;
         moved = true;
       }
 
@@ -407,7 +407,7 @@
 <div
   class="editor-shell"
   class:show-eventlist={showEventList}
-  class:show-publish={showPublish}
+  class:show-share={showShare}
   style={fontTokens}
 >
 
@@ -433,32 +433,32 @@
       </button>
     {/if}
     {#if warnBack}
-      <span class="warn-back" role="alert">Unsaved PDS changes — draft preserved in browser</span>
+      <span class="warn-back" role="alert">Unpublished changes — kept in this browser</span>
     {/if}
     <div class="subnav-actions">
-      <button class="btn-events" onclick={() => { showEventList = !showEventList; showPublish = false; }}>
+      <button class="btn-events" onclick={() => { showEventList = !showEventList; showShare = false; }}>
         Events ▾
       </button>
-      <button class="btn-settings" onclick={openSettings} title="Timeline settings — saved with your timeline" aria-label="Settings">
+      <button class="btn-settings" onclick={openSettings} title="Timeline settings — published with your timeline" aria-label="Settings">
         <span aria-hidden="true">⚙</span><span class="btn-settings__label">Settings</span>
       </button>
       <button class="btn-preview" onclick={openPreview}>
         Preview
       </button>
-      {#if saveStatus}
-        <span class="save-status">{saveStatus}</span>
+      {#if publishStatus}
+        <span class="publish-status">{publishStatus}</span>
       {:else if pdsClean && atUri && auth.status === 'signed-in'}
-        <span class="save-status">Saved ✓</span>
+        <span class="publish-status">Published ✓</span>
       {:else}
-        <button class="btn-save" onclick={onsave} disabled={!canSave}
-          title={canSave ? 'Save to PDS' : 'Sign in to save'}>
-          Save
+        <button class="btn-publish" onclick={onpublish} disabled={!canPublish}
+          title={canPublish ? 'Publish to your PDS' : 'Sign in to publish'}>
+          {atUri ? 'Publish changes' : 'Publish'}
         </button>
       {/if}
-      <button class="button button-complement btn-publish" onclick={() => { showPreview = false; showPublish = !showPublish; }}
-        aria-pressed={showPublish}
+      <button class="button button-complement btn-share" onclick={() => { showPreview = false; showShare = !showShare; }}
+        aria-pressed={showShare}
         disabled={entries.length === 0 && !titleEvent}>
-        Publish<span class="btn-publish__arrow" aria-hidden="true"> ▾</span>
+        Share<span class="btn-share__arrow" aria-hidden="true"> ▾</span>
       </button>
     </div>
     <div class="subnav-auth">
@@ -467,56 +467,56 @@
   </nav>
 
   <!-- ── Publish drawer ──────────────────────────────────────────────────────── -->
-  {#if showPublish}
-    <div class="publish-panel">
+  {#if showShare}
+    <div class="share-panel">
 
-      <!-- Section 1: Publish / embed -->
-      <div class="publish-section">
-        <h3 class="publish-section__title">Publish</h3>
+      <!-- Section 1: how to share what is published -->
+      <div class="share-section">
+        <h3 class="share-section__title">Share</h3>
         {#if atUri && auth.status === 'signed-in'}
           {#if !pdsClean}
-            <p class="publish-section__warn">Unsaved changes — hit Save to update your published timeline.</p>
+            <p class="share-section__warn">Unpublished changes — publish again to update the public version.</p>
           {/if}
-          <div class="publish-code-row">
-            <span class="publish-code-label">Embed</span>
-            <code class="publish-code">{iframeCode}</code>
+          <div class="share-code-row">
+            <span class="share-code-label">Embed</span>
+            <code class="share-code">{iframeCode}</code>
             <button class="btn-copy" onclick={() => copyEmbed(iframeCode, 'iframe')}>
               {copiedEmbed === 'iframe' ? 'Copied!' : 'Copy'}
             </button>
           </div>
-          <div class="publish-code-row">
-            <span class="publish-code-label">Direct link</span>
-            <code class="publish-code">{shareUrl}</code>
+          <div class="share-code-row">
+            <span class="share-code-label">Direct link</span>
+            <code class="share-code">{shareUrl}</code>
             <button class="btn-copy" onclick={() => copyEmbed(shareUrl, 'uri')}>
               {copiedEmbed === 'uri' ? 'Copied!' : 'Copy'}
             </button>
 
           </div>
-          <div class="publish-code-row">
-            <span class="publish-code-label">AT URI</span>
-            <code class="publish-code">{atUri}</code>
+          <div class="share-code-row">
+            <span class="share-code-label">AT URI</span>
+            <code class="share-code">{atUri}</code>
             <button class="btn-copy" onclick={() => copyEmbed(atUri!, 'aturi')}>
               {copiedEmbed === 'aturi' ? 'Copied!' : 'Copy'}
             </button>
           </div>
         {:else if auth.status === 'signed-in'}
-          <p class="publish-section__body">Hit <strong>Save</strong> to publish your timeline to the <HelpLink doc="atmosphere">ATmosphere network</HelpLink> and get an embed snippet.</p>
+          <p class="share-section__body"><strong>Publish</strong> your timeline to the <HelpLink doc="atmosphere">ATmosphere network</HelpLink> to get a link and an embed snippet. Anyone with the link will be able to read it.</p>
         {:else}
-          <p class="publish-section__body"><HelpLink doc="atmosphere">Sign in</HelpLink> to save and publish your timeline. You'll get a direct link to view your timeline and an embed snippet to use anywhere.</p>
+          <p class="share-section__body"><HelpLink doc="atmosphere">Sign in</HelpLink> to publish your timeline. You'll get a direct link to view it and an embed snippet to use anywhere.</p>
         {/if}
       </div>
 
       <!-- Sections 3 & 4: download tiles, side by side at reasonably wide views -->
-      <div class="publish-section-row">
-        <div class="publish-section">
-          <h3 class="publish-section__title">Download as JSON</h3>
-          <p class="publish-section__body">Download a portable copy of your timeline data. You can self-host the player on your own site without needing a atmosphere account — see the <HelpLink doc="self-hosting">self-hosting guide</HelpLink> for setup instructions.</p>
+      <div class="share-section-row">
+        <div class="share-section">
+          <h3 class="share-section__title">Download as JSON</h3>
+          <p class="share-section__body">Download a portable copy of your timeline data. You can self-host the player on your own site without needing a atmosphere account — see the <HelpLink doc="self-hosting">self-hosting guide</HelpLink> for setup instructions.</p>
           <button class="btn-download" onclick={onexport}>Download JSON</button>
         </div>
 
-        <div class="publish-section">
-          <h3 class="publish-section__title">Download as CSV</h3>
-          <p class="publish-section__body">Don't have a server, don't want an atmosphere account? Import this download into a blank Google Sheet, then use File → Share → "Publish to the web" to get a link — paste that into <strong>From URL</strong> on the home page to get an embed code or direct link.</p>
+        <div class="share-section">
+          <h3 class="share-section__title">Download as CSV</h3>
+          <p class="share-section__body">Don't have a server, don't want an atmosphere account? Import this download into a blank Google Sheet, then use File → Share → "Publish to the web" to get a link — paste that into <strong>From URL</strong> on the home page to get an embed code or direct link.</p>
           <button class="btn-download" onclick={onexportcsv}>Download CSV</button>
         </div>
       </div>
@@ -534,7 +534,7 @@
         <div class="preview-box__chrome">
           <span class="preview-drawer__label">Preview</span>
           {#if !pdsClean && atUri && auth.status === 'signed-in'}
-            <span class="preview-drawer__warn">Unsaved changes</span>
+            <span class="preview-drawer__warn">Unpublished changes</span>
           {/if}
           <div class="preview-size-presets" role="group" aria-label="Preview width">
             {#each visiblePresets as preset (preset.label)}
@@ -829,7 +829,7 @@
   }
   .btn-settings:hover { background: #d1d5db; }
 
-  .btn-save {
+  .btn-publish {
     background: #24a549;
     border: 1px solid #1f9040;
     color: #fdfffd;
@@ -839,23 +839,23 @@
     cursor: pointer;
     border-radius: 2px;
   }
-  .btn-save:hover:not(:disabled) { background: #1f9040; }
-  .btn-save:disabled { opacity: 0.35; cursor: default; }
+  .btn-publish:hover:not(:disabled) { background: #1f9040; }
+  .btn-publish:disabled { opacity: 0.35; cursor: default; }
 
-  .btn-publish {
+  .btn-share {
     padding: 0.25rem 0.75rem;
     font-size: 0.8rem;
   }
-  .btn-publish[aria-pressed="true"] { filter: brightness(0.85); }
+  .btn-share[aria-pressed="true"] { filter: brightness(0.85); }
 
-  .save-status {
+  .publish-status {
     font-size: 0.78rem;
     color: #15803d;
     white-space: nowrap;
   }
 
   /* ── Publish drawer ──────────────────────────────────────────── */
-  .publish-panel {
+  .share-panel {
     background: #1a1c1e;
     border-bottom: 1px solid #2a2c2e;
     padding: 1rem 1.25rem;
@@ -867,7 +867,7 @@
     min-height: 0;
   }
 
-  .publish-section {
+  .share-section {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
@@ -877,21 +877,21 @@
     border: 1px solid #2e3033;
   }
 
-  .publish-section-row {
+  .share-section-row {
     display: flex;
     flex-wrap: wrap;
     gap: 0.5rem;
   }
 
-  .publish-section-row > .publish-section {
+  .share-section-row > .share-section {
     flex: 1 1 280px;
   }
 
-  .publish-section--locked {
+  .share-section--locked {
     opacity: 0.5;
   }
 
-  .publish-section__title {
+  .share-section__title {
     font-size: 0.75rem;
     font-weight: 600;
     color: #e5e7eb;
@@ -900,30 +900,30 @@
     letter-spacing: 0.06em;
   }
 
-  .publish-section__body {
+  .share-section__body {
     font-size: 0.78rem;
     color: #9ca3af;
     margin: 0;
     line-height: 1.5;
   }
 
-  .publish-section__body strong { color: #d1d5db; font-weight: 600; }
+  .share-section__body strong { color: #d1d5db; font-weight: 600; }
 
-  .publish-section__warn {
+  .share-section__warn {
     font-size: 0.78rem;
     color: #fbbf24;
     margin: 0 0 0.5rem;
     font-weight: 600;
   }
 
-  .publish-code-row {
+  .share-code-row {
     display: flex;
     align-items: center;
     gap: 0.4rem;
     margin-top: 0.25rem;
   }
 
-  .publish-code-label {
+  .share-code-label {
     font-size: 0.65rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -943,15 +943,15 @@
   }
   .btn-open:hover { color: #fff; }
 
-  .publish-link {
+  .share-link {
     color: #13a4df;
     text-shadow: none;
   }
-  .publish-link:hover { color: #bfdbfe; }
-  .publish-link:focus { outline: none; }
-  .publish-link:focus-visible { outline: 2px solid #13a4df; outline-offset: 2px; border-radius: 1px; }
+  .share-link:hover { color: #bfdbfe; }
+  .share-link:focus { outline: none; }
+  .share-link:focus-visible { outline: 2px solid #13a4df; outline-offset: 2px; border-radius: 1px; }
 
-  .publish-code {
+  .share-code {
     font-size: 0.7rem;
     color: #a3e635;
     background: #111;
@@ -1256,7 +1256,7 @@
 
     /* Trim button labels so the row stays on one line rather than wrapping */
     .btn-settings__label { display: none; }
-    .btn-publish__arrow { display: none; }
+    .btn-share__arrow { display: none; }
     .subnav-actions button { padding-left: 0.5rem; padding-right: 0.5rem; }
 
     /* Hide sidebar — event list lives in the subnav dropdown */
@@ -1266,8 +1266,8 @@
     .btn-events { display: block; }
 
     /* When publish is open, hide main and let the drawer fill the remaining space */
-    .show-publish .app-main { display: none; }
-    .show-publish .publish-panel { flex: 1; }
+    .show-share .app-main { display: none; }
+    .show-share .share-panel { flex: 1; }
 
     /* Event list overlays left half of main */
     .app-main { position: relative; }

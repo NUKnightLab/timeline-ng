@@ -107,7 +107,7 @@ the bridge; the mutation functions now write to the doc instead of reassigning a
 sites. It is the same information, computed instead of remembered.
 
 *Verify:* the app behaves exactly as before. Existing tests pass, plus a manual pass over add /
-edit / delete / settings / save.
+edit / delete / settings / publish.
 
 ### Stage 2 — field-level writes ✅
 
@@ -370,8 +370,8 @@ longer warns about losing work, since a draft persists locally and is listed on 
 ### Stage 5c — local drafts and the published record
 
 Specified in [phase1-sync-conflicts.md](phase1-sync-conflicts.md), awaiting markup. Two existing
-bugs motivate it more than the feature does: saving a stale local draft silently overwrites a newer
-publish, and opening a saved timeline always creates a duplicate draft. Not blocking Stage 6.
+bugs motivate it more than the feature does: publishing a stale local draft silently overwrites a
+newer version, and opening a published timeline always creates a duplicate draft. Not blocking Stage 6.
 
 ### Stage 6 — undo
 

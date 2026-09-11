@@ -337,7 +337,7 @@ abandoned accounts. The remaining triggers are explicit revocation and account c
 
 When a publish fails, the owner is by definition absent — but **the collaborator is in the app right
 now**, and they're the one whose work isn't reaching the public. So the alert is in-app and
-synchronous: *"Joe's connection has expired. Your changes are saved to the draft but aren't
+synchronous: *"Joe's connection has expired. Your changes are in the draft but aren't
 published."* Plus a nudge affordance — copy a link, hand off to the collaborator's own mail or
 messaging client. No service identity, no notification infrastructure.
 

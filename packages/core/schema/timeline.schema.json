@@ -269,7 +269,7 @@
         }
       },
       "additionalProperties": false,
-      "description": "Social-share preview image — auto-generated at save time, or (eventually) user-set."
+      "description": "Social-share preview image — auto-generated at publish time, or (eventually) user-set."
     }
   }
 }

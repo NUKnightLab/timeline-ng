@@ -39,9 +39,9 @@ pnpm authoring        # → http://127.0.0.1:5174
 
 ## Local ATProto devnet
 
-When we started, we didn't want to save things to actual atmosphere accounts. There may be times in the future where we need to go back to off-network development while we try new things. We are grateful to the [atproto-devnet project](https://github.com/OpenMeet-Team/atproto-devnet) for providing a setup that helps us do this.
+When we started, we didn't want to publish to real atmosphere accounts. There may be times in the future where we need to go back to off-network development while we try new things. We are grateful to the [atproto-devnet project](https://github.com/OpenMeet-Team/atproto-devnet) for providing a setup that helps us do this.
 
-(if you're just working on incremental changes to the player or authoring tool, you probably don't need to worry about this. If you just want to have a throwaway place to save things, check out https://pds.rip/ )
+(if you're just working on incremental changes to the player or authoring tool, you probably don't need to worry about this. If you just want a throwaway place to publish to, check out https://pds.rip/ )
 
 To develop against a local PDS instead of Bluesky:
 

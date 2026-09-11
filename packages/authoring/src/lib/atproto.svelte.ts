@@ -172,7 +172,11 @@ function rkeyFromUri(uri: string): string {
   return uri.split('/').at(-1) ?? generateRkey();
 }
 
-export type SaveResult =
+/**
+ * Writing a timeline to the PDS. Called publishing, not saving: an atproto repo
+ * is public, so the record is readable by anyone the moment this succeeds.
+ */
+export type PublishResult =
   | { ok: true; uri: string }
   | { ok: false; error: string };
 
@@ -252,7 +256,7 @@ function stripOgImageUrl(settings: TLSettings | undefined): TLSettings | undefin
   return { ...settings, ogImage };
 }
 
-export async function saveTimeline(timeline: TLTimeline, meta: { title?: string }, existingUri?: string): Promise<SaveResult> {
+export async function publishTimeline(timeline: TLTimeline, meta: { title?: string }, existingUri?: string): Promise<PublishResult> {
   if (_state.status !== 'signed-in') {
     return { ok: false, error: 'Not signed in.' };
   }

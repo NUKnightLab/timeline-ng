@@ -71,7 +71,7 @@ export interface TLEvent {
   background?: TLBackground;
 }
 
-/** Social-share preview image — auto-generated at save time, or (eventually) user-set. */
+/** Social-share preview image — auto-generated at publish time, or (eventually) user-set. */
 export interface TLOgImage {
   url?: string;
   blobRef?: ATProtoBlobRef;

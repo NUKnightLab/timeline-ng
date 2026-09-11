@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import type { TLEvent, TLTimeline, TLSettings } from '@knight-lab/timeline-ng-core';
   import { toTL3CSV, assignSlideIds } from '@knight-lab/timeline-ng-core';
-  import { getAuthState, saveTimeline, signOut, uploadBlob, blobUrl, extractCid } from './lib/atproto.svelte.ts';
+  import { getAuthState, publishTimeline, signOut, uploadBlob, blobUrl, extractCid } from './lib/atproto.svelte.ts';
   import { initAuth } from './lib/atproto.svelte.ts';
   import { generatePoster } from './lib/poster.ts';
   import { listDrafts, newDocId, noteDraft, forgetDraft, persistDoc } from './lib/localStore.ts';
@@ -60,7 +60,7 @@
    * as identity — see TimelineDoc.eventForKey.
    */
   let selectedId = $state<string | null>(null);
-  let saveStatus = $state<string | null>(null);
+  let publishStatus = $state<string | null>(null);
   /** Bumped after each undo or redo; the slide editor re-reads its fields when it moves. */
   let historyVersion = $state(0);
 
@@ -101,7 +101,7 @@
 
   const isEditingTitle = $derived(selectedId === 'title');
 
-  const canSave = $derived(auth.status === 'signed-in' && (events.length > 0 || !!titleEvent));
+  const canPublish = $derived(auth.status === 'signed-in' && (events.length > 0 || !!titleEvent));
 
   // ── Keeping the drafts list current ───────────────────────────────────────────
   //
@@ -277,7 +277,7 @@
     // No confirmation about losing work any more: drafts persist locally on
     // their own and are listed on the home screen, so signing out costs the
     // session and nothing else. atUri stays on the document, which is what
-    // links a draft back to the record it should overwrite when saved again.
+    // links a draft back to the record it should overwrite when published again.
     if (view === 'editor') await goHome();
     void signOut();
   }
@@ -292,7 +292,7 @@
   }
 
   async function handleImport(tl: TLTimeline) {
-    // Legacy files (and older saved records) can arrive with missing or illegal
+    // Legacy files (and older published records) can arrive with missing or illegal
     // slide IDs; normalize before they reach the editor rather than flagging them.
     assignSlideIds(tl);
     const te = tl.title ?? null;
@@ -395,14 +395,14 @@
     }
   }
 
-  // Clear "Saved ✓" as soon as the data is dirtied; errors auto-dismiss separately
-  $effect(() => { if (!pdsClean) saveStatus = null; });
+  // Clear "Published ✓" as soon as the data is dirtied; errors auto-dismiss separately
+  $effect(() => { if (!pdsClean) publishStatus = null; });
 
   function handleTitleChange(t: string) {
     tldoc.setTitle(t, t.trim() !== '');
   }
 
-  async function handleSave() {
+  async function handlePublish() {
     // A cached draft's atUri can point at a record owned by a different
     // account than the one currently signed in (e.g. sign out, then sign
     // back in as someone else and restore the draft). Reusing that rkey
@@ -411,15 +411,15 @@
     if (atUri && auth.status === 'signed-in') {
       const ownerDid = atUri.split('/')[2];
       if (ownerDid && ownerDid !== auth.session.sub) {
-        const saveAsNew = window.confirm(
-          'This timeline was saved under a different account. Save it as a new timeline in your current account?'
+        const publishAsNew = window.confirm(
+          'This timeline was published under a different account. Publish it as a new timeline in your current account?'
         );
-        if (!saveAsNew) return;
+        if (!publishAsNew) return;
         tldoc.setAtUri(null);
       }
     }
 
-    saveStatus = 'Saving…';
+    publishStatus = 'Publishing…';
 
     // Auto-generate a share-preview poster from the current title slide.
     // Best-effort: on any failure, keep whatever ogImage already existed
@@ -433,16 +433,16 @@
     } catch {
       // best-effort, see above
     }
-    const timelineToSave: TLTimeline = { ...timeline, settings: { ...settings, ogImage } };
+    const timelineToPublish: TLTimeline = { ...timeline, settings: { ...settings, ogImage } };
 
-    const result = await saveTimeline(timelineToSave, { title: timelineTitle }, atUri ?? undefined);
+    const result = await publishTimeline(timelineToPublish, { title: timelineTitle }, atUri ?? undefined);
     if (result.ok) {
       tldoc.setAtUri(result.uri);
       tldoc.markClean();
-      saveStatus = 'Saved ✓';
+      publishStatus = 'Published ✓';
     } else {
-      saveStatus = `Save failed: ${result.error}`;
-      setTimeout(() => { saveStatus = null; }, 4000);
+      publishStatus = `Publish failed: ${result.error}`;
+      setTimeout(() => { publishStatus = null; }, 4000);
     }
   }
 
@@ -518,8 +518,8 @@
     {timeline}
     {atUri}
     {pdsClean}
-    {saveStatus}
-    {canSave}
+    {publishStatus}
+    {canPublish}
     {deletedItem}
     {deletedItemLeaving}
     {settings}
@@ -533,7 +533,7 @@
     onaddtitle={addTitleSlide}
     ondelete={deleteEvent}
     onupdate={updateEvent}
-    onsave={handleSave}
+    onpublish={handlePublish}
     onexport={handleExport}
     onexportcsv={handleExportCSV}
     onundo={undoDelete}

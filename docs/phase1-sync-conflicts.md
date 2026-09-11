@@ -1,8 +1,11 @@
 # Local drafts and the published record
 
-**Status: proposal, for markup.** Written 2026-09-11. Picks up a gap Stage 5 exposed: a timeline
-can now exist as a local draft in this browser *and* as a published record that something else has
-since changed.
+**Status: proposal, for markup.** Written 2026-09-11. Picks up a gap Stage 5 exposed: a timeline can
+now exist as a local draft in this browser *and* as a published record that something else has since
+changed.
+
+Writing to the PDS is called **publishing** throughout, never "saving": an atproto repo is public,
+so the record is readable by anyone the moment the write succeeds.
 
 ## How to read this
 
@@ -16,9 +19,9 @@ for visibility, not questions. *(feel)* marks what only a prototype can settle.
 ## The problem, and why it is smaller than it looks
 
 A second browser can only see what is on the PDS. So a timeline opened "somewhere else" has
-necessarily been saved, and the only thing that can disagree with a local draft is the **published
-record**. Another browser's own unsaved draft is invisible from here, and you cannot reconcile with
-what you cannot see.
+necessarily been published, and the only thing that can disagree with a local draft is the
+**published record**. Another browser's own local draft is invisible from here, and you cannot
+reconcile with what you cannot see.
 
 There are three copies in play, and they are not equal:
 
@@ -30,32 +33,33 @@ There are three copies in play, and they are not equal:
 Only the published record can genuinely conflict, because only it has no history to merge through.
 From Phase 3 the server *produces* that record from the draft, so it becomes an ancestor of the draft
 rather than a rival. A real conflict then needs something outside the app to write the record. In
-Phase 1 it happens whenever two browsers save, because the PDS is the only thing they share. That is
+Phase 1 it happens whenever two browsers publish, because the PDS is the only thing they share. That is
 now, and it is what hand-testing Stage 5 ran into.
 
 ## Two bugs this fixes, not just a feature
 
-1. **Saving a stale draft silently overwrites a newer publish.** Edit and save in one browser, then
-   save an older local draft in another: `putRecord` replaces the record, and the first browser's
-   work is gone with no warning. This is the more dangerous direction and it exists today.
-2. **Opening a saved timeline always makes a new local draft.** Open the same timeline twice and
+1. **Publishing a stale draft silently overwrites a newer version.** Publish in one browser, then
+   publish an older local draft in another: `putRecord` replaces the record, and the first
+   browser's work is gone with no warning. This is the more dangerous direction and it exists
+   today.
+2. **Opening a published timeline always makes a new local draft.** Open the same timeline twice and
    you have two drafts of it, which never converge and clutter the list.
 
 ---
 
 ## Detecting change
 
-Every save and load already receives a content hash (CID) from the PDS, and every one of our
-wrappers throws it away: `putRecord` → `saveTimeline` returns only the URI, `getRecord` →
-`getTimeline` only the timeline, and `listRecords` → the home list only uri, title and `createdAt`.
+Every publish and load already receives a content hash (CID) from the PDS, and every one of our
+wrappers throws it away: `putRecord` returns only the URI, `getRecord` → `getTimeline` only the
+timeline, and `listRecords` → the home list only uri, title and `createdAt`.
 
 **[P1]** Change is detected by CID, never by timestamp. A CID changes exactly when content changes;
-clocks skew. `createdAt` is not an option anyway: `saveTimeline` rewrites it on every save, so it is
-an update time wearing the wrong name.
+clocks skew. `createdAt` is not an option anyway: it is rewritten on every publish, so it is an
+update time wearing the wrong name.
 
 **[P2]** A draft stores the **base CID**, the version of the record it last agreed with. It lives
-in the document's meta beside `savedSnapshot` and is written in the same place, on load and on
-successful save, because the two must always describe the same version. `savedSnapshot` is what
+in the document's meta beside `publishedSnapshot` and is written in the same place, on load and on a
+successful publish, because the two must always describe the same version. `publishedSnapshot` is what
 lets us tell whether *local* changed; the base CID is what lets us tell whether *published*
 changed. Together they are git's common ancestor, and they are what a merge would need later.
 
@@ -65,15 +69,15 @@ That gives four cases, and only one needs a question:
 |---|---|---|
 | unchanged | unchanged | In sync. |
 | unchanged | **changed** | Fast-forward: published moved on, and nothing here is at risk. |
-| **changed** | unchanged | Ordinary unsaved edits. |
+| **changed** | unchanged | Ordinary unpublished edits. |
 | **changed** | **changed** | Conflict. Both moved; someone has to choose. |
 
-**[P3]** Saving passes the base CID as `putRecord`'s `swapRecord`. The PDS then rejects the write
-if the record has changed since, which turns the stale-overwrite check into an atomic
+**[P3]** Publishing passes the base CID as `putRecord`'s `swapRecord`. The PDS then rejects the
+write if the record has changed since, which turns the stale-overwrite check into an atomic
 compare-and-swap enforced by the server. A check done before writing would leave a gap between the
 check and the write. A rejected swap goes into the conflict flow, Script 6.
 
-**[P4]** Opening a saved timeline reuses an existing local draft with that `atUri`, instead of
+**[P4]** Opening a published timeline reuses an existing local draft with that `atUri`, instead of
 making a new one.
 
 **[P5]** The home screen shows **one row per timeline**. At the moment a published timeline with a
@@ -82,13 +86,13 @@ local draft appears in both lists. `listRecords` already returns each record's C
 
 ---
 
-## Script 1 — open a saved timeline with no local draft
+## Script 1 — open a published timeline with no local draft
 
 1. The record loads, as today.
-2. A local draft is created with base CID = the record's CID and `savedSnapshot` = its content.
+2. A local draft is created with base CID = the record's CID and `publishedSnapshot` = its content.
 3. Nothing is shown about sync; there is nothing to say.
 
-## Script 2 — open a saved timeline, local draft exists, both in sync
+## Script 2 — open a published timeline, local draft exists, both in sync
 
 1. The existing local draft opens ([P4]), with no fetch of the record's content.
 2. Its CID is compared with the one the list already has. They match; nothing is shown.
@@ -98,39 +102,41 @@ local draft appears in both lists. `listRecords` already returns each record's C
 Nothing local is at risk, since the draft has no edits of its own.
 
 1. The local draft is replaced with the published content, and base CID and snapshot updated.
-2. **[A1]** A quiet, dismissible note: *"Updated to the version saved on another device."*
+2. **[A1]** A quiet, dismissible note: *"Updated to the version published from another device."*
 
 ## Script 4 — only local changed
 
-1. The local draft opens with its edits, exactly as an unsaved draft does today.
-2. Nothing new is shown; "unsaved changes" already covers it.
+1. The local draft opens with its edits, exactly as an unpublished draft does today.
+2. Nothing new is shown; "unpublished changes" already covers it.
 
 ## Script 5 — both changed (conflict)
 
 1. The editor does **not** open silently onto either version.
-2. A choice is offered, naming what differs: *"This timeline was saved from another device after you
-   last edited it here."*
-3. **[A2]** Options in the first version: **Keep mine**, **Use the saved version**, **Keep both**.
-   - *Keep mine* opens the local draft and marks its base as the current record, so the next save
+2. A choice is offered, naming what differs: *"This timeline was published from another device
+   after you last edited it here."*
+3. **[A2]** Options in the first version: **Keep mine**, **Use the published version**, **Keep
+   both**.
+   - *Keep mine* opens the local draft and marks its base as the current record, so publishing next
      overwrites the newer version *knowingly*.
-   - *Use the saved version* replaces the local draft. It discards local edits, so the button says
-     so.
-   - *Keep both* opens the saved version as the timeline and keeps the local edits as a separate,
-     unpublished draft titled "… (my changes)". Nothing is lost. This is Dropbox's "conflicted copy".
+   - *Use the published version* replaces the local draft. It discards local edits, so the button
+     says so.
+   - *Keep both* opens the published version as the timeline and keeps the local edits as a
+     separate, unpublished draft titled "… (my changes)". Nothing is lost. This is Dropbox's
+     "conflicted copy".
 4. **[A3]** Which option carries the visual emphasis.
 
-## Script 6 — saving hits a changed record
+## Script 6 — publishing hits a changed record
 
-1. Save sends `swapRecord` ([P3]); the PDS rejects it because the record moved.
-2. The same choice as Script 5, worded for saving: *"This timeline was saved from another device
-   while you were editing. Saving now would replace those changes."*
-3. Choosing *Keep mine* re-saves against the new CID, which is the one deliberate overwrite path.
+1. Publish sends `swapRecord` ([P3]); the PDS rejects it because the record moved.
+2. The same choice as Script 5, worded for publishing: *"This timeline was published from another
+   device while you were editing. Publishing now would replace those changes."*
+3. Choosing *Keep mine* publishes again against the new CID, the one deliberate overwrite path.
 
 ## Script 7 — the published record was deleted elsewhere
 
 1. The draft's `atUri` points at nothing. On open, the list simply has no matching record.
 2. The draft stays and is marked "no longer published"; nothing is deleted.
-3. Saving publishes it as a new record rather than failing on a missing one.
+3. Publishing creates a new record rather than failing on a missing one.
 
 ## Script 8 — signed out or offline
 
@@ -143,7 +149,7 @@ Nothing local is at risk, since the draft has no edits of its own.
 ## Merge: deferred, and the groundwork is already in place
 
 Merging is feasible, and Stage 5 already paid for the hard part. A three-way merge needs a common
-ancestor, and `savedSnapshot` plus the base CID ([P2]) *is* that ancestor. Per slide, matched by
+ancestor, and `publishedSnapshot` plus the base CID ([P2]) *is* that ancestor. Per slide, matched by
 `unique_id`, which a published record guarantees is unique, and then per field:
 
 - changed on one side only → take that side;
@@ -157,12 +163,12 @@ defaults to leaving it out of the first version.
 
 ## Deliberately not decided here
 
-- **Phase 2 wording.** Once a server holds drafts, "saved from another device" mostly means "a
+- **Phase 2 wording.** Once a server holds drafts, "published from another device" mostly means "a
   collaborator published". The mechanism is unchanged; the copy is not.
 - **Other people's timelines.** Everything here assumes the owner's own records. A collaborator
   cannot publish, so they never hit Script 6.
 - **Checking in the background** while a draft is open. It is useful and possible, but polling is its
-  own decision; this spec checks on open and on save only.
+  own decision; this spec checks on open and on publish only.
 
 ---
 
@@ -171,7 +177,7 @@ defaults to leaving it out of the first version.
 | | Ask | Default if you have no view |
 |---|---|---|
 | A1 | When only the published version changed, update quietly with a dismissible note, or ask first? | Update, with a quiet note; nothing local is at risk |
-| A2 | Should the first version of the conflict choice include merge, or only Keep mine / Use saved / Keep both? | The three without merge; merge later |
+| A2 | Should the first version of the conflict choice include merge, or only Keep mine / Use published / Keep both? | The three without merge; merge later |
 | A3 | Which option in the conflict choice gets the emphasis? | *Keep both*, the only choice that cannot lose work |
 
 ## Decisions I made
@@ -179,7 +185,7 @@ defaults to leaving it out of the first version.
 | | Decision | Revisit if |
 |---|---|---|
 | P1 | Detect change by CID, never by timestamp | |
-| P2 | Store the base CID beside `savedSnapshot`, written together | |
-| P3 | Save with `swapRecord` so the overwrite check is atomic on the server | A PDS implementation mishandles `swapRecord` |
-| P4 | Opening a saved timeline reuses its existing local draft | |
+| P2 | Store the base CID beside `publishedSnapshot`, written together | |
+| P3 | Publish with `swapRecord` so the overwrite check is atomic on the server | A PDS implementation mishandles `swapRecord` |
+| P4 | Opening a published timeline reuses its existing local draft | |
 | P5 | One home-screen row per timeline, using `listRecords` CIDs | Merged rows prove harder to read than two lists |

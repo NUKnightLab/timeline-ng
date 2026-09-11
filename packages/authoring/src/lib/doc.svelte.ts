@@ -45,13 +45,13 @@ export const MIRROR_ORIGIN = Symbol('mirror');
  * Y.UndoManager tracks transactions whose origin is in its set, and by default
  * that set is `{null}` — so every write made without an origin would become
  * something undo offers back. Loading a timeline would be undoable into an
- * empty document; recording a save would be undoable into looking unsaved. So
+ * empty document; recording a publish would be undoable into looking unpublished. So
  * every write here names what it is, and only USER_ORIGIN (plus typing, which
  * y-prosemirror marks with ySyncPluginKey) is tracked.
  */
 export const USER_ORIGIN = Symbol('user');
 const LOAD_ORIGIN = Symbol('load');
-/** Facts *about* the document rather than content in it: savedSnapshot, atUri. */
+/** Facts *about* the document rather than content in it: publishedSnapshot, atUri. */
 const BOOKKEEPING_ORIGIN = Symbol('bookkeeping');
 /**
  * Values computed from other content, like the timeline title taken from the
@@ -206,7 +206,7 @@ export class TimelineDoc {
   get isEmpty(): boolean { return this.#entries.length === 0 && !this.#titleEvent; }
 
   /**
-   * Whether the document matches the last save or load.
+   * Whether the document matches the last publish or load.
    *
    * Derived rather than remembered — the editor used to set a `pdsClean` flag by
    * hand at every mutation site, which is the same information computed less
@@ -214,7 +214,7 @@ export class TimelineDoc {
    * saved text reports clean again, which the flag could not do.
    */
   get clean(): boolean {
-    const saved = this.#meta.savedSnapshot;
+    const saved = this.#meta.publishedSnapshot;
     return typeof saved === 'string' && JSON.stringify(this.#timeline) === saved;
   }
 
@@ -325,7 +325,7 @@ export class TimelineDoc {
   markClean(): void {
     this.flushMirrors();
     this.doc.transact(
-      () => writeMeta(this.doc, { ...this.#meta, savedSnapshot: JSON.stringify(this.#timeline) }),
+      () => writeMeta(this.doc, { ...this.#meta, publishedSnapshot: JSON.stringify(this.#timeline) }),
       BOOKKEEPING_ORIGIN,
     );
   }

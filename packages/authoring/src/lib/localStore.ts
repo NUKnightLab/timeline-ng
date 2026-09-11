@@ -30,7 +30,7 @@ export interface DraftSummary {
   /** The timeline's title, for the list. Empty is normal — untitled drafts exist. */
   title: string;
   /** ISO timestamp of the last edit. */
-  savedAt: string;
+  editedAt: string;
   /** Set once published; the record on the PDS this draft would overwrite. */
   atUri?: string;
 }
@@ -55,7 +55,7 @@ function writeIndex(drafts: DraftSummary[]): void {
 
 /** Drafts most recently edited first. */
 export function listDrafts(): DraftSummary[] {
-  return readIndex().sort((a, b) => (a.savedAt < b.savedAt ? 1 : -1));
+  return readIndex().sort((a, b) => (a.editedAt < b.editedAt ? 1 : -1));
 }
 
 export function newDocId(): string {
@@ -63,10 +63,10 @@ export function newDocId(): string {
 }
 
 /** Record or update a draft's entry. Called as the document changes. */
-export function noteDraft(summary: Omit<DraftSummary, 'savedAt'> & { savedAt?: string }): void {
-  const savedAt = summary.savedAt ?? new Date().toISOString();
+export function noteDraft(summary: Omit<DraftSummary, 'editedAt'> & { editedAt?: string }): void {
+  const editedAt = summary.editedAt ?? new Date().toISOString();
   const rest = readIndex().filter((d) => d.id !== summary.id);
-  const entry: DraftSummary = { id: summary.id, title: summary.title, savedAt };
+  const entry: DraftSummary = { id: summary.id, title: summary.title, editedAt };
   if (summary.atUri) entry.atUri = summary.atUri;
   writeIndex([entry, ...rest]);
 }

@@ -10,7 +10,7 @@
   // If this record is ever lost (e.g. accidentally deleted), restore its
   // content from packages/authoring/demo-timeline-backup.json via "FROM FILE".
   // Settings won't come back that way (the TL3 import path only restores
-  // title/events) and ogImage isn't backed up — it regenerates on next save.
+  // title/events) and ogImage isn't backed up — it regenerates on next publish.
   const DEMO_URI = 'at://did:plc:xcinm6zyywmiymjyz67qgm72/com.knightlab.timeline/mr6t86qd66rf';
 
   let demoTimeline = $state<TLTimeline | null>(null);
@@ -105,7 +105,7 @@
   // worker already resolve a plain http(s) URL at view time (see
   // packages/embed/src/App.svelte and packages/player/src/lib/loader.ts), so a
   // pasted source URL can become a share/embed link directly — no fetch, parse,
-  // or PDS save required on this end.
+  // or PDS write required on this end.
 
   const _embedMeta = document.querySelector('meta[name="tl-embed-base"]')?.getAttribute('content');
   const EMBED_BASE = (_embedMeta && !_embedMeta.startsWith('__')) ? _embedMeta : 'http://127.0.0.1:5200/';
@@ -148,7 +148,7 @@
   // ── Timeline list ────────────────────────────────────────────────────────────
 
   type ListItem = { uri: string; title: string; createdAt: string };
-  let savedTimelines = $state<ListItem[]>([]);
+  let publishedTimelines = $state<ListItem[]>([]);
   let listLoading = $state(false);
   let openingUri = $state<string | null>(null);
   let confirmDeleteUri = $state<string | null>(null);
@@ -173,14 +173,14 @@
     if (auth.status === 'signed-in') {
       void fetchList();
     } else {
-      savedTimelines = [];
+      publishedTimelines = [];
     }
   });
 
   async function fetchList() {
     listLoading = true;
     try {
-      savedTimelines = await listTimelines();
+      publishedTimelines = await listTimelines();
     } finally {
       listLoading = false;
     }
@@ -199,7 +199,7 @@
     const result = await deleteTimeline(uri);
     deletingUri = null;
     if (result.ok) {
-      savedTimelines = savedTimelines.filter(t => t.uri !== uri);
+      publishedTimelines = publishedTimelines.filter(t => t.uri !== uri);
     }
   }
 
@@ -248,7 +248,7 @@
           <button class="draft-row-open" onclick={() => onopendraft(draft.id)}>
             <span class="draft-row-title">{draftName(draft)}</span>
             <span class="draft-row-meta">
-              edited {formatRelativeTime(draft.savedAt)}{draft.atUri ? '' : ' · never published'}
+              edited {formatRelativeTime(draft.editedAt)}{draft.atUri ? '' : ' · never published'}
             </span>
           </button>
           <button
@@ -378,11 +378,11 @@
         {#if auth.status === 'signed-in'}
           {#if listLoading}
             <p class="list-loading">Loading…</p>
-          {:else if savedTimelines.length === 0}
-            <p class="list-empty">No saved timelines yet.</p>
+          {:else if publishedTimelines.length === 0}
+            <p class="list-empty">Nothing published yet.</p>
           {:else}
             <ul class="timeline-list">
-              {#each savedTimelines as item (item.uri)}
+              {#each publishedTimelines as item (item.uri)}
                 <li class="timeline-item">
                   {#if confirmDeleteUri === item.uri}
                     {#if isDemoTimeline(item.uri)}
@@ -442,7 +442,7 @@
             </ul>
           {/if}
         {:else}
-          <p class="list-empty">Sign in to save and revisit your timelines here.</p>
+          <p class="list-empty">Sign in to publish your timelines and pick them up again here.</p>
         {/if}
       </section>
 

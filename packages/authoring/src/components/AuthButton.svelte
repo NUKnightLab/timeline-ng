@@ -303,7 +303,7 @@
             </ul>
           {/if}
           </div>
-          <p class="note">You don't have to sign in to make a timeline, but it's the easiest way to save and publish them.</p>
+          <p class="note">You don't have to sign in to make a timeline, but it's how you publish one.</p>
 
         </div>
         {#if auth.status === 'error'}

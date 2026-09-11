@@ -75,15 +75,15 @@ const OPAQUE_SUBFIELDS = new Set(['blobRef']);
 
 export interface DocMeta {
   /**
-   * The document's content as of the last save or load, serialized.
+   * The document's content as of the last publish or load, serialized.
    *
    * In the document rather than in memory because a draft now outlives the page
    * that made it: reopening one from storage must be able to say whether it
    * still matches what was published, and a field on the bridge could not. The
    * cost is a second copy of the timeline's text inside the document, which is
-   * small next to its media and is rewritten only on save.
+   * small next to its media and is rewritten only on publish.
    */
-  savedSnapshot?: string;
+  publishedSnapshot?: string;
   title?: string;
   titleSetByUser?: boolean;
   atUri?: string;
@@ -356,7 +356,7 @@ export function writeMeta(doc: Y.Doc, meta: DocMeta): void {
   put(map, 'title', meta.title);
   put(map, 'titleSetByUser', meta.titleSetByUser);
   put(map, 'atUri', meta.atUri);
-  put(map, 'savedSnapshot', meta.savedSnapshot);
+  put(map, 'publishedSnapshot', meta.publishedSnapshot);
 }
 
 /**
@@ -443,8 +443,8 @@ export function readMeta(doc: Y.Doc): DocMeta {
   if (typeof title === 'string') out.title = title;
   if (typeof titleSetByUser === 'boolean') out.titleSetByUser = titleSetByUser;
   if (typeof atUri === 'string') out.atUri = atUri;
-  const savedSnapshot = map.get('savedSnapshot');
-  if (typeof savedSnapshot === 'string') out.savedSnapshot = savedSnapshot;
+  const publishedSnapshot = map.get('publishedSnapshot');
+  if (typeof publishedSnapshot === 'string') out.publishedSnapshot = publishedSnapshot;
   return out;
 }
 

@@ -131,7 +131,7 @@
     <p>This page renders a timeline embedded via a <code>src</code> URL parameter.</p>
     <p>Add one of the following to the URL:</p>
     <ul>
-      <li><code>?src=at://...</code> — an AT Protocol URI for a timeline saved to a PDS</li>
+      <li><code>?src=at://...</code> — an AT Protocol URI for a timeline published to a PDS</li>
       <li><code>?src=https://example.com/timeline.json</code> — a link to a hosted JSON file</li>
       <li><code>?src=https://docs.google.com/spreadsheets/.../pubhtml</code> — a Google Sheet published to the web</li>
     </ul>
