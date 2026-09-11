@@ -25,7 +25,7 @@ There are three copies in play, and they are not equal:
 - **Local draft** — this browser, a Yjs document with full history.
 - **Server draft** — Phase 2 onward. Also a Yjs document, *sharing history* with the local one, so
   the two merge automatically and never conflict.
-- **Published record** — plain HTML on the PDS, with no history at all.
+- **Published record** — plain JSON on the PDS, with no history at all.
 
 Only the published record can genuinely conflict, because only it has no history to merge through.
 From Phase 3 the server *produces* that record from the draft, so it becomes an ancestor of the draft
