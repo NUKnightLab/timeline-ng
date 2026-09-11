@@ -3,6 +3,10 @@
   import type * as Y from 'yjs';
   import type { SlideEntry } from '../lib/doc.ts';
   import { fly } from 'svelte/transition';
+  import { tick } from 'svelte';
+  import { setHistoryHandler } from '../lib/historyBus.ts';
+  import type { HistoryDirection } from '../lib/historyBus.ts';
+  import type { HistoryTarget } from '../lib/historyTarget.ts';
 
   import EventList from './EventList.svelte';
   import EventEditor from './EventEditor.svelte';
@@ -43,6 +47,12 @@
     onexport: () => void;
     onexportcsv: () => void;
     onundo: () => void;
+    /** What undo or redo would change next — read before applying, so it can be revealed first. */
+    onpeekhistory: (direction: HistoryDirection) => HistoryTarget | null;
+    /** Apply an undo or redo. Returns whether anything changed. */
+    onapplyhistory: (direction: HistoryDirection) => boolean;
+    /** Bumped after each undo or redo, so the slide editor re-reads its fields. */
+    historyVersion: number;
     headlineFragment?: Y.XmlFragment | null;
     bodyFragment?: Y.XmlFragment | null;
     onsettingschange: (patch: Partial<TLSettings>) => void;
@@ -53,7 +63,7 @@
     timeline, atUri, pdsClean, saveStatus, canSave, deletedItem, deletedItemLeaving, settings,
     headlineFragment = null, bodyFragment = null,
     onback, onsignout, ontitlechange, onselect, onadd, onaddtitle, ondelete, onupdate, onsave, onexport, onexportcsv, onundo,
-    onsettingschange,
+    onsettingschange, onpeekhistory, onapplyhistory, historyVersion,
   }: Props = $props();
 
   /**
@@ -195,6 +205,155 @@
     showPreview = true;
     showSettingsPanel = true;
   }
+
+  // ── Undo and redo: reveal, then apply, then flash ────────────────────────────
+  //
+  // docs/phase1-undo.md. Everything that decides *where* a change is shown lives
+  // here, because this component owns the panels and hands out the selection.
+
+  /** Pause between bringing something into view and changing it. (feel) */
+  const REVEAL_PAUSE_MS = 250;
+  let historyBusy = false;
+
+  function slideExists(key: string): boolean {
+    return key === 'title' ? !!titleEvent : entries.some((e) => e.key === key);
+  }
+
+  /** The on-screen element that shows a target, trying the edit control before its read-only view. */
+  function revealElementFor(target: HistoryTarget): HTMLElement | null {
+    const q = (sel: string) => document.querySelector<HTMLElement>(sel);
+    if (target.kind === 'settings') return q('.settings-panel');
+    if (target.kind === 'title') return q('.subnav-title-btn') ?? q('.subnav-title-input');
+    if (target.field === 'slide') return q(`[data-slide-id="${target.slideKey}"]`);
+
+    const panel = document.getElementById('event-editor-panel');
+    const at = (sel: string) => panel?.querySelector<HTMLElement>(sel) ?? null;
+    switch (target.field) {
+      case 'headline':   return at('#headline-rte') ?? at('.slide-h');
+      case 'body':       return at('#body-rte') ?? at('.slide-body-text');
+      case 'caption':    return at('#caption-rte') ?? at('.slide-caption-text') ?? at('.slide-media-col');
+      case 'credit':     return at('#credit-rte') ?? at('.slide-credit-text') ?? at('.slide-media-col');
+      case 'alt':        return at('#media-alt') ?? at('.slide-media-col');
+      case 'media':      return at('.slide-media-col');
+      case 'date':       return at('.field-panel-body--date') ?? at('.slide-date-summary');
+      case 'background': return at('#bg-color-text');
+      case 'slideId':    return at('#slide-id');
+      case 'group':      return at('#group');
+      default:           return panel;
+    }
+  }
+
+  function isInView(el: HTMLElement): boolean {
+    const r = el.getBoundingClientRect();
+    return r.top >= 0 && r.bottom <= (window.innerHeight || document.documentElement.clientHeight);
+  }
+
+  function flash(el: HTMLElement | null | undefined) {
+    if (!el) return;
+    el.classList.remove('tl-history-flash');
+    void el.offsetWidth;   // restart the animation when the same element flashes twice
+    el.classList.add('tl-history-flash');
+    // A timer rather than animationend: with reduced motion there is no animation
+    // to end, and the outline that replaces it would otherwise stay forever.
+    setTimeout(() => el.classList.remove('tl-history-flash'), 800);
+  }
+
+  async function performHistory(direction: HistoryDirection) {
+    // Holding Cmd-Z auto-repeats. Each step waits on a reveal, so overlapping
+    // them would apply changes against a view that has not caught up.
+    if (historyBusy) return;
+    historyBusy = true;
+    try {
+      const target = onpeekhistory(direction);
+
+      // A change with no recognisable place still applies; there is just
+      // nothing to bring into view. An empty stack applies nothing — D10.
+      if (!target) {
+        onapplyhistory(direction);
+        return;
+      }
+
+      // Restoring a deleted slide, or redoing an added one: it does not exist
+      // yet, so there is nothing to reveal until the change has been applied.
+      if (target.kind === 'slide' && target.field === 'slide' && !slideExists(target.slideKey)) {
+        showPreview = false;
+        showPublish = false;
+        if (!onapplyhistory(direction)) return;
+        onselect(target.slideKey);   // D7
+        await tick();
+        flash(revealElementFor(target));
+        return;
+      }
+
+      let moved = false;
+
+      // D9: overlays close first — except the one holding the target. Settings
+      // live inside the preview overlay, so revealing a settings change means
+      // opening it, where every other target means closing it.
+      if (target.kind === 'settings') {
+        if (!showPreview || !showSettingsPanel) { openSettings(); moved = true; }
+      } else if (showPreview || showPublish) {
+        showPreview = false;
+        showPublish = false;
+        moved = true;
+      }
+
+      if (target.kind === 'slide' && target.slideKey !== selectedId) {
+        onselect(target.slideKey);
+        moved = true;
+      }
+
+      await tick();
+      const before = revealElementFor(target);
+      if (before && !isInView(before)) {
+        const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+        before.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
+        moved = true;
+      }
+      if (moved) await new Promise((resolve) => setTimeout(resolve, REVEAL_PAUSE_MS));
+
+      if (!onapplyhistory(direction)) return;
+      await tick();
+
+      // Look again: re-reading fields can replace the element that was shown.
+      const after = revealElementFor(target) ?? before;
+      flash(after);
+      // D4: focus follows only when the view had to move to find the change.
+      if (moved) after?.focus?.({ preventScroll: true });
+    } finally {
+      historyBusy = false;
+    }
+  }
+
+  $effect(() => {
+    const unregister = setHistoryHandler((direction) => {
+      void performHistory(direction);
+      return true;
+    });
+
+    const onKey = (e: KeyboardEvent) => {
+      // A rich-text field already took it: Tiptap's keymap runs first, calls
+      // requestHistory, and ProseMirror marks the event handled.
+      if (e.defaultPrevented) return;
+      if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
+      const key = e.key.toLowerCase();
+      const direction: HistoryDirection | null =
+        key === 'z' ? (e.shiftKey ? 'redo' : 'undo') :
+        key === 'y' && !e.shiftKey ? 'redo' :
+        null;
+      if (!direction) return;
+      // D1: one stack. A plain input's native undo would be a second, private
+      // one that knows nothing of the rest of the timeline.
+      e.preventDefault();
+      void performHistory(direction);
+    };
+
+    window.addEventListener('keydown', onKey);
+    return () => {
+      unregister();
+      window.removeEventListener('keydown', onKey);
+    };
+  });
 
   const embedUrl = $derived.by(() => {
     if (!atUri) return '';
@@ -490,6 +649,7 @@
             ondelete={() => selectedId && ondelete(selectedId)}
             {headlineFragment}
             {bodyFragment}
+            {historyVersion}
           />
         {/key}
       {:else}

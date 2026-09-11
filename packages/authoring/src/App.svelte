@@ -10,6 +10,7 @@
   import { migrateLegacyDraft } from './lib/draftMigration.ts';
   import type { IndexeddbPersistence } from 'y-indexeddb';
   import { TimelineDoc, HEADLINE_FIELD, BODY_FIELD } from './lib/doc.svelte.ts';
+  import { requestHistory } from './lib/historyBus.ts';
   import { stripHtml } from './lib/text.ts';
   import HomeView from './components/HomeView.svelte';
   import EditorView from './components/EditorView.svelte';
@@ -60,6 +61,8 @@
    */
   let selectedId = $state<string | null>(null);
   let saveStatus = $state<string | null>(null);
+  /** Bumped after each undo or redo; the slide editor re-reads its fields when it moves. */
+  let historyVersion = $state(0);
 
   const timelineTitle = $derived(tldoc.title);
   const titleEvent = $derived(tldoc.titleEvent);
@@ -71,7 +74,12 @@
   // ── Draft ────────────────────────────────────────────────────────────────────
 
 
-  let deletedItem = $state<{ event: TLEvent; isTitle: boolean; sortedIndex: number } | null>(null);
+  /**
+   * The slide the restore row can bring back. `stackItem` is the deletion's
+   * entry in undo history, so the row can restore through undo when nothing has
+   * happened since — see undoDelete.
+   */
+  let deletedItem = $state<{ event: TLEvent; isTitle: boolean; sortedIndex: number; stackItem: object | null } | null>(null);
   let deletedItemLeaving = $state(false);
   let _undoTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -133,7 +141,19 @@
   $effect(() => {
     if (tldoc.titleSetByUser) return;
     const fromHeadline = stripHtml(tldoc.titleEvent?.text?.headline);
-    if (fromHeadline !== tldoc.title) tldoc.setTitle(fromHeadline, false);
+    // Derived, so untracked: undoing the headline recomputes this, and a
+    // tracked recomputation would clear the redo stack after every such undo.
+    if (fromHeadline !== tldoc.title) tldoc.setTitle(fromHeadline, false, { derived: true });
+  });
+
+  // A selection can outlive its slide: undo removing a slide that was added, and
+  // in Phase 2 a collaborator deleting one. Fall back to a slide that exists
+  // rather than leaving the editor pointed at nothing.
+  $effect(() => {
+    if (view !== 'editor' || selectedId === null) return;
+    if (tldoc.eventForKey(selectedId)) return;
+    const remaining = tldoc.entries;
+    selectedId = remaining[remaining.length - 1]?.key ?? (tldoc.titleEvent ? 'title' : null);
   });
 
   // ── Opening, closing and swapping drafts ──────────────────────────────────────
@@ -316,19 +336,26 @@
   }
 
   function deleteEvent(key: string) {
+    // A capture boundary either side makes the deletion a stack item of its own.
+    // Without one, deleting within half a second of an edit merges into that
+    // edit, and restoring the slide would revert the edit as well.
+    tldoc.captureBoundary();
     if (key === 'title') {
-      deletedItem = { event: titleEvent!, isTitle: true, sortedIndex: -1 };
+      const event = titleEvent!;
       tldoc.removeTitleSlide();
+      deletedItem = { event, isTitle: true, sortedIndex: -1, stackItem: tldoc.latestUndoItem() };
       selectedId = tldoc.entries[0]?.key ?? null;
     } else {
       const sortedIndex = tldoc.entries.findIndex(e => e.key === key);
-      deletedItem = { event: tldoc.eventForKey(key)!, isTitle: false, sortedIndex };
+      const event = tldoc.eventForKey(key)!;
       tldoc.removeEvent(key);
+      deletedItem = { event, isTitle: false, sortedIndex, stackItem: tldoc.latestUndoItem() };
       if (selectedId === key) {
         const remaining = tldoc.entries;
         selectedId = remaining.length > 0 ? remaining[remaining.length - 1].key : null;
       }
     }
+    tldoc.captureBoundary();
     deletedItemLeaving = false;
     if (_undoTimer !== null) clearTimeout(_undoTimer);
     _undoTimer = setTimeout(() => {
@@ -345,8 +372,21 @@
     if (!deletedItem) return;
     if (_undoTimer !== null) { clearTimeout(_undoTimer); _undoTimer = null; }
     deletedItemLeaving = false;
-    const { event, isTitle } = deletedItem;
+    const { event, isTitle, stackItem } = deletedItem;
     deletedItem = null;
+
+    // Still the next thing undo would do? Then restore through undo itself: the
+    // slide returns under its original key, gets revealed and flashed (D7), and
+    // history stays truthful.
+    if (stackItem && tldoc.isNextUndo(stackItem)) {
+      requestHistory('undo');
+      return;
+    }
+
+    // Otherwise other edits have happened since. Re-add the slide as a new one,
+    // and drop the deletion from history — or Cmd-Z could later bring the
+    // original back as well, leaving two copies.
+    if (stackItem) tldoc.forgetUndoItem(stackItem);
     if (isTitle) {
       tldoc.setTitleSlide(event);
       selectedId = 'title';
@@ -498,5 +538,12 @@
     onexportcsv={handleExportCSV}
     onundo={undoDelete}
     onsettingschange={updateSettings}
+    onpeekhistory={(direction) => (direction === 'undo' ? tldoc.peekUndo() : tldoc.peekRedo())}
+    onapplyhistory={(direction) => {
+      const changed = direction === 'undo' ? tldoc.undo() : tldoc.redo();
+      if (changed) historyVersion += 1;
+      return changed;
+    }}
+    {historyVersion}
   />
 {/if}

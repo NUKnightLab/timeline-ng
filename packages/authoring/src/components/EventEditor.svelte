@@ -27,6 +27,12 @@
     headlineFragment?: Y.XmlFragment | null;
     bodyFragment?: Y.XmlFragment | null;
     ondelete: () => void;
+    /**
+     * Bumped after each undo or redo. The fields below are copies taken at
+     * mount, and an undo changes the slide in place, so they re-read the
+     * document when this moves — see resyncFrom.
+     */
+    historyVersion?: number;
   }
 
   interface DateDraft {
@@ -40,10 +46,12 @@
 
   let {
     event, isTitle = false, index, takenIds = [], onchange, ondelete,
-    headlineFragment = null, bodyFragment = null,
+    headlineFragment = null, bodyFragment = null, historyVersion = 0,
   }: Props = $props();
   // Snapshot the event prop — this component is keyed on selectedId and recreated
-  // when the event changes, so $state fields only need the initial value.
+  // when the selection changes, so $state fields take the initial value. The one
+  // exception is undo and redo, which change the slide in place; resyncFrom
+  // re-reads the fields for those.
   const ev = untrack(() => event);
 
   let startYear   = $state<number | ''>(ev.start_date?.year ?? '');
@@ -338,6 +346,8 @@
   // after the author has already moved on (edited the URL again, typed their own
   // caption/credit) can recognize it's stale and discard itself.
   let mediaPrefillToken = 0;
+  /** A media URL that arrived from undo or redo, which must not trigger a prefill. */
+  let prefillSuppressedFor: string | null = null;
 
   // Runs off the same signal MediaPreview uses to fetch its own image src (see
   // MediaPreview.svelte's wikiImagePromise), so caption/credit fill in alongside the
@@ -366,6 +376,10 @@
 
   // Only fills fields the author has left blank — never overwrites their own text.
   function maybePrefillMediaText() {
+    // Not for a URL that undo or redo just restored. Prefilling would put back a
+    // caption the author had just undone, and writing it would be a new change,
+    // which clears the redo stack.
+    if (prefillSuppressedFor !== null && mediaUrl === prefillSuppressedFor) return;
     const resolved = mediaInput.resolved;
     if (mediaCaption && mediaCredit) return;
 
@@ -439,6 +453,73 @@
   let mediaOnRight    = $state(ev.media_position === 'right');
   let slideId         = $state(ev.unique_id ?? '');
   const slideIdValid  = $derived(!slideId.trim() || isValidSlideId(slideId.trim()));
+
+  /**
+   * Re-read every field from the document after an undo or redo.
+   *
+   * Remounting the editor would do the same job in one line, and would also
+   * close whichever field is open and take the caret with it — which is the
+   * situation undo is used in most. So the copies are refreshed in place.
+   *
+   * A date being edited keeps its draft: that text is not in the document yet,
+   * and resetting it would discard typing the author has not committed.
+   */
+  function resyncFrom(next: TLEvent) {
+    startYear   = next.start_date?.year ?? '';
+    startMonth  = next.start_date?.month ?? '';
+    startDay    = next.start_date?.day ?? '';
+    startHour   = next.start_date?.hour ?? '';
+    startMinute = next.start_date?.minute ?? '';
+    startSecond = next.start_date?.second ?? '';
+    displayDate = next.start_date?.display_date ?? '';
+
+    hasEndDate  = !!next.end_date;
+    endYear     = next.end_date?.year ?? '';
+    endMonth    = next.end_date?.month ?? '';
+    endDay      = next.end_date?.day ?? '';
+    endHour     = next.end_date?.hour ?? '';
+    endMinute   = next.end_date?.minute ?? '';
+    endSecond   = next.end_date?.second ?? '';
+
+    if (!editingDate) {
+      startDateDraft = {
+        year: next.start_date?.year ?? '', month: next.start_date?.month ?? '', day: next.start_date?.day ?? '',
+        hour: next.start_date?.hour ?? '', minute: next.start_date?.minute ?? '', second: next.start_date?.second ?? '',
+      };
+      endDateDraft = {
+        year: next.end_date?.year ?? '', month: next.end_date?.month ?? '', day: next.end_date?.day ?? '',
+        hour: next.end_date?.hour ?? '', minute: next.end_date?.minute ?? '', second: next.end_date?.second ?? '',
+      };
+    }
+
+    headline = next.text?.headline ?? '';
+    body     = next.text?.text ?? '';
+
+    mediaBlobRef = next.media?.blobRef;
+    mediaUrl     = next.media?.blobRef ? localOrPdsBlobUrl(extractCid(next.media.blobRef.ref)) : (next.media?.url ?? '');
+    mediaCaption = next.media?.caption ?? '';
+    mediaCredit  = next.media?.credit ?? '';
+    mediaAlt     = next.media?.alt ?? '';
+    mediaMode    = next.media?.blobRef ? 'upload' : 'url';
+    prefillSuppressedFor = mediaUrl;
+
+    bgColor           = next.background?.color ?? '';
+    bgBlobRef         = next.background?.blobRef;
+    bgImageUrl        = next.background?.blobRef ? localOrPdsBlobUrl(extractCid(next.background.blobRef.ref)) : (next.background?.url ?? '');
+    bgImageIsUploaded = !!next.background?.blobRef;
+
+    group        = next.group ?? '';
+    mediaOnRight = next.media_position === 'right';
+    slideId      = next.unique_id ?? '';
+  }
+
+  let lastHistoryVersion = untrack(() => historyVersion);
+  $effect(() => {
+    const version = historyVersion;
+    if (version === lastHistoryVersion) return;
+    lastHistoryVersion = version;
+    untrack(() => resyncFrom(event));
+  });
 
   /**
    * Commits on every keystroke, not on blur.

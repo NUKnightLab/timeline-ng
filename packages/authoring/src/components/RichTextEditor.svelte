@@ -1,11 +1,12 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import { onMount } from 'svelte';
-  import { Editor } from '@tiptap/core';
+  import { Editor, Extension } from '@tiptap/core';
   import Collaboration from '@tiptap/extension-collaboration';
   import DOMPurify from 'dompurify';
   import type * as Y from 'yjs';
   import { extensionsFor } from '../lib/richtext.ts';
+  import { requestHistory } from '../lib/historyBus.ts';
   // The player's body-copy rules, so what is typed here is set the way it will
   // be published. One definition, two consumers — see prose.css.
   import '@knight-lab/timeline-ng/prose.css';
@@ -145,7 +146,26 @@
     // than from props, so there is exactly one place the mapping is recorded.
     const collaborative = !!fragment;
     const options = field ? field.options : { minimal, inlineOnly, singleLine };
+    // Undo and redo go to the timeline's single stack, not to this field
+    // (docs/phase1-undo.md D1). Collaboration binds Mod-z to an undo manager
+    // private to this one fragment, and StarterKit binds it to ProseMirror's
+    // own history in fields without one. Running above both — Collaboration's
+    // priority is 1000, and Tiptap checks higher priorities first — claims the
+    // key before either sees it. With no timeline editor listening, the key
+    // falls through to whichever of those this field has.
+    const timelineHistory = Extension.create({
+      name: 'timelineHistory',
+      priority: 10000,
+      addKeyboardShortcuts() {
+        return {
+          'Mod-z': () => requestHistory('undo'),
+          'Mod-y': () => requestHistory('redo'),
+          'Shift-Mod-z': () => requestHistory('redo'),
+        };
+      },
+    });
     const extensions = [
+      timelineHistory,
       ...extensionsFor(options, collaborative),
       ...(fragment ? [Collaboration.configure({ fragment })] : []),
     ];

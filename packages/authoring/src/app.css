@@ -1,2 +1,22 @@
 *, *::before, *::after { box-sizing: border-box; }
 html, body, #app { height: 100%; margin: 0; }
+
+/*
+ * Undo and redo mark what they changed — docs/phase1-undo.md, "reveal, then
+ * apply, then flash". Global because the thing that changed can live in any
+ * component: a slide card, a field, the settings panel, the timeline title.
+ */
+@keyframes tl-history-flash {
+  from { background-color: rgba(250, 204, 21, 0.45); }
+  to   { background-color: transparent; }
+}
+.tl-history-flash {
+  animation: tl-history-flash 700ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tl-history-flash {
+    animation: none;
+    outline: 2px solid rgba(217, 119, 6, 0.8);
+    outline-offset: 2px;
+  }
+}

@@ -115,6 +115,17 @@
     target?.focus();
   }
 
+  // Keep the selected card in view when the selection changes from outside the
+  // list — an undo moving to another slide, say. `nearest` makes this a no-op
+  // for a card that is already visible, so clicking a card never scrolls.
+  $effect(() => {
+    const id = selectedId;
+    if (!id || !filmstripScrollEl) return;
+    const card = filmstripScrollEl.querySelector<HTMLElement>(`[data-slide-id="${id}"]`);
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    card?.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
+  });
+
   function moveSelection(currentId: string, direction: -1 | 1) {
     const index = navigableIds.indexOf(currentId);
     if (index === -1) return;

@@ -378,6 +378,44 @@ publish, and opening a saved timeline always creates a duplicate draft. Not bloc
 `UndoManager` with `trackedOrigins` set, then the seven scripts. Depends on Stages 3, 4 and 5, and on
 the **[A1]** work, which is why it is last.
 
+**[A1] was not needed.** The escape hatch — remounting the slide editor after an undo — would have
+closed whichever field was open and taken the caret with it, which is the situation undo is used in
+most. `EventEditor` re-reads its fields in place instead (`resyncFrom`), so an open editor stays
+open.
+
+Implementation notes, all of them things the code said rather than the spec:
+
+- **[P11] Tiptap keeps its own undo manager per field; ours is separate.** `Collaboration` accepts an
+  existing manager through `yUndoOptions`, which looked like the clean way to honour D1 — but its
+  plugin view calls `undoManager.destroy()` whenever an editor unmounts, and headline and body
+  editors unmount whenever a field closes or the slide changes. A shared manager would be dead most
+  of the time. Each editor keeps a throwaway manager, and a keymap extension at priority 10000 —
+  above `Collaboration`'s 1000 — routes `Mod-z` to the timeline's stack instead.
+- **[P12] Every write names its origin.** `Y.UndoManager` tracks origin-`null` transactions by
+  default, and almost nothing in the bridge had an origin, so loading a timeline was undoable into
+  an empty document. Only user edits and typing are tracked; loads, bookkeeping, the HTML mirror and
+  the derived timeline title are not. The derived title matters more than it sounds: undoing a
+  headline recomputes it, and a *tracked* recomputation clears the redo stack.
+- **[P13] Writes are dropped while history is being applied.** Undo updates a mounted rich-text
+  editor synchronously, which fires its `onchange`, which re-emits the whole slide from
+  `EventEditor`'s stale copies of every other field — writing undone values straight back.
+- **[P14] The reveal target is recorded when a change is captured**, not when it is undone, because
+  reveal has to happen first. It cannot be derived from `YEvent.changes`: Yjs refuses to compute
+  that once event handlers have run, which is exactly when `stack-item-added` fires.
+- **[P15] The restore row and Cmd-Z are reconciled.** Deleting takes a capture boundary either side
+  so the deletion is its own stack item, and keeps a handle on it. If nothing has happened since,
+  the row restores *through* undo; otherwise it re-adds the slide and forgets the deletion, so
+  Cmd-Z cannot later bring the original back as a second copy.
+
+Two corrections to [phase1-undo.md](phase1-undo.md), from reading the code it describes:
+
+- **D5 does not apply.** It said a collapsed slide list should open to reveal a change. There is no
+  collapsed state: `show-eventlist` is toggled by the Events button but has no CSS rule anywhere, so
+  the toggle does nothing. Worth fixing on its own terms, separately.
+- **Script 5 and Script 6 contradicted each other**, because the settings panel lives *inside* the
+  preview overlay. "Open settings" and "close overlays first" cannot both hold. Resolved as: reveal
+  whatever contains the target, close whatever hides it.
+
 *Verify:* each script by hand, since they are about sequencing and focus. The *(feel)* items in the
 undo spec get judged here.
 
