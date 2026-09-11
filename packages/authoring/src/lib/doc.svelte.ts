@@ -287,6 +287,13 @@ export class TimelineDoc {
     return stack[stack.length - 1] === item;
   }
 
+  /** Whether `item` is still undoable — false once it has been undone. */
+  hasUndoItem(item: object): boolean {
+    // Via a local: a private field cannot appear inside a `typeof` type query.
+    const stack = this.#history.undoStack;
+    return stack.includes(item as (typeof stack)[number]);
+  }
+
   /**
    * Drop a change from undo history without applying it.
    *

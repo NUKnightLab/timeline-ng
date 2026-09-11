@@ -22,7 +22,9 @@ export type HistoryField =
 
 export type HistoryTarget =
   | { kind: 'slide'; slideKey: string; field: HistoryField }
-  | { kind: 'settings' }
+  /** `setting` is the key that changed, so the reveal can point at one control
+      rather than flashing the whole settings panel. */
+  | { kind: 'settings'; setting?: string }
   | { kind: 'title' };
 
 /** A transaction's `changedParentTypes`, typed loosely enough to accept it. */
@@ -135,7 +137,10 @@ export function targetFor(doc: Y.Doc, changedParentTypes: ChangedParentTypes): H
   for (const event of events) {
     const chain = chainOf(targetOf(event));
     const root = chain[chain.length - 1];
-    if (root === settings) return { kind: 'settings' };
+    if (root === settings) {
+      const [setting] = keysChangedOf(event);
+      return setting ? { kind: 'settings', setting } : { kind: 'settings' };
+    }
     if (root === meta) return { kind: 'title' };
     if (root === title) return { kind: 'slide', slideKey: 'title', field: fieldWithin(title, chain, event) };
     if (root === slides && chain.length >= 2) {

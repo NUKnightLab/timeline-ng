@@ -211,8 +211,14 @@
   // docs/phase1-undo.md. Everything that decides *where* a change is shown lives
   // here, because this component owns the panels and hands out the selection.
 
-  /** Pause between bringing something into view and changing it. (feel) */
-  const REVEAL_PAUSE_MS = 250;
+  /**
+   * Pause between bringing something into view and changing it. (feel)
+   *
+   * 250ms was too quick to follow: the slide changed and the edit vanished as
+   * one motion. Only applied when the view actually had to move — undoing in
+   * the field you are already typing in stays immediate.
+   */
+  const REVEAL_PAUSE_MS = 450;
   let historyBusy = false;
 
   function slideExists(key: string): boolean {
@@ -222,7 +228,17 @@
   /** The on-screen element that shows a target, trying the edit control before its read-only view. */
   function revealElementFor(target: HistoryTarget): HTMLElement | null {
     const q = (sel: string) => document.querySelector<HTMLElement>(sel);
-    if (target.kind === 'settings') return q('.settings-panel');
+    if (target.kind === 'settings') {
+      const panel = q('.settings-panel');
+      if (!panel) return null;
+      // The field wrapper, not the control: a native <select> barely shows a
+      // background change, and the whole panel flashing says only that
+      // *something* changed.
+      if (target.setting) {
+        return panel.querySelector<HTMLElement>(`[data-setting="${target.setting}"]`) ?? panel;
+      }
+      return panel;
+    }
     if (target.kind === 'title') return q('.subnav-title-btn') ?? q('.subnav-title-input');
     if (target.field === 'slide') return q(`[data-slide-id="${target.slideKey}"]`);
 
@@ -310,7 +326,13 @@
         before.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
         moved = true;
       }
-      if (moved) await new Promise((resolve) => setTimeout(resolve, REVEAL_PAUSE_MS));
+      if (moved) {
+        // Mark the target before changing it, as well as after. An undo that
+        // empties a field leaves nothing to flash once it has been applied, so
+        // without this the moment of the change is invisible.
+        flash(before);
+        await new Promise((resolve) => setTimeout(resolve, REVEAL_PAUSE_MS));
+      }
 
       if (!onapplyhistory(direction)) return;
       await tick();

@@ -201,3 +201,33 @@ describe('typing, through a real editor', () => {
     expect(editor.getHTML()).toBe('<p>One small step.</p>');
   });
 });
+
+describe('whether a deletion is still undoable', () => {
+  // What the restore row checks before taking itself down. Undo has already
+  // brought the slide back, so a row still offering to restore it would add a
+  // second copy.
+  it('goes false once the deletion has been undone', () => {
+    const { tl, key } = loaded();
+    tl.captureBoundary();
+    tl.removeEvent(key);
+    const deletion = tl.latestUndoItem()!;
+    expect(tl.hasUndoItem(deletion)).toBe(true);
+
+    tl.undo();
+    expect(tl.hasUndoItem(deletion)).toBe(false);
+    expect(tl.entries.map((e) => e.key)).toEqual([key]);
+  });
+
+  it('stays true when something else was undone', () => {
+    const { tl, key } = loaded();
+    tl.captureBoundary();
+    tl.removeEvent(key);
+    const deletion = tl.latestUndoItem()!;
+    tl.captureBoundary();
+    tl.patchSettings({ language: 'es' });
+
+    tl.undo();   // the settings change, not the deletion
+    expect(tl.hasUndoItem(deletion)).toBe(true);
+    expect(tl.entries).toHaveLength(0);
+  });
+});

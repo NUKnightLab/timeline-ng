@@ -48,7 +48,7 @@
     {/if}
   </div>
 
-  <div class="field">
+  <div class="field" data-setting="language">
     <label class="field-label" for="settings-language">Language</label>
     <select
       id="settings-language"
@@ -60,7 +60,7 @@
     </select>
   </div>
 
-  <div class="field">
+  <div class="field" data-setting="fontPairing">
     <label class="field-label" for="settings-font">Typeface</label>
     <select
       id="settings-font"
@@ -80,7 +80,7 @@
     {/if}
   </div>
 
-  <div class="field" role="group" aria-label="Theme">
+  <div class="field" role="group" aria-label="Theme" data-setting="theme">
     <span class="field-label">Theme</span>
     <div class="settings-tabs">
       <button type="button" class="settings-tab-btn" class:active={theme === 'light'} onclick={() => onchange({ theme: 'light' })}>Light</button>
@@ -89,7 +89,7 @@
     </div>
   </div>
 
-  <div class="field field-checkbox">
+  <div class="field field-checkbox" data-setting="highContrast">
     <label class="field-checkbox-label">
       <input
         type="checkbox"
@@ -101,7 +101,7 @@
     <p class="field-hint">Raises text and markers to the strictest contrast level (WCAG AAA).</p>
   </div>
 
-  <div class="field field-checkbox">
+  <div class="field field-checkbox" data-setting="reverseOrder">
     <label class="field-checkbox-label">
       <input
         type="checkbox"

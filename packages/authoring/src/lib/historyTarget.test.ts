@@ -101,10 +101,13 @@ describe('the title slide', () => {
 });
 
 describe('outside the slides', () => {
-  it('settings', () => {
+  it('settings, naming the one that changed', () => {
+    // Without the key the reveal can only flash the whole panel, which tells
+    // you a setting changed but not which.
     const doc = createDoc();
-    writeSettings(doc, { language: 'en' });
-    expect(reveal(doc, () => writeSettings(doc, { language: 'es' }))).toEqual({ kind: 'settings' });
+    writeSettings(doc, { language: 'en', theme: 'auto' });
+    expect(reveal(doc, () => writeSettings(doc, { language: 'es', theme: 'auto' })))
+      .toEqual({ kind: 'settings', setting: 'language' });
   });
 
   it('the timeline title', () => {

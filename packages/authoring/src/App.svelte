@@ -256,9 +256,7 @@
   }
 
   async function goHome() {
-    if (_undoTimer !== null) { clearTimeout(_undoTimer); _undoTimer = null; }
-    deletedItem = null;
-    deletedItemLeaving = false;
+    dismissDeletedItem();
 
     // An empty draft is not worth listing; anything with content stays, because
     // the document has already persisted itself and this is where it lives.
@@ -366,6 +364,13 @@
 
   function updateSettings(patch: Partial<TLSettings>) {
     tldoc.patchSettings(patch);
+  }
+
+  /** Take down the restore row and stop its countdown. */
+  function dismissDeletedItem() {
+    if (_undoTimer !== null) { clearTimeout(_undoTimer); _undoTimer = null; }
+    deletedItem = null;
+    deletedItemLeaving = false;
   }
 
   function undoDelete() {
@@ -540,9 +545,14 @@
     onsettingschange={updateSettings}
     onpeekhistory={(direction) => (direction === 'undo' ? tldoc.peekUndo() : tldoc.peekRedo())}
     onapplyhistory={(direction) => {
+      const pendingDeletion = deletedItem?.stackItem ?? null;
       const changed = direction === 'undo' ? tldoc.undo() : tldoc.redo();
-      if (changed) historyVersion += 1;
-      return changed;
+      if (!changed) return false;
+      historyVersion += 1;
+      // Undo has just brought the slide back itself, so the restore row is
+      // offering to do it again — and clicking it would leave a second copy.
+      if (pendingDeletion && !tldoc.hasUndoItem(pendingDeletion)) dismissDeletedItem();
+      return true;
     }}
     {historyVersion}
   />
