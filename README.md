@@ -31,10 +31,10 @@ which should pick up all changes live.
 
 ### Authoring tool
 
-If for some reason you don't want to use our public authoring tool, you can run it locally -- but this won't pick up changes to the player and core packages automatically.
+If for some reason you don't want to use our public authoring tool, you can run it locally. It loads the player and core packages from source, so changes to them hot-reload too.
 
 ```sh
-pnpm authoring        # → http://127.0.0.1:5174
+pnpm authoring        # → http://127.0.0.1:5173
 ```
 
 ## Local ATProto devnet
@@ -50,11 +50,7 @@ To develop against a local PDS instead of Bluesky:
    ```sh
    bash scripts/devnet-up.sh
    ```
-3. Copy the devnet env file:
-   ```sh
-   cp packages/authoring/.env.devnet packages/authoring/.env.local
-   ```
-4. Run `pnpm authoring` and sign in with a devnet handle (e.g. `alice.devnet.test`).
+3. Run `pnpm authoring:devnet` and sign in with a devnet handle (e.g. `alice.devnet.test`).
 
 ## Build & test
 

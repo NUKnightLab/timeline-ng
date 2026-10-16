@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-16
+
 ### Added
 
 - **Slide ID helpers.** `SLIDE_ID_PATTERN`, `isValidSlideId()`, `slugifySlideId()`,
@@ -25,6 +27,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Uploaded background images now display.** `resolveBackgroundImageUrl()` and
+  `canResolveBackgroundImage()` only accepted http(s) URLs, so the local `blob:`
+  URL the authoring app uses to preview a just-uploaded background image resolved
+  to `null`: the image showed in the editor's thumbnail but never on the slide.
+  `blob:` and `data:image/` URLs are now loaded directly.
 - **Declarations for test files no longer ship.** The published tarball included
   `dist/**/*.test.d.ts`, because declaration generation ran over all of `src`.
   Only the public surface is emitted now.
@@ -121,7 +128,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 Initial public release. Earlier history predates this changelog; see
 `git log` for detail.
 
-[Unreleased]: https://github.com/NUKnightLab/timeline-ng/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/NUKnightLab/timeline-ng/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/NUKnightLab/timeline-ng/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/NUKnightLab/timeline-ng/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/NUKnightLab/timeline-ng/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/NUKnightLab/timeline-ng/compare/v0.2.0...v0.2.1
