@@ -18,6 +18,10 @@ describe('canResolveBackgroundImage', () => {
     expect(canResolveBackgroundImage({ url: 'https://example.com/image' })).toBe(true);
   });
 
+  it('accepts local blob URLs from in-session uploads', () => {
+    expect(canResolveBackgroundImage({ url: 'blob:http://localhost:5173/0b1c2d3e-4f50-6172-8394-a5b6c7d8e9f0' })).toBe(true);
+  });
+
   it('rejects malformed URLs', () => {
     expect(canResolveBackgroundImage({ url: 'not a url' })).toBe(false);
   });

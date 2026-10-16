@@ -22,6 +22,12 @@ function isHttpUrl(url: string): boolean {
   }
 }
 
+// Local object/data URLs — e.g. the authoring app's preview of a just-uploaded
+// background blob, which getBlob won't serve until the record is published.
+function isLocalUrl(url: string): boolean {
+  return url.startsWith('blob:') || url.startsWith('data:image/');
+}
+
 function windowRecord(): Record<string, unknown> {
   return window as unknown as Record<string, unknown>;
 }
@@ -81,6 +87,10 @@ function verifyImageSrc(src: string): Promise<string | null> {
 }
 
 async function resolveBackgroundImageUrlUncached(media: BackgroundMediaInput): Promise<string | null> {
+  if (media.url && isLocalUrl(media.url)) {
+    return verifyImageSrc(media.url);
+  }
+
   const resolved = resolveMedia(media);
 
   if (resolved.kind === 'image') {
@@ -107,7 +117,7 @@ async function resolveBackgroundImageUrlUncached(media: BackgroundMediaInput): P
 
 export function canResolveBackgroundImage(media: BackgroundMediaInput): boolean {
   const url = media.url?.trim() ?? '';
-  return !!url && isHttpUrl(url);
+  return !!url && (isHttpUrl(url) || isLocalUrl(url));
 }
 
 export function resolveBackgroundImageUrl(media: BackgroundMediaInput): Promise<string | null> {
