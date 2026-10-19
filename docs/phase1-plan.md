@@ -1,6 +1,33 @@
 # Phase 1 implementation plan: adopt Yjs locally
 
-**Status: proposal, for markup.** Written 2026-09-04. Branch: `phase1-yjs`.
+**Status: shipped.** Written 2026-09-04 as a proposal; all six stages landed on
+`phase1-yjs`, merged to `main` on 2026-10-19. This document is now a record of what was
+built and why, not a plan.
+
+## Pick up here
+
+Phase 1 is complete and in production: the Yjs document model from
+[coauthoring.md](coauthoring.md) §3.2 is behind the editor, with undo/redo, multiple local
+drafts, multi-tab safety and offline editing. It reached the hosted authoring app ahead of
+this merge and showed no problems in use — which is encouraging rather than a soak test;
+nobody has deliberately exercised the multi-tab or offline paths in production.
+
+**Next is Phase 2 — the collaboration server** ([coauthoring.md](coauthoring.md) §9): add a
+network provider (Hocuspocus on Workers + Durable Objects) in place of the local one. The
+whole point of Stage 0–3's shape is that this is a *provider swap*, not an editor rewrite —
+if it starts looking like a rewrite, something in the document model drifted and that is
+the thing to go fix first.
+
+Before writing any of it, re-read §4 (the publishing negotiation — becoming a confidential
+client, per-timeline publish policy, and why revert is what makes it safe) and §5 (consent
+and accountability). Those are the parts that shape the server's API, and they were
+deliberately left unbuilt in Phase 1.
+
+Two things decided here that Phase 2 depends on and should not be quietly revisited:
+origin-tagged undo (P-series below) is what stops undo from reverting a *collaborator's*
+edits, and A2 settled that captions, credits and alt text are last-write-wins rather than
+merged.
+
 
 Implements Phase 1 of [coauthoring.md](coauthoring.md) §9, to the document model in §3.2 and the
 undo spec in [phase1-undo.md](phase1-undo.md). Single user, no server, no collaboration.
