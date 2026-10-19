@@ -20,6 +20,38 @@ Where TL3 issues are cited, the number links back to the original for detail.
    between markers (with focus-restoration if the active marker changes underneath) —
    **medium-large** complexity, deferred. — TL3 #763/#766
 
+   **Settle the mark-vs-label question as part of this, not before it.** Today the
+   label is the event's control where one renders, and the mark (`tl-nav__dot` /
+   `tl-nav__span-bar`) takes that role only where no label stands in for it, so the
+   nav offers exactly one tab stop per event either way. The marks are the better
+   *control*: there is always exactly one per event, so "N events, N stops" becomes an
+   invariant instead of something conditional on layout state. That conditional has
+   already cost us one bug — marks whose labels the packer had placed stayed
+   `aria-hidden` when the drawer had no rows at all, leaving 2-3 of 13 events
+   reachable by neither keyboard nor screen reader (fixed in `da5d07b`) — and it also
+   means focus is destroyed today if a relayout drops the label a reader is sitting
+   on.
+
+   The labels are the better *affordance*, and that is the whole cost: to a screen
+   reader the two are already interchangeable, because `ariaLabel` is built once per
+   event and the identical string is set on both. The asymmetry is for sighted
+   keyboard users, who get a legible chip from a label and a 12px circle from a dot
+   — and note there is no `:focus-visible` rule for either mark today, only for
+   `tl-nav__label` and the drawer handle, so the compact case where marks already are
+   the control has no visible focus treatment at all.
+
+   What resolves both: the mark carries role, name and focus, and focusing it
+   surfaces its label — the width expansion, halo and raised z-index the label
+   already has on hover, driven by focus on the mark. The label becomes
+   presentational.
+
+   Deliberately not done as its own change. This work replaces per-event tab stops
+   with one region stop plus arrow keys, at which point the primary unit has to be
+   the thing that always exists — the mark — with the label highlighting as the
+   reader arrows along. Landing mark-as-primary first would mean building mark focus
+   styling twice, and the per-event stop count is a problem whichever element owns
+   it.
+
 **Tab order: slide content before prev/next arrows — done.** `SlidePlayer.svelte` now
    renders the prev/next/fullscreen buttons before the slide loop inside
    `.tl-player__stage`, so Tab reaches the nav controls before any in-slide links (arrows
