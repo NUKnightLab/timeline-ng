@@ -274,11 +274,55 @@
    * above depend on it.
    */
   .tl-slide--image-bg .tl-slide__text {
+    /*
+     * The padding is the fade's runway, so it scales with the player rather
+     * than being fixed: at 1.25rem/1.5rem — what the flat panel used — the
+     * fade is about 20px and reads as a soft-edged rectangle rather than a
+     * falloff. Clamped at both ends so a narrow embed does not spend its
+     * width on empty panel.
+     */
+    --_pad-x: var(--tl-slide-text-scrim-pad-x, clamp(1.5rem, 6cqw, 4.5rem));
+    --_pad-y: var(--tl-slide-text-scrim-pad-y, clamp(1.25rem, 4cqw, 3.5rem));
+    /*
+     * How far into the padding the fade reaches, as a fraction of it. The
+     * remainder is margin between the end of the fade and the first glyph.
+     * 0 collapses the mask to a hard rectangle — the panel this replaced.
+     */
+    --_fade: var(--tl-slide-text-scrim-fade, 0.6);
+    --_plateau-x: calc(var(--_pad-x) * var(--_fade));
+    --_plateau-y: calc(var(--_pad-y) * var(--_fade));
+
     background: var(--tl-slide-text-scrim, rgba(0, 0, 0, 0.72));
     backdrop-filter: blur(var(--tl-slide-text-scrim-blur, 2px));
     -webkit-backdrop-filter: blur(var(--tl-slide-text-scrim-blur, 2px));
-    padding: 1.25rem 1.5rem;
+    padding: var(--_pad-y) var(--_pad-x);
     border-radius: var(--tl-radius, 4px);
+
+    /*
+     * The edges fade; the alpha behind the text does not.
+     *
+     * This is a mask over a flat fill, not a gradient in `background`. A
+     * gradient would dim the text's own backdrop, and every ratio measured
+     * for this scrim assumes the full alpha sits behind the glyphs — so the
+     * mask is what makes the softening free: the plateau covers the whole
+     * text box with margin to spare, and only the padding fades.
+     *
+     * Separable — two linear masks intersected — rather than one radial
+     * ellipse. An ellipse's plateau leaves the text box's corners outside
+     * it, which is exactly where a long headline line ends up.
+     *
+     * Where `mask-composite` is unsupported the declarations are dropped and
+     * the panel renders flat, which is the shape this replaced: degradation
+     * costs the softness, never the contrast.
+     */
+    -webkit-mask-image:
+      linear-gradient(to right, transparent 0, #000 var(--_plateau-x), #000 calc(100% - var(--_plateau-x)), transparent 100%),
+      linear-gradient(to bottom, transparent 0, #000 var(--_plateau-y), #000 calc(100% - var(--_plateau-y)), transparent 100%);
+    -webkit-mask-composite: source-in;
+    mask-image:
+      linear-gradient(to right, transparent 0, #000 var(--_plateau-x), #000 calc(100% - var(--_plateau-x)), transparent 100%),
+      linear-gradient(to bottom, transparent 0, #000 var(--_plateau-y), #000 calc(100% - var(--_plateau-y)), transparent 100%);
+    mask-composite: intersect;
   }
 
   .tl-slide__inner {

@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **The text scrim's edges fade instead of ending in a rectangle.** Raising the
+  scrim to 72% fixed the contrast but made the panel read as a dark box laid
+  over the photo, which is most of the reason to set a background image at all.
+  The fill is now masked — two linear masks intersected — so it holds full
+  strength across the whole text box and fades to nothing through the padding.
+  This is a mask over a flat fill rather than a gradient in `background`: every
+  ratio measured for the scrim assumes the full alpha sits behind the glyphs,
+  and a background gradient would dim that. The plateau reaches full strength
+  at 60% of the padding, leaving the remainder as margin between the fade and
+  the first glyph, so no measured value changes. The padding grows to make room
+  — `clamp(1.5rem, 6cqw, 4.5rem)` horizontally, `clamp(1.25rem, 4cqw, 3.5rem)`
+  vertically, scaled off the player's own width — because a fade inside the old
+  1.25rem/1.5rem is about 20px and reads as a soft-edged rectangle rather than
+  a falloff. At narrow widths the clamp floors return the padding to what it
+  was. Where `mask-composite` is unsupported the declarations drop and the
+  panel renders flat, as it did before: degradation costs the softness, never
+  the contrast. Slides with no background image are unaffected.
+
 - **The navigator reserves the room each label actually needs.** The label
   packer treated every label as 130px wide — the CSS `max-width` — so
   "Belfield 50" (66px) claimed as much of the track as the longest possible
@@ -53,6 +71,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   before, so nothing changes for embedders.
 
 ### Added
+
+- **The scrim's shape is themeable.** `--tl-slide-text-scrim-pad-x` /
+  `--tl-slide-text-scrim-pad-y` set the panel's padding, which is also the
+  fade's runway, and `--tl-slide-text-scrim-fade` sets how far into that
+  padding the fade reaches, as a fraction of it (default `0.6`). `0` collapses
+  the mask to the hard-edged rectangle this replaced.
 
 - **A swept token surface for high contrast.** A sweep of the player's
   component `<style>` blocks found more visual values hardcoded there, beyond

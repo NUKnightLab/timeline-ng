@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Scrim Prototype</title>
+<style>
+  :root {
+    --photo: url("https://upload.wikimedia.org/wikipedia/commons/c/cd/ARL_ENIAC_02.png");
+    --ink: #1a1a1a;
+    --paper: #ffffff;
+    --rule: #d8d8d8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 24px;
+    background: var(--paper);
+    color: var(--ink);
+    font: 15px/1.5 system-ui, -apple-system, sans-serif;
+  }
+  h1 { font-size: 1.1rem; letter-spacing: 0.02em; text-transform: uppercase; margin: 0 0 4px; }
+  .lede { max-width: 62ch; color: #444; margin: 0 0 20px; }
+
+  .controls {
+    display: flex; flex-wrap: wrap; gap: 20px; align-items: center;
+    padding: 12px 0; margin-bottom: 20px;
+    border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule);
+  }
+  .controls label { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+  .controls output { font-variant-numeric: tabular-nums; font-weight: 600; min-width: 3.2em; }
+
+  .caption { font-weight: 600; margin: 24px 0 6px; }
+  .caption span { font-weight: 400; color: #555; }
+
+  /* ── the slide ────────────────────────────────────────────────────── */
+  .slide {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    background-image: var(--photo);
+    background-size: cover;
+    background-position: center;
+    display: grid;
+    align-items: center;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .col {
+    position: relative;
+    width: 55%;
+    margin-left: 4%;
+    /* The fade needs somewhere to live. The flat panel used 1.25rem/1.5rem;
+       a fade inside that band is only ~20px wide and reads as a blurry edge
+       rather than a falloff, so the gradient version buys its softness with
+       padding. */
+    padding: var(--pad-y) var(--pad-x);
+  }
+  .scrim {
+    position: absolute; inset: 0;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, var(--a));
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+  }
+  /* Two-axis mask: full strength across the whole text box, fading to nothing
+     at all four edges. Separable on purpose — a radial ellipse plateau leaves
+     the text box's corners outside it, which is where a long line would fail. */
+  /* The plateau reaches full strength at 60% of the padding, not 100%, so it
+     extends past the text box instead of ending exactly on the first glyph.
+     The fade gets the outer 60%; the inner 40% is the safety margin. */
+  .slide--faded .scrim {
+    --plateau-x: calc(var(--pad-x) * 0.6);
+    --plateau-y: calc(var(--pad-y) * 0.6);
+    -webkit-mask-image:
+      linear-gradient(to right,  transparent 0, #000 var(--plateau-x), #000 calc(100% - var(--plateau-x)), transparent 100%),
+      linear-gradient(to bottom, transparent 0, #000 var(--plateau-y), #000 calc(100% - var(--plateau-y)), transparent 100%);
+    -webkit-mask-composite: source-in;
+    mask-image:
+      linear-gradient(to right,  transparent 0, #000 var(--plateau-x), #000 calc(100% - var(--plateau-x)), transparent 100%),
+      linear-gradient(to bottom, transparent 0, #000 var(--plateau-y), #000 calc(100% - var(--plateau-y)), transparent 100%);
+    mask-composite: intersect;
+  }
+  .copy { position: relative; }
+  .date { color: #cccccc; font-size: 0.85rem; margin-bottom: 0.5rem; }
+  .headline {
+    color: #ffffff; margin: 0 0 0.6rem;
+    font: 700 1.6rem/1.2 Georgia, "Times New Roman", serif;
+  }
+  .body { color: #e8e8e8; margin: 0; }
+
+  /* Plateau / text-box overlay, so you can confirm the full-strength region
+     actually contains every glyph. */
+  .guide { position: absolute; inset: 0; pointer-events: none; display: none; }
+  .showguides .guide { display: block; }
+  .guide::before {
+    content: ""; position: absolute;
+    inset: calc(var(--pad-y) * 0.6) calc(var(--pad-x) * 0.6);
+    outline: 1px dashed #00e5ff;
+  }
+  .showguides .copy { outline: 1px dashed #ff4dd2; }
+  .legend { font-size: 0.85rem; color: #555; margin-top: 6px; }
+  .k { display: inline-block; width: 10px; height: 0; border-top: 1px dashed; vertical-align: middle; margin-right: 4px; }
+</style>
+</head>
+<body>
+
+<h1>Scrim prototype</h1>
+<p class="lede">
+  The same slide over the real slide-3 background from the Women in Computing
+  timeline. The flat panel is what ships today. The faded one keeps the
+  identical alpha everywhere a glyph sits &mdash; so every measured ratio is
+  unchanged &mdash; and fades only through the padding, which is why the padding
+  is larger. Turn on the guides to check that the full-strength plateau
+  (cyan) still contains the text box (magenta).
+</p>
+
+<div class="controls">
+  <label>peak alpha
+    <input id="a" type="range" min="0.2" max="0.95" step="0.01" value="0.72" />
+    <output id="aOut">0.72</output>
+  </label>
+  <label>fade X
+    <input id="fx" type="range" min="16" max="140" step="2" value="72" />
+    <output id="fxOut">72px</output>
+  </label>
+  <label>fade Y
+    <input id="fy" type="range" min="12" max="120" step="2" value="56" />
+    <output id="fyOut">56px</output>
+  </label>
+  <label><input id="g" type="checkbox" /> guides</label>
+</div>
+
+<p class="caption">A &mdash; flat, today's default <span>&middot; rgba(0,0,0,0.72), padding 1.25rem&nbsp;1.5rem</span></p>
+<div class="slide" id="slideA" style="--a:0.72; --pad-x:1.5rem; --pad-y:1.25rem;">
+  <div class="col">
+    <div class="scrim"></div>
+    <div class="guide"></div>
+    <div class="copy">
+      <div class="date">1946</div>
+      <h2 class="headline">&hellip;And the women who made it work</h2>
+      <p class="body">Six women programmed the ENIAC, and for decades the photographs
+        of them at the machine were captioned as models posing beside it.</p>
+    </div>
+  </div>
+</div>
+
+<p class="caption">B &mdash; faded edges, same peak alpha <span>&middot; plateau covers the text box; fade lives in the padding</span></p>
+<div class="slide slide--faded" id="slideB">
+  <div class="col">
+    <div class="scrim"></div>
+    <div class="guide"></div>
+    <div class="copy">
+      <div class="date">1946</div>
+      <h2 class="headline">&hellip;And the women who made it work</h2>
+      <p class="body">Six women programmed the ENIAC, and for decades the photographs
+        of them at the machine were captioned as models posing beside it.</p>
+    </div>
+  </div>
+</div>
+<p class="legend">
+  <span class="k" style="border-color:#00e5ff"></span>full-strength plateau
+  <span class="k" style="border-color:#ff4dd2; margin-left:14px"></span>text box
+</p>
+
+<p class="caption">C &mdash; no scrim at all <span>&middot; the failure case, for reference</span></p>
+<div class="slide" style="--a:0; --pad-x:1.5rem; --pad-y:1.25rem;">
+  <div class="col">
+    <div class="scrim"></div>
+    <div class="copy">
+      <div class="date">1946</div>
+      <h2 class="headline">&hellip;And the women who made it work</h2>
+      <p class="body">Six women programmed the ENIAC, and for decades the photographs
+        of them at the machine were captioned as models posing beside it.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+  const a = document.getElementById('a');
+  const fx = document.getElementById('fx');
+  const fy = document.getElementById('fy');
+  const g = document.getElementById('g');
+  const B = document.getElementById('slideB');
+
+  function sync() {
+    B.style.setProperty('--a', a.value);
+    B.style.setProperty('--pad-x', fx.value + 'px');
+    B.style.setProperty('--pad-y', fy.value + 'px');
+    document.getElementById('aOut').value = (+a.value).toFixed(2);
+    document.getElementById('fxOut').value = fx.value + 'px';
+    document.getElementById('fyOut').value = fy.value + 'px';
+    document.body.classList.toggle('showguides', g.checked);
+  }
+  [a, fx, fy, g].forEach(el => el.addEventListener('input', sync));
+  sync();
+</script>
+
+</body>
+</html>
