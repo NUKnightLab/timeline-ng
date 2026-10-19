@@ -592,8 +592,6 @@
   }
   .sidebar-docs a:hover { color: #b93e0d; text-decoration: underline; }
 
-  .section-note { font-size: 0.875rem; color: #6b7280; line-height: 1.6; margin: 0; }
-
   .home-section { display: flex; flex-direction: column; gap: 1rem; }
 
   .section-heading {
@@ -632,19 +630,6 @@
     border-radius: 4px;
   }
   .btn-make:hover { background: #4a8c37; border-color: #4a8c37; }
-
-  .btn-new {
-    background: #df4e13;
-    border: 1px solid #df4e13;
-    color: #fff;
-    padding: 0.5rem 1.25rem;
-    font-size: 0.9rem;
-    font-family: inherit;
-    cursor: pointer;
-    border-radius: 2px;
-    font-weight: 500;
-  }
-  .btn-new:hover { background: #c44310; }
 
   /* ── Import ──────────────────────────────────────────────────── */
   .btn-import-file, .btn-paste-url {

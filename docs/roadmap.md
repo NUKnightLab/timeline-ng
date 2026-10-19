@@ -12,6 +12,17 @@ Where TL3 issues are cited, the number links back to the original for detail.
    platform's own CC UI. Needs a schema field + authoring UI + passthrough — **medium**
    complexity, candidate for a fast-follow rather than blocking launch. — TL3 #624
 
+**Authoring app a11y: a modal with no keyboard path, and placeholder links — high
+   priority.** `svelte-check` has been reporting these for a while and they are real,
+   not lint noise. `EditorView.svelte` has an element with `role="dialog"` that has no
+   `tabindex` and a click handler with no keyboard equivalent, so the dialog cannot be
+   focused or dismissed from the keyboard. Three `href="#"` links (one in
+   `HomeView.svelte`, two in `EventEditor.svelte`) are anchors standing in for buttons:
+   they take focus, announce as links, and go nowhere. Both are small fixes —
+   `tabindex="-1"` plus focus management and a keydown handler on the dialog, and
+   `<button>` in place of the placeholder anchors — and both sit in the authoring tool,
+   which is the surface a contributor is most likely to be driving by keyboard.
+
 **TimeNav has no roving tabindex.** Every marker (`tl-nav__label` button in
    `TimeNav.svelte`) is its own native tab stop, and its keydown handler only handles
    Enter/Space — no arrow/Home/End marker-to-marker navigation. For a timeline with many

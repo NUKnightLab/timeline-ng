@@ -115,6 +115,22 @@ async function resolveBackgroundImageUrlUncached(media: BackgroundMediaInput): P
   return null;
 }
 
+/*
+ * The authoring app's gate, not the player's.
+ *
+ * It deliberately rejects a relative URL. The authoring app has no stable
+ * answer to "relative to what" — the editor's own origin is not where the
+ * published timeline will be read from — so a relative background there is an
+ * error worth telling the author about, which is what EventEditor does with
+ * this.
+ *
+ * `resolveBackgroundImageUrl` below is the player's path and is deliberately
+ * laxer: a relative URL reaches `resolveMedia`, matches on its extension and
+ * loads against the document it is embedded in. Someone hand-authoring a
+ * timeline outside our tooling may legitimately want that, and there the
+ * question has an answer. The asymmetry is the point; do not "fix" one to
+ * match the other.
+ */
 export function canResolveBackgroundImage(media: BackgroundMediaInput): boolean {
   const url = media.url?.trim() ?? '';
   return !!url && (isHttpUrl(url) || isLocalUrl(url));

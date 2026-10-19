@@ -681,14 +681,6 @@
     border-radius: var(--tl-radius);
   }
 
-  .tl-flickr__credit {
-    display: block;
-    font-size: 0.7rem;
-    color: var(--tl-color-text-muted);
-    text-align: right;
-    padding-top: 0.2rem;
-  }
-
   /* ── Bluesky card ───────────────────────────────────────────── */
   /*
    * The card's palette is Bluesky's, not the player's, so it keeps its own

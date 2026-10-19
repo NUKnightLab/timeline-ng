@@ -909,10 +909,6 @@
     flex: 1 1 280px;
   }
 
-  .share-section--locked {
-    opacity: 0.5;
-  }
-
   .share-section__title {
     font-size: 0.75rem;
     font-weight: 600;
@@ -953,25 +949,6 @@
     white-space: nowrap;
     flex-shrink: 0;
   }
-
-  .btn-open {
-    color: #13a4df;
-    font-size: 0.8rem;
-    text-decoration: none;
-    text-shadow: none;
-    flex-shrink: 0;
-    padding: 0.1rem 0.2rem;
-    border-radius: 2px;
-  }
-  .btn-open:hover { color: #fff; }
-
-  .share-link {
-    color: #13a4df;
-    text-shadow: none;
-  }
-  .share-link:hover { color: #bfdbfe; }
-  .share-link:focus { outline: none; }
-  .share-link:focus-visible { outline: 2px solid #13a4df; outline-offset: 2px; border-radius: 1px; }
 
   .share-code {
     font-size: 0.7rem;
