@@ -1430,16 +1430,39 @@
     transition: background var(--tl-transition-speed) ease;
   }
   /*
-   * Note: the default here equals the resting opacity above, so by default
-   * hover is a no-op on this mark — kept as-is rather than quietly changed,
-   * since the resting value is what every existing theme renders.
+   * Hover feedback on a mark is a colour change to --tl-color-nav-marker-hover,
+   * the same token the label uses and the only one each skin calibrates
+   * against its own nav background.
+   *
+   * A dot and a span bar are the same thing to a reader — this event, on the
+   * timeline — so they answer the pointer the same way. The bar says it across
+   * both borders and the rule between them, since that is what draws it.
+   *
+   * --tl-nav-span-bar-hover-opacity still applies and still defaults to the
+   * resting 0.75, so a theme that was lifting the bar's opacity keeps doing
+   * it; it is no longer the only thing hover had to work with.
    */
-  .tl-nav__span-bar:hover { opacity: var(--tl-nav-span-bar-hover-opacity, 0.75); }
+  .tl-nav__span-bar:hover {
+    opacity: var(--tl-nav-span-bar-hover-opacity, 0.75);
+    border-color: var(--tl-color-nav-marker-hover);
+  }
+  .tl-nav__span-bar:hover::before { background: var(--tl-color-nav-marker-hover); }
   .tl-nav__span-bar--active {
     border-color: var(--tl-nav-mark-active, var(--tl-color-nav-marker-active));
     opacity: 1;
   }
   .tl-nav__span-bar--active::before { background: var(--tl-nav-mark-active, var(--tl-color-nav-marker-active)); }
+  /*
+   * The active mark keeps its own colour under the pointer, as the active
+   * label does: swapping it for the hover colour would drop the one signal
+   * saying which slide you are on, to report something the cursor already says.
+   */
+  .tl-nav__span-bar--active:hover {
+    border-color: var(--tl-nav-mark-active, var(--tl-color-nav-marker-active));
+  }
+  .tl-nav__span-bar--active:hover::before {
+    background: var(--tl-nav-mark-active, var(--tl-color-nav-marker-active));
+  }
 
   /* Track area */
   .tl-nav__track {
@@ -1526,11 +1549,19 @@
                 background var(--tl-transition-speed) ease;
   }
 
+  /* See the span bar above: same mark, same answer to the pointer. The
+     ::before already transitions `background`, which until now nothing
+     changed. */
+  .tl-nav__dot:hover::before { background: var(--tl-color-nav-marker-hover); }
+
   /* Scale the mark, not the target — growing the hit area on selection would
      make it steal clicks from its neighbours. */
   .tl-nav__dot--active::before {
     background: var(--tl-nav-mark-active, var(--tl-color-nav-marker-active));
     transform: scale(var(--tl-nav-dot-active-scale, 1.4));
+  }
+  .tl-nav__dot--active:hover::before {
+    background: var(--tl-nav-mark-active, var(--tl-color-nav-marker-active));
   }
 
   /* Axis ticks — anchored to the bottom of the track */

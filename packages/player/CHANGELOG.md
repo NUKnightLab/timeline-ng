@@ -101,6 +101,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Navigator dots and span bars respond to hover.** Neither did. The span bar
+  had a `:hover` rule whose default equalled its resting opacity, so it was a
+  no-op; the dot had no `:hover` rule at all, only a `background` transition on
+  its `::before` that nothing ever changed. The label was the only mark in the
+  navigator that answered the pointer. Both marks now take
+  `--tl-color-nav-marker-hover`, the token the label already used and the one
+  every skin calibrates against its own nav background — the bar across both
+  borders and the rule between them, since that is what draws it. An active
+  mark keeps its own colour on hover, as the active label does, rather than
+  trading the signal saying which slide you are on for one the cursor already
+  gives. `--tl-nav-span-bar-hover-opacity` still applies and still defaults to
+  the resting `0.75`, so a theme already lifting the bar's opacity is
+  unaffected. Resting states are unchanged in every theme.
+
 - **The minimal navigator's labels are readable again.** `navChrome='minimal'`
   set `--tl-nav-label-bg: transparent`, on the theory that a label with no band
   behind it should sit directly on the stage. What actually happened is that
