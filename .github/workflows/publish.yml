@@ -1,8 +1,21 @@
 name: Publish to npm
 
+# Tags are per package — `core-v0.5.1`, `player-v0.5.0` — so the two packages
+# version independently without either having to skip numbers to stay aligned.
+#
+# The tag is only a trigger: nothing below reads it. Both publish steps always
+# run, in core-then-player order, and `pnpm publish` is a no-op for a version
+# already on the registry. That is deliberate — the ordering guarantee that
+# player's exact `workspace:*` pin depends on comes from both steps running in
+# one job, not from which tag was pushed. Pushing both tags at once simply runs
+# this twice; the second run finds both versions live and publishes nothing.
+#
+# `v*.*.*` stays for the shared tags used up to v0.5.0.
 on:
   push:
     tags:
+      - 'core-v*.*.*'
+      - 'player-v*.*.*'
       - 'v*.*.*'
 
 permissions:
