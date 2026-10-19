@@ -105,6 +105,32 @@ horizontal swipe from vertical scroll and from taps on in-slide links/media (e.g
 horizontal-distance/velocity threshold before treating it as navigation, rather than
 capturing every touch).
 
+### Span bars have no hover feedback — Low-Medium value, Trivial complexity, **needs a decision, not a design pass**
+
+`.tl-nav__span-bar:hover` in `TimeNav.svelte` sets
+`opacity: var(--tl-nav-span-bar-hover-opacity, 0.75)`, and the resting rule two
+declarations above sets the same `0.75`. So in every default theme hovering a
+duration event changes nothing: span bars are the only mark in the navigator
+that gives no hover feedback, where dots get a colour change and labels get a
+colour change plus a halo and a width expansion.
+
+This is not an accessibility item — the bar measures 10.37:1 in light and
+11.42:1 in dark against `--tl-color-nav-marker`, well clear of 1.4.11's 3:1, and
+`contrast='high'` takes both values to 1. It is plain affordance.
+
+It is a one-line change, deliberately *not* made during the contrast sweep that
+found it (`0a9b64f`): the sweep's rule was that no default theme may render
+differently, and picking a hover value changes resting-state behaviour for every
+existing embedder. So it needs someone to choose, not to investigate:
+
+- `1` — matches what `--active` already uses, and reads as "lift on hover" like
+  the dots do. Most consistent with the rest of the navigator.
+- drop the `:hover` rule entirely, and accept that a duration event's feedback
+  is the label's, not the bar's.
+
+Either way the token (`--tl-nav-span-bar-hover-opacity`) already exists, so a
+theme can disagree.
+
 ### Media: fixes and small adds — Low-Medium complexity each, do opportunistically
 
 - **YouTube start/end params — done.** `resolveMedia` parses `t`/`start`/`end`, including
