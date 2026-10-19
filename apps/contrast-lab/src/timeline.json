@@ -7,7 +7,10 @@
   },
   "events": [
     {
-      "start_date": { "year": 1989, "month": 3 },
+      "start_date": {
+        "year": 1989,
+        "month": 3
+      },
       "text": {
         "headline": "The Web is Proposed",
         "text": "<p>Tim Berners-Lee submits \"Information Management: A Proposal\" to his supervisor at CERN. The memo describes a global hypertext system linking documents across networked computers.</p>"
@@ -15,17 +18,26 @@
       "media": {
         "url": "https://en.wikipedia.org/wiki/World_Wide_Web",
         "caption": "World Wide Web — Wikipedia"
-      }
+      },
+      "group": "Protocol"
     },
     {
-      "start_date": { "year": 1991, "month": 8, "day": 6 },
+      "start_date": {
+        "year": 1991,
+        "month": 8,
+        "day": 6
+      },
       "text": {
         "headline": "First Website Goes Live",
         "text": "<p>Berners-Lee publishes the first website at CERN, describing the Web project itself. The site runs on a NeXT computer and is still accessible today at its original URL.</p>"
-      }
+      },
+      "group": "Protocol"
     },
     {
-      "start_date": { "year": 1993, "month": 1 },
+      "start_date": {
+        "year": 1993,
+        "month": 1
+      },
       "text": {
         "headline": "NCSA Mosaic",
         "text": "<p>The NCSA Mosaic browser, developed at the University of Illinois, becomes the first browser to display images inline with text. It sparks explosive public interest in the Web.</p>"
@@ -33,41 +45,126 @@
       "media": {
         "url": "https://youtu.be/HqgGEAKmjms",
         "caption": "The early web browser era"
+      },
+      "group": "Browsers"
+    },
+    {
+      "start_date": {
+        "year": 1993
+      },
+      "end_date": {
+        "year": 1997
+      },
+      "group": "Browsers",
+      "text": {
+        "headline": "The First Browser War",
+        "text": "<p>Netscape and Internet Explorer trade releases for four years. This is a duration event, so the navigator draws it as a span bar rather than a dot.</p>"
       }
     },
     {
-      "start_date": { "year": 1994, "month": 10 },
+      "start_date": {
+        "year": 1994,
+        "month": 10
+      },
       "text": {
         "headline": "W3C Founded",
         "text": "<p>Berners-Lee founds the World Wide Web Consortium (W3C) at MIT to develop open standards for the Web. The W3C's mission: \"to lead the Web to its full potential.\"</p>"
+      },
+      "group": "Standards"
+    },
+    {
+      "start_date": {
+        "year": 1998
+      },
+      "group": "Standards",
+      "text": {
+        "headline": "A Dark Background Slide",
+        "text": "<p>This slide sets background.color, which flips the slide text tokens inside the component.</p>"
+      },
+      "background": {
+        "color": "#102030"
       }
     },
     {
-      "start_date": { "year": 1995 },
+      "start_date": {
+        "year": 1999
+      },
+      "group": "Standards",
+      "text": {
+        "headline": "An Image Background Slide",
+        "text": "<p>This slide sets background.url, so the text column gets the scrim treatment.</p>"
+      },
+      "background": {
+        "url": "/bg.png"
+      }
+    },
+    {
+      "start_date": {
+        "year": 1995
+      },
       "text": {
         "headline": "JavaScript Invented",
         "text": "<p>Brendan Eich creates JavaScript at Netscape in ten days. Originally called Mocha, then LiveScript, it becomes the programming language of the Web.</p>"
-      }
+      },
+      "group": "Languages"
     },
     {
-      "start_date": { "year": 2004, "month": 6 },
+      "start_date": {
+        "year": 2004,
+        "month": 6
+      },
       "text": {
         "headline": "Firefox 1.0",
         "text": "<p>Mozilla releases Firefox, reviving open-source competition in the browser market after years of Internet Explorer dominance. Firefox 1.0 ships in November 2004 and gains 100 million downloads in a year.</p>"
-      }
+      },
+      "group": "Browsers"
     },
     {
-      "start_date": { "year": 2008, "month": 9 },
+      "start_date": {
+        "year": 2008,
+        "month": 9
+      },
       "text": {
         "headline": "Chrome Launches",
         "text": "<p>Google releases Chrome, built on the V8 JavaScript engine and the WebKit rendering engine. Its multi-process architecture and speed benchmarks shift the competitive landscape.</p>"
-      }
+      },
+      "group": "Browsers"
     },
     {
-      "start_date": { "year": 2014, "month": 10 },
+      "start_date": {
+        "year": 2014,
+        "month": 10
+      },
       "text": {
         "headline": "HTML5 Standardized",
         "text": "<p>The W3C publishes HTML5 as an official recommendation, formalizing native video, canvas drawing, offline storage, and semantic elements — ending the era of Flash plugins.</p>"
+      },
+      "group": "Standards"
+    },
+    {
+      "start_date": {
+        "year": 2023
+      },
+      "group": "Protocol",
+      "text": {
+        "headline": "A Bluesky Post",
+        "text": "<p>Exercises the Bluesky card, which carries its own hardcoded palette.</p>"
+      },
+      "media": {
+        "url": "https://bsky.app/profile/alice.test/post/3kabcdefghi"
+      }
+    },
+    {
+      "start_date": {
+        "year": 2024
+      },
+      "group": "Standards",
+      "text": {
+        "headline": "A White Image Background",
+        "text": "<p>Worst case for the text scrim: a near-white photo under light body copy.</p>"
+      },
+      "background": {
+        "url": "/bg-white.png"
       }
     }
   ]

@@ -2,7 +2,22 @@
  * ── highContrast ─────────────────────────────────────────────────────────
  *
  * Raises everything to WCAG AAA (7:1) for text and well past the 3:1 non-text
- * minimum. Worst measured case is 15.13:1 in light and 15.91:1 in dark.
+ * minimum. Worst measured case is 10.04:1 in light and 9.71:1 in dark — both
+ * the accent blue, as a Bluesky-card link and as the nav label's hover colour.
+ *
+ * Those two numbers come out of the contrast lab (`pnpm contrast-lab`), which
+ * reads the rendered elements and composites every partially transparent mark
+ * against what is actually behind it. The figure is the minimum over all 616
+ * threshold-carrying rows: both nav skins x both themes x every slide in the
+ * lab's fixture. It was 15.13 / 15.91 before the sweep described below, which
+ * was the floor of a smaller set — the card the blue link lives on was outside
+ * this file's reach, so it was never in the measurement at all.
+ *
+ * It excludes two things no token can settle. Author-supplied backgrounds:
+ * a dark slide's body copy measures 13.48:1 against the fixture's own
+ * `#102030`, but that is the author's colour. And hover/focus states, which
+ * the lab reads nothing of — those were measured by hand, and the label's
+ * hover colour is where the light-mode floor above comes from.
  *
  * This is one axis, not a bundle: it spans the slide and the navigator alike
  * because contrast is not a property of either in isolation. It composes with
@@ -38,6 +53,58 @@
  *   3. `--tl-nav-dot-active-scale` replaces a hardcoded `scale(1.4)`. Under a
  *      monochrome palette that scale is the *only* thing distinguishing an
  *      active dot from an inactive one, so it goes to 1.8.
+ *
+ * Finding three of them one at a time was the signal that nobody had swept for
+ * the rest, so the sweep happened; what it found is below, each closed the same
+ * way — a token whose default is the literal the component shipped with, so
+ * every other theme renders byte-identically, plus an override here.
+ *
+ *   4. `.tl-nav__grip`, the drawer's drag handle, was `opacity: 0.2` rising to
+ *      0.5. That is #cccccc on the nav, 1.61:1 light and 1.66:1 dark, for a
+ *      control that owes 3:1 under 1.4.11. Opacity was the whole affordance
+ *      and nothing could reach it.
+ *   5. `.tl-player__btn` — prev, next, fullscreen — was `color: #fff` with a
+ *      blurred drop shadow for separation. A blur is not a measurable ratio,
+ *      and on a light surface the glyph was white on white: 1.00:1. The
+ *      control now takes an opaque fill in this mode so its ratio is a
+ *      property of the token set rather than of whatever media is behind it.
+ *   6. The nav label's hover halo is a knockout in the nav's own colour, and
+ *      at (0,2,0) it out-specified both `--tl-nav-label-ring` and
+ *      `--tl-nav-label-active-ring`. Hovering a label here erased the very
+ *      boundary this mode adds, 1:1. It is `--tl-nav-label-hover-ring` now,
+ *      and keeps the knockout with the edge drawn outside it.
+ *   7. The Bluesky card carried Bluesky's palette as declarations on its own
+ *      element, which beats anything inherited from `.tl-player` — the whole
+ *      card was unreachable. Its text cleared AA but not the 7:1 this file
+ *      promises (handle 6.12:1, link 5.69:1) and its border was 1.30:1.
+ *   8. `--tl-slide-text-scrim` was reachable but never set, so on an image
+ *      background the text's contrast was a property of the photo: over a
+ *      near-white image the body measured 2.33:1 and the headline 2.85:1.
+ *      The component's own default has since been raised from 40% to 72% —
+ *      see the note on that rule — so the default themes no longer depend on
+ *      the photo either. This still takes it further, to 92%, because here
+ *      the photo is the thing that may be given up.
+ *   9. The worst of the lot, and the one the sweep nearly missed: on a dark or
+ *      image background `.tl-slide--dark-bg` flips the slide's palette, but it
+ *      had no `--tl-date-color`. Nothing sets that token in the default
+ *      themes, so the date fell through to `--tl-color-text-muted` and was
+ *      right by accident. This file does set it, at player level, which
+ *      defeated the fallback and left the date dark on the author's dark
+ *      background: 1.09:1. See `--tl-slide-dark-date`.
+ *   10. `--tl-nav-span-bar-opacity` replaces a hardcoded `.75`. This one
+ *      already cleared 3:1 (10.37:1 light, 11.42:1 dark), so it is a
+ *      consistency fix, not a failure: the rule here is that no mark leans on
+ *      opacity. Worth knowing that the lab measured this mark *without*
+ *      compositing its opacity, which is why it read as 21:1 for so long —
+ *      that bug is fixed too. The `:hover` rule on it is still a no-op in the
+ *      default themes, where it resolves to the same 0.75 as the resting
+ *      state; left alone rather than quietly changed.
+ *
+ * Marks considered and deliberately left as they are: `opacity: 0` used for
+ * hiding (`.tl-slide`, `.tl-player__btn:disabled`), the disabled zoom button's
+ * `opacity: 0.3` (1.4.11 exempts inactive controls), the `#000` letterbox
+ * behind a video and the `#111` chrome around an embed (geometry, not marks),
+ * and border-radii and transition durations throughout.
  */
 
 .tl-player[data-tl-contrast='high'] {
@@ -135,6 +202,78 @@
   --tl-nav-group-name-color: #000000;
   --tl-nav-group-name-opacity: 1;
   --tl-nav-group-name-weight: 800;
+
+  /*
+   * Controls and surfaces the sweep found unreachable. Each one is a token
+   * whose default is the value the component shipped with, so every other
+   * theme renders byte-identically; only the overrides below are new.
+   */
+
+  /* Drag handle: opacity 0.2 computed to #cccccc on the nav, 1.61:1 — a
+     control, so 1.4.11's 3:1 applies. Nothing but opacity carried it. */
+  --tl-nav-grip-opacity: 1;
+  --tl-nav-grip-hover-opacity: 1;
+
+  /* Span bars cleared 3:1 even at 0.75, but the mode's rule is that no mark
+     leans on opacity; at 1 the I-beam matches the dots and the leaders. */
+  --tl-nav-span-bar-opacity: 1;
+  --tl-nav-span-bar-hover-opacity: 1;
+
+  /*
+   * The hover halo is a knockout in the nav's own colour, and at (0,2,0) it
+   * out-specified both --tl-nav-label-ring and --tl-nav-label-active-ring —
+   * so hovering a label in this mode erased the very boundary the mode adds,
+   * measuring 1:1. Keep the knockout for separation and put the edge outside
+   * it, so the label still reads as lifted and still has an edge.
+   */
+  --tl-nav-label-hover-ring: 0 0 0 3px #ffffff, 0 0 0 4px #000000;
+  --tl-nav-label-active-hover-ring: 0 0 0 3px #ffffff, 0 0 0 4px #000000;
+
+  /*
+   * Prev/next and fullscreen glyphs are white with a blurred drop shadow,
+   * which is not a contrast mechanism and is not measurable. On a light
+   * surface they computed to white-on-white, 1.00:1. Give the control an
+   * opaque fill so the ratio is a property of the token set, not of whatever
+   * media happens to be behind it, and drop the shadow it no longer needs.
+   */
+  --tl-btn-bg: #ffffff;
+  --tl-btn-color: #000000;
+  /* Hover stays on the same side of the glyph: a dark hover fill under a
+     black glyph would measure ~1.1:1, which is how the default got here. */
+  --tl-btn-bg-hover: #e0e0e0;
+  --tl-btn-text-shadow: none;
+
+  /*
+   * The image-background scrim is 40% black, so the text's contrast is a
+   * property of the photo: over a near-white image the body measured 2.33:1
+   * and the headline 2.85:1. This mode cannot control the photo, so it stops
+   * depending on it.
+   */
+  --tl-slide-text-scrim: rgba(0, 0, 0, 0.92);
+
+  /*
+   * A dark or image background is the author's colour, not this file's, so the
+   * slide's own palette has to win there — and --tl-date-color, set above for
+   * a light ground, was overriding it. The date measured 1.09:1 on a dark
+   * slide and 1.22:1 on the scrim. Only the date is raised: headline, body and
+   * muted text already clear AAA against a dark ground through the component's
+   * own defaults, and pushing them all to white would flatten the hierarchy
+   * without buying a single ratio.
+   */
+  --tl-slide-dark-date: #ffffff;
+
+  /*
+   * The Bluesky card shipped Bluesky's palette as declarations on its own
+   * element, out of reach of any skin. Its text cleared AA but not the 7:1
+   * this file promises (handle 6.12:1, link 5.69:1) and its border was
+   * 1.30:1.
+   */
+  --tl-bsky-card-bg: #ffffff;
+  --tl-bsky-card-nested-bg: #ffffff;
+  --tl-bsky-card-border: #000000;
+  --tl-bsky-card-text: #000000;
+  --tl-bsky-card-muted: #262626;
+  --tl-bsky-card-link: #0b3d91;
 }
 
 .tl-player[data-tl-contrast='high'][data-tl-theme='dark'] {
@@ -172,6 +311,20 @@
   /* Zebra and chip inverted for the dark ground; see the light block above. */
   --tl-nav-band-alt-bg: #1c1c1c;
   --tl-nav-group-name-color: #ffffff;
+
+  --tl-nav-label-hover-ring: 0 0 0 3px #000000, 0 0 0 4px #ffffff;
+  --tl-nav-label-active-hover-ring: 0 0 0 3px #000000, 0 0 0 4px #ffffff;
+
+  --tl-btn-bg: #000000;
+  --tl-btn-color: #ffffff;
+  --tl-btn-bg-hover: #1a1a1a;
+
+  --tl-bsky-card-bg: #000000;
+  --tl-bsky-card-nested-bg: #000000;
+  --tl-bsky-card-border: #ffffff;
+  --tl-bsky-card-text: #ffffff;
+  --tl-bsky-card-muted: #e0e0e0;
+  --tl-bsky-card-link: #7fb2ff;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -210,5 +363,19 @@
     /* Zebra and chip inverted for the dark ground; see the light block above. */
     --tl-nav-band-alt-bg: #1c1c1c;
     --tl-nav-group-name-color: #ffffff;
-      }
+
+    --tl-nav-label-hover-ring: 0 0 0 3px #000000, 0 0 0 4px #ffffff;
+    --tl-nav-label-active-hover-ring: 0 0 0 3px #000000, 0 0 0 4px #ffffff;
+
+    --tl-btn-bg: #000000;
+    --tl-btn-color: #ffffff;
+    --tl-btn-bg-hover: #1a1a1a;
+
+    --tl-bsky-card-bg: #000000;
+    --tl-bsky-card-nested-bg: #000000;
+    --tl-bsky-card-border: #ffffff;
+    --tl-bsky-card-text: #ffffff;
+    --tl-bsky-card-muted: #e0e0e0;
+    --tl-bsky-card-link: #7fb2ff;
+  }
 }

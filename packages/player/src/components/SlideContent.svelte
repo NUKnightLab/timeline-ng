@@ -216,25 +216,67 @@
     pointer-events: auto;
   }
 
-  /* When slide has a dark or image background, flip text tokens */
+  /*
+   * When slide has a dark or image background, flip text tokens.
+   *
+   * Every value here is a fallback rather than a literal, because this block
+   * out-specifies anything inherited from .tl-player: declared as literals,
+   * the whole dark-slide palette was beyond the reach of any skin, including
+   * the contrast one.
+   */
   .tl-slide--dark-bg {
-    --tl-color-text: #f0f0f0;
-    --tl-color-text-muted: #cccccc;
+    --tl-color-text: var(--tl-slide-dark-text, #f0f0f0);
+    --tl-color-text-muted: var(--tl-slide-dark-text-muted, #cccccc);
     /*
-     * Headline and body carry their own tokens now, so they have to be flipped
-     * here too — inheriting --tl-color-text is no longer enough, and a slide
-     * with a dark or image background would otherwise keep light-mode body
-     * copy on a dark ground.
+     * Headline, body and date carry their own tokens now, so they have to be
+     * flipped here too — inheriting --tl-color-text is no longer enough, and a
+     * slide with a dark or image background would otherwise keep light-mode
+     * body copy on a dark ground.
+     *
+     * The date is the one that was missed. Nothing sets --tl-date-color in the
+     * default themes, so it fell through to --tl-color-text-muted above and
+     * came out right by accident. The contrast skin does set it, at player
+     * level, which defeated that fallback and left the date at #262626 on the
+     * author's dark background — 1.09:1, the worst ratio in the player.
      */
-    --tl-headline-color: #ffffff;
-    --tl-body-color: #e8e8e8;
+    --tl-headline-color: var(--tl-slide-dark-headline, #ffffff);
+    --tl-body-color: var(--tl-slide-dark-body, #e8e8e8);
+    --tl-date-color: var(--tl-slide-dark-date, #cccccc);
   }
 
-  /* When slide has an image background, scrim the text column for readability */
+  /*
+   * When a slide has an image background, scrim the text column.
+   *
+   * An image background always takes the light-text treatment above
+   * (`hasDarkBg || hasImageBg`), so this scrim is the only thing standing
+   * between light copy and whatever the author uploaded — and at the 40% it
+   * used to be, the ratio was a property of the photo rather than of the
+   * player. Over a pale image the date measured 1.84:1, the body 2.41:1 and
+   * the headline 2.96:1, all failing 1.4.3, in both themes: the photo covers
+   * the theme's own background, so the theme makes no difference here.
+   *
+   * 0.72 is the figure that holds for the *lightest possible* photo. The
+   * binding case is the date, the faintest of the three at #cccccc, which
+   * needs 0.659 against pure white to clear 4.5:1; 0.72 leaves some margin and
+   * puts the three at 5.78:1, 7.58:1 and 9.29:1 in the worst case.
+   *
+   * It is a heavier panel than before, and that is the cost. The alternative
+   * was to keep it light and lean on the blur or a text shadow, but neither is
+   * a contrast mechanism WCAG will credit, and a ratio that holds only for
+   * photos that happen to be dark is the bug being fixed. What makes 0.72
+   * affordable is that the scrim covers this column alone: the image is still
+   * fully visible around the text and behind the media, so the slide still
+   * reads as a photo, not as a dark box.
+   *
+   * The blur is one token because the two properties disagreed — the standard
+   * one said 2px and the -webkit- alias said 4px, so Safari blurred twice as
+   * hard as everything else. It is decorative either way; none of the ratios
+   * above depend on it.
+   */
   .tl-slide--image-bg .tl-slide__text {
-    background: var(--tl-slide-text-scrim, rgba(0, 0, 0, 0.4));
-    backdrop-filter: blur(2px);
-    -webkit-backdrop-filter: blur(4px);
+    background: var(--tl-slide-text-scrim, rgba(0, 0, 0, 0.72));
+    backdrop-filter: blur(var(--tl-slide-text-scrim-blur, 2px));
+    -webkit-backdrop-filter: blur(var(--tl-slide-text-scrim-blur, 2px));
     padding: 1.25rem 1.5rem;
     border-radius: var(--tl-radius, 4px);
   }

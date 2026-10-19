@@ -18,6 +18,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **No rule above the axis in high contrast.** `.tl-nav__track::before` already
   draws the marker line ~20px above it at full contrast, so the two bracketed
   the tick labels as parallel blacks. The track line keeps the edge.
+- **Text over a background image is legible whatever the photo.** The scrim
+  behind the text column was 40% black, which made the text's contrast a
+  property of the author's image rather than of the player: over a pale photo
+  the date measured **1.84:1**, the body 2.41:1 and the headline 2.96:1, all
+  failing WCAG 1.4.3 — and in both themes, since the photo covers the theme's
+  own background. The default is now 72% black, the figure that holds for the
+  lightest possible photo, putting the three at 5.79:1, 7.58:1 and 9.29:1 in
+  the worst case. It is a heavier panel than before; the scrim covers only the
+  text column, so the image is still visible around it and behind the media.
+  Tunable with `--tl-slide-text-scrim`, which `contrast='high'` already takes
+  to 92%. Slides with no background image are unaffected.
+- **The text scrim's blur is the same in every browser.** `backdrop-filter`
+  said `blur(2px)` and `-webkit-backdrop-filter` said `blur(4px)`, so Safari
+  blurred twice as hard as Chrome and Firefox. Both now read
+  `--tl-slide-text-scrim-blur`, default 2px.
 - **Body-copy styling has one definition.** The rules for author-written HTML
   now live in `styles/prose.css`, keyed by a `tl-prose` class that the slide
   body carries — and that the authoring editor applies too, so what is typed is
@@ -26,11 +41,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **A swept token surface for high contrast.** A sweep of the player's
+  component `<style>` blocks found more visual values hardcoded there, beyond
+  the reach of `contrast='high'` — or of any other skin. Each is now a
+  `--tl-*` token whose default is the literal the component shipped with, so
+  every other theme renders byte-identically: `--tl-nav-grip-opacity` /
+  `--tl-nav-grip-hover-opacity`, `--tl-nav-span-bar-opacity` /
+  `--tl-nav-span-bar-hover-opacity`, `--tl-nav-label-hover-ring` /
+  `--tl-nav-label-active-hover-ring`, `--tl-btn-bg`, `--tl-btn-color`,
+  `--tl-btn-text-shadow`, `--tl-bsky-card-nested-bg`, and
+  `--tl-slide-dark-text`, `--tl-slide-dark-text-muted`,
+  `--tl-slide-dark-headline`, `--tl-slide-dark-body`, `--tl-slide-dark-date`
+  for a slide with a dark or image background.
+- **The Bluesky card's palette is themeable.** `--tl-bsky-card-bg`,
+  `--tl-bsky-card-border`, `--tl-bsky-card-text`, `--tl-bsky-card-muted` and
+  `--tl-bsky-card-link` existed but were *declared* on the card element, which
+  out-specifies anything inherited from `.tl-player` — so no theme could reach
+  them. They are fallbacks at the point of use now, with the same defaults.
 - `--tl-nav-group-name-color`, `--tl-nav-group-name-opacity` and
   `--tl-nav-group-name-weight` expose the navigator's group label, which was
   styled entirely from hardcoded values. All three default to those values.
 
 ### Fixed
+
+- **The slide date is legible on dark and image backgrounds in high contrast.**
+  A dark-background slide flips the slide's text palette, but it had no
+  `--tl-date-color`; nothing sets that token in the default themes, so the date
+  fell through to `--tl-color-text-muted` and came out right by accident. The
+  high-contrast skin does set it, at player level, which defeated the fallback
+  and left the date at #262626 on the author's dark background — **1.09:1**, and
+  1.22:1 over an image scrim. Now 16.52:1 and 18.42:1 respectively. Default
+  themes are unaffected.
+- **The navigator's drag handle meets 1.4.11 in high contrast.** The grip was a
+  hardcoded `opacity: 0.2`, computing to #cccccc on the nav — **1.61:1** light
+  and 1.66:1 dark, for an interactive control that owes 3:1. Now 21:1.
+- **The prev/next and fullscreen controls are visible on a light surface in
+  high contrast.** The glyphs are white, separated from whatever is behind them
+  by a blurred drop shadow — which is not a measurable contrast. On a light
+  background they were white on white, **1.00:1**. In high contrast they now
+  take an opaque fill, so the ratio is a property of the token set rather than
+  of whatever media happens to be behind them: 21:1 in both themes.
+- **Hovering a navigator label no longer erases its high-contrast outline.** The
+  hover halo is a knockout in the nav's own colour, and at `(0,2,0)` it
+  out-specified both `--tl-nav-label-ring` and `--tl-nav-label-active-ring` — so
+  hovering a label in the one mode that draws a boundary removed it, **1:1**.
+  The knockout is kept for separation with the edge drawn outside it, 21:1.
+- **Text over a background image no longer depends on the photo in high
+  contrast.** The text scrim is 40% black, so over a near-white image the body
+  measured **2.33:1** and the headline 2.85:1. High contrast takes the scrim to
+  92%, giving 15.04:1 and 18.42:1 regardless of the image.
+- **The Bluesky card reaches AAA in high contrast.** Its text cleared AA but not
+  the 7:1 the mode promises — handle **6.12:1**, link **5.69:1** — and its
+  border was **1.30:1** light, 1.01:1 dark. Now 15.13:1, 10.04:1 and 21:1.
 
 - **Group names are legible in the high-contrast navigator.** The label shipped
   at `--tl-color-text-muted` × `0.55` opacity, computing to #888 on white —

@@ -690,16 +690,17 @@
   }
 
   /* ── Bluesky card ───────────────────────────────────────────── */
+  /*
+   * The card's palette is Bluesky's, not the player's, so it keeps its own
+   * defaults — but they live as fallbacks here rather than as declarations on
+   * this element. Declared here they would out-specify anything inherited from
+   * .tl-player, which put the whole card beyond the reach of every skin.
+   */
   .tl-media--bluesky {
-    --tl-bsky-card-bg: rgba(255, 255, 255, 0.96);
-    --tl-bsky-card-border: rgba(17, 17, 17, 0.12);
-    --tl-bsky-card-text: #16181c;
-    --tl-bsky-card-muted: #536471;
-    --tl-bsky-card-link: #0a66c2;
-    border: 1px solid var(--tl-bsky-card-border);
+    border: 1px solid var(--tl-bsky-card-border, rgba(17, 17, 17, 0.12));
     border-radius: var(--tl-radius);
     padding: 1rem;
-    background: var(--tl-bsky-card-bg);
+    background: var(--tl-bsky-card-bg, rgba(255, 255, 255, 0.96));
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
@@ -727,12 +728,12 @@
     line-height: 1.3;
   }
 
-  .tl-bsky__display-name { color: var(--tl-bsky-card-text); }
-  .tl-bsky__handle { color: var(--tl-bsky-card-muted); font-size: 0.8rem; }
+  .tl-bsky__display-name { color: var(--tl-bsky-card-text, #16181c); }
+  .tl-bsky__handle { color: var(--tl-bsky-card-muted, #536471); font-size: 0.8rem; }
 
   .tl-bsky__text {
     margin: 0;
-    color: var(--tl-bsky-card-text);
+    color: var(--tl-bsky-card-text, #16181c);
     line-height: 1.5;
     white-space: pre-wrap;
   }
@@ -755,10 +756,10 @@
     display: flex;
     flex-direction: column;
     gap: 0.55rem;
-    border: 1px solid var(--tl-bsky-card-border);
+    border: 1px solid var(--tl-bsky-card-border, rgba(17, 17, 17, 0.12));
     border-radius: calc(var(--tl-radius) - 1px);
     overflow: hidden;
-    background: rgba(255, 255, 255, 0.9);
+    background: var(--tl-bsky-card-nested-bg, rgba(255, 255, 255, 0.9));
     color: inherit;
   }
 
@@ -795,18 +796,18 @@
 
   .tl-bsky__external-title,
   .tl-bsky__quote-author {
-    color: var(--tl-bsky-card-text);
+    color: var(--tl-bsky-card-text, #16181c);
   }
 
   .tl-bsky__external-description,
   .tl-bsky__quote-text {
     margin: 0;
-    color: var(--tl-bsky-card-muted);
+    color: var(--tl-bsky-card-muted, #536471);
     line-height: 1.45;
   }
 
   .tl-bsky__external-url {
-    color: var(--tl-bsky-card-link);
+    color: var(--tl-bsky-card-link, #0a66c2);
     font-size: 0.78rem;
   }
 
@@ -822,7 +823,7 @@
 
   .tl-bsky__link {
     font-size: 0.8rem;
-    color: var(--tl-bsky-card-link);
+    color: var(--tl-bsky-card-link, #0a66c2);
     text-decoration: none;
   }
 

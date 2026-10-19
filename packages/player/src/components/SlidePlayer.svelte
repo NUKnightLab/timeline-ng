@@ -332,8 +332,8 @@
     bottom: 0;
     width: var(--tl-btn-size, 2.5rem);
     padding: 0;
-    background: transparent;
-    color: #fff;
+    background: var(--tl-btn-bg, transparent);
+    color: var(--tl-btn-color, #fff);
     border: none;
     font-size: 1.8rem;
     line-height: 1;
@@ -341,7 +341,15 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    text-shadow: 0 0 4px rgba(0,0,0,0.8), 0 0 8px rgba(0,0,0,0.6);
+    /*
+     * The glyph is white over an unknown backdrop — media, a background image,
+     * or the bare surface — so the shadow is what normally separates it. That
+     * is a blur, not a measurable contrast, which is why --tl-btn-bg exists:
+     * a skin that needs a guaranteed ratio gives the control an opaque fill
+     * and drops the shadow rather than relying on it.
+     */
+    text-shadow: var(--tl-btn-text-shadow,
+                     0 0 4px rgba(0,0,0,0.8), 0 0 8px rgba(0,0,0,0.6));
     transition: background var(--tl-transition-speed) ease,
                 opacity var(--tl-transition-speed) ease;
     z-index: 10;
