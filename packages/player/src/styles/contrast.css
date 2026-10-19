@@ -13,6 +13,14 @@
  * Note that it deliberately restores boundaries that navChrome='quiet'
  * removes. In a high-contrast mode an edge is information, not decoration.
  *
+ * The converse also holds, and is easy to miss: a *duplicated* edge is not
+ * information either. Where two full-contrast rules ended up bounding the
+ * same region — the per-group band rules against the labels they were
+ * compensating for, the axis rule against the track line 20px above it — the
+ * redundant one is dropped rather than kept on principle. Six black lines in
+ * a 130px drawer is not six times the legibility. See the band and axis
+ * blocks below before restoring either.
+ *
  * Verified in the contrast lab at 21:1 for most marks in both themes.
  *
  * Writing this is what surfaced three gaps in the token surface, all now
@@ -74,7 +82,15 @@
   --tl-nav-label-padding: 2px 6px;
 
   --tl-nav-axis-bg: #ffffff;
-  --tl-nav-axis-border-top: 1px solid #000000;
+  /*
+   * No rule above the axis. This is not the "quiet" mode's missing edge
+   * returning to decoration — the boundary is already there and already at
+   * full contrast: .tl-nav__track::before draws the marker line ~20px above
+   * this border, so the two stacked as parallel full-bleed blacks with the
+   * tick labels pinched between them. The track line is the one the marks
+   * actually connect to, so it keeps the edge and this one goes.
+   */
+  --tl-nav-axis-border-top: none;
   --tl-nav-axis-tick-color: #000000;
   --tl-nav-axis-tick-opacity: 1;
   --tl-nav-axis-color: #1a1a1a;
@@ -87,8 +103,38 @@
   --tl-nav-leader-active-opacity: 1;
   --tl-nav-track-opacity: 1;
 
-  --tl-nav-band-border: 1px solid #000000;
-  --tl-nav-band-alt-bg: transparent;
+  /*
+   * Group bands: zebra, not rules.
+   *
+   * A black 1px border-bottom per band is drawn full-bleed, so a three-group
+   * timeline stacked three black rules across the whole navigator on top of
+   * the 2px nav rule and the track line — six horizontal lines in a 130px
+   * drawer, which read as noise rather than structure.
+   *
+   * The rules were also covering for the labels. The group name shipped at
+   * --tl-color-text-muted * 0.55 opacity, which computes to #888 on white:
+   * 3.54:1 at 9.6px. That failed AA outright in the one mode that promises
+   * AAA, so in the mode where group identity should be loudest the names were
+   * the faintest text on screen and the rules were doing their job for them.
+   *
+   * So the label carries the contrast now (21:1) and the fill carries the
+   * alternation. The tint is deliberately soft: a fill dark enough to clear
+   * 3:1 on its own would be about #949494, and black body text on that is
+   * only 4.1:1 — it would buy a boundary by breaking the 7:1 floor this file
+   * exists to hold. The fill is not the information here; the name is.
+   *
+   * The label keeps one treatment on every band rather than inverting on the
+   * alternates. An inverted chip was tried and dropped: it reads as a
+   * highlight — the player already uses exactly that move for the *active*
+   * slide's nav label (--tl-nav-label-active-bg) — so it says "selected"
+   * where nothing is selected. It was never buying contrast either; the
+   * label is 17.9:1 on the light tint and 17.0:1 on the dark one unaided.
+   */
+  --tl-nav-band-border: none;
+  --tl-nav-band-alt-bg: #ededed;
+  --tl-nav-group-name-color: #000000;
+  --tl-nav-group-name-opacity: 1;
+  --tl-nav-group-name-weight: 800;
 }
 
 .tl-player[data-tl-contrast='high'][data-tl-theme='dark'] {
@@ -117,13 +163,15 @@
   --tl-nav-label-active-ring: 0 0 0 2px #ffffff;
 
   --tl-nav-axis-bg: #000000;
-  --tl-nav-axis-border-top: 1px solid #ffffff;
   --tl-nav-axis-tick-color: #ffffff;
   --tl-nav-axis-color: #f0f0f0;
 
   --tl-nav-gutter-bg: #000000;
   --tl-nav-gutter-border: 1px solid #ffffff;
-  --tl-nav-band-border: 1px solid #ffffff;
+
+  /* Zebra and chip inverted for the dark ground; see the light block above. */
+  --tl-nav-band-alt-bg: #1c1c1c;
+  --tl-nav-group-name-color: #ffffff;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -153,12 +201,14 @@
     --tl-nav-label-active-ring: 0 0 0 2px #ffffff;
 
     --tl-nav-axis-bg: #000000;
-    --tl-nav-axis-border-top: 1px solid #ffffff;
     --tl-nav-axis-tick-color: #ffffff;
     --tl-nav-axis-color: #f0f0f0;
 
     --tl-nav-gutter-bg: #000000;
     --tl-nav-gutter-border: 1px solid #ffffff;
-    --tl-nav-band-border: 1px solid #ffffff;
-  }
+
+    /* Zebra and chip inverted for the dark ground; see the light block above. */
+    --tl-nav-band-alt-bg: #1c1c1c;
+    --tl-nav-group-name-color: #ffffff;
+      }
 }

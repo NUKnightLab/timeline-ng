@@ -1172,11 +1172,11 @@
     transform: translateY(-50%);
     z-index: 1; /* float above leader lines/dots when the label overflows the gutter */
     font-size: 0.6rem;
-    font-weight: 700;
+    font-weight: var(--tl-nav-group-name-weight, 700);
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: var(--tl-color-text-muted);
-    opacity: 0.55;
+    color: var(--tl-nav-group-name-color, var(--tl-color-text-muted));
+    opacity: var(--tl-nav-group-name-opacity, 0.55);
     white-space: nowrap;
     /* Intentionally not clipped — a long label (e.g. "Social Media") floats
        over the timeline content rather than truncating with an ellipsis. */

@@ -9,14 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **The high-contrast navigator groups by zebra striping, not rules.** Every
+  group band drew a full-bleed black 1px rule, so a three-group timeline
+  stacked three of them on top of the nav rule, the axis rule and the track
+  line — six horizontal lines in a 130px drawer. Bands now alternate a soft
+  fill and the group name carries the contrast. Only `contrast='high'` changes;
+  every other theme renders exactly as before.
+- **No rule above the axis in high contrast.** `.tl-nav__track::before` already
+  draws the marker line ~20px above it at full contrast, so the two bracketed
+  the tick labels as parallel blacks. The track line keeps the edge.
 - **Body-copy styling has one definition.** The rules for author-written HTML
   now live in `styles/prose.css`, keyed by a `tl-prose` class that the slide
   body carries — and that the authoring editor applies too, so what is typed is
   set the way it will be published. They are bundled into `styles.css` as
   before, so nothing changes for embedders.
 
+### Added
+
+- `--tl-nav-group-name-color`, `--tl-nav-group-name-opacity` and
+  `--tl-nav-group-name-weight` expose the navigator's group label, which was
+  styled entirely from hardcoded values. All three default to those values.
+
 ### Fixed
 
+- **Group names are legible in the high-contrast navigator.** The label shipped
+  at `--tl-color-text-muted` × `0.55` opacity, computing to #888 on white —
+  3.54:1 at 9.6px, which fails WCAG AA in the one mode that promises AAA. In
+  the mode where group identity should be loudest, the group names were the
+  faintest text on screen and the band rules were compensating for them. Now
+  21:1.
 - **Links in body copy are underlined again.** The isolation reset strips
   `text-decoration` from every anchor so a host page cannot restyle the player's
   own controls, and only colour was being restored — leaving body-copy links
