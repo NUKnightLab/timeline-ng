@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- **The navigator reserves the room each label actually needs.** The label
+  packer treated every label as 130px wide — the CSS `max-width` — so
+  "Belfield 50" (66px) claimed as much of the track as the longest possible
+  headline. Labels were pushed off their true date, or dropped, to avoid
+  collisions that would never have happened, and a short label near the edge
+  was pulled 65px inward when its own half-width is 33px. Each label's width is
+  now measured from a hidden mirror of the real button, capped at 130px as
+  before, and the packer uses that width per label — for its collision test and
+  for the viewport-edge clamp alike. Horizontal position still encodes time:
+  nothing moves that did not have to, and labels that are genuinely on top of
+  each other still get a leader line rather than a new date. Measuring is
+  driven by the label text and a `ResizeObserver`, never by the viewport, so
+  panning and zooming do no measurement at all.
 - **The high-contrast navigator groups by zebra striping, not rules.** Every
   group band drew a full-bleed black 1px rule, so a three-group timeline
   stacked three of them on top of the nav rule, the axis rule and the track

@@ -3,6 +3,7 @@
   import { parseTLDate, compareDates, formatDate, getLocale, getMessage } from '@knight-lab/timeline-ng-core';
   import { untrack } from 'svelte';
   import { stripHtml } from '../lib/sanitize';
+  import { packBand, packRows } from '../lib/labelPacking';
 
   interface Props {
     timeline: TLTimeline;
@@ -169,6 +170,76 @@
   // never grows the drawer.
   const showGroups = $derived.by(() => hasGroups && displayRows >= groupThresholdRows);
 
+  // ── Label width measurement ───────────────────────────────────────────────
+  /*
+   * The packer needs to know how much horizontal room each label actually
+   * takes. It used to assume every label was LABEL_MAX_PX wide — the CSS
+   * max-width — so a label reading "1914" reserved as much space as a full
+   * 130px headline and was declared to collide with neighbours it was nowhere
+   * near. Labels then got shifted off their true date, or dropped, to avoid
+   * overlaps that would never have happened.
+   *
+   * Measuring works by mirroring each distinct label into a hidden copy of the
+   * real button — same class, so the same font, padding, border and max-width —
+   * and reading its offsetWidth. That gives the exact rendered width under
+   * whatever theme and font are in play, including the 130px cap and the
+   * border-box padding, with no font-string guesswork: an offscreen canvas
+   * measureText would have had to reconstruct the font shorthand and would
+   * still have missed any skin that changes --tl-nav-label-padding.
+   *
+   * Crucially the mirrors never move. They depend on the label *text*, not on
+   * the viewport, so panning and zooming do no measuring at all — which
+   * matters, because those run at pointer-move rates. A ResizeObserver on the
+   * mirrors catches the things that genuinely change a width (webfont load,
+   * root font-size, a theme swapping --tl-nav-label-size) and nothing else.
+   */
+  const labelTexts = $derived.by((): string[] => Array.from(new Set(baseEvents.map(ev => ev.label))));
+  let measureHost  = $state<HTMLElement | null>(null);
+  let labelWidths  = $state<Map<string, number>>(new Map());
+
+  $effect(() => {
+    const host = measureHost;
+    if (!host) return;
+    labelTexts; // re-run when the set of labels changes
+
+    const mirrors = (): HTMLElement[] =>
+      Array.from(host.querySelectorAll<HTMLElement>('[data-measure-label]'));
+
+    const read = () => {
+      const next = new Map<string, number>();
+      for (const el of mirrors()) {
+        next.set(el.dataset.measureLabel!, el.offsetWidth);
+      }
+      // Read the cache untracked: this effect writes it, and depending on it
+      // would re-run the effect on its own write.
+      const prev = untrack(() => labelWidths);
+      let same = next.size === prev.size;
+      if (same) {
+        for (const [text, w] of next) {
+          if (prev.get(text) !== w) { same = false; break; }
+        }
+      }
+      if (!same) labelWidths = next;
+    };
+
+    read();
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(read);
+    for (const el of mirrors()) ro.observe(el);
+    return () => ro.disconnect();
+  });
+
+  /**
+   * Rendered width of a label in px, capped at the CSS max-width (a longer
+   * label truncates with an ellipsis and still occupies exactly the cap).
+   * Falls back to the cap until the mirrors have been measured, so the first
+   * paint is conservative rather than overlapping.
+   */
+  function labelWidthPx(label: string): number {
+    const w = labelWidths.get(label);
+    return w === undefined || w <= 0 ? LABEL_MAX_PX : Math.min(w, LABEL_MAX_PX);
+  }
+
   // ── Projected + visible events (viewport-dependent) ───────────────────────
   interface PositionedEvent extends BaseEvent {
     screenPct: number;
@@ -198,91 +269,37 @@
         ? toScreenPct(ev.dataPct)
         : (ev.dataWidthPct !== null ? screenStartPct : toScreenPct(ev.dataPct));
       const groupIdx = showGroups ? groupOrder.indexOf(ev.group) : 0;
-      return { ...ev, isDuration, screenPct, screenStartPct, screenWidthPct, groupIdx };
+      // Half this label's own rendered width, in screen percent — the space it
+      // actually needs, not the space the widest possible label would need.
+      const halfPct = (labelWidthPx(ev.label) / 2) / timelineWidth * 100;
+      return { ...ev, isDuration, screenPct, screenStartPct, screenWidthPct, groupIdx, halfPct };
     }).filter(ev => {
       const l = ev.isDuration ? ev.screenStartPct : ev.screenPct;
       const r = ev.isDuration ? ev.screenStartPct + ev.screenWidthPct! : ev.screenPct;
       return r > -BUFFER && l < 100 + BUFFER;
     });
 
-    const halfPct     = (LABEL_MAX_PX / 2) / timelineWidth * 100;
     const gapPct      = LABEL_GAP_PX / timelineWidth * 100;
     const stepPct     = SHIFT_STEP_PX / timelineWidth * 100;
     const maxShiftPct = SHIFT_MAX_PX  / timelineWidth * 100;
 
     const labelMap = new Map<number, { row: number; centerPct: number; hidden?: boolean }>();
+    const opts = { gapPct, stepPct, maxShiftPct };
+    const candidate = (ev: typeof projected[number]) =>
+      ({ index: ev.index, centerPct: ev.screenPct, halfPct: ev.halfPct });
 
     if (showGroups) {
-      // Per-group label allocation — 1 row per group band
+      // Per-group label allocation — 1 row per group band, so a band that runs
+      // out of room overlaps rather than hiding anything.
       for (let gi = 0; gi < groupOrder.length; gi++) {
-        const groupEvs = projected.filter(ev => ev.groupIdx === gi);
-        let rowRight = -Infinity;
-        for (const ev of [...groupEvs].sort((a, b) => a.screenPct - b.screenPct)) {
-          const naturalPct = Math.max(halfPct, Math.min(100 - halfPct, ev.screenPct));
-          let placed = false;
-          for (let mag = 0; mag <= maxShiftPct + 0.001; mag += stepPct) {
-            for (const dir of mag === 0 ? [0] : [1, -1]) {
-              const candidatePct = Math.max(halfPct, Math.min(100 - halfPct, naturalPct + mag * dir));
-              if (rowRight + gapPct <= candidatePct - halfPct) {
-                rowRight = candidatePct + halfPct;
-                labelMap.set(ev.index, { row: 0, centerPct: candidatePct });
-                placed = true;
-                break;
-              }
-            }
-            if (placed) break;
-          }
-          if (!placed) {
-            rowRight = naturalPct + halfPct;
-            labelMap.set(ev.index, { row: 0, centerPct: naturalPct });
-          }
-        }
+        const band = packBand(projected.filter(ev => ev.groupIdx === gi).map(candidate), opts);
+        for (const [index, slot] of band) labelMap.set(index, slot);
       }
     } else {
       // Global label allocation — capped to displayRows so labels overlap
       // rather than forcing extra height when the drawer is partially open.
-      const visRows = Math.max(1, displayRows);
-      const rowRight: number[] = new Array(visRows).fill(-Infinity);
-      outer: for (const ev of [...projected].sort((a, b) => a.screenPct - b.screenPct)) {
-        const naturalPct = Math.max(halfPct, Math.min(100 - halfPct, ev.screenPct));
-        for (let mag = 0; mag <= maxShiftPct + 0.001; mag += stepPct) {
-          for (const dir of mag === 0 ? [0] : [1, -1]) {
-            const candidatePct = Math.max(halfPct, Math.min(100 - halfPct, naturalPct + mag * dir));
-            const leftPct = candidatePct - halfPct;
-            for (let row = 0; row < visRows; row++) {
-              if (rowRight[row] + gapPct <= leftPct) {
-                rowRight[row] = candidatePct + halfPct;
-                labelMap.set(ev.index, { row, centerPct: candidatePct });
-                continue outer;
-              }
-            }
-          }
-        }
-        // Fallback: no gap-respecting slot found within the shift budget. Pack the
-        // label into whichever row has the most room, directly after that row's
-        // last label, so it never renders with zero separation from a neighbor —
-        // it just gets pushed further from its natural position instead.
-        let bestRow = 0;
-        for (let row = 1; row < visRows; row++) {
-          if (rowRight[row] < rowRight[bestRow]) bestRow = row;
-        }
-        const packedPct = rowRight[bestRow] + gapPct + halfPct;
-        if (packedPct > 100 - halfPct) {
-          /*
-           * Nowhere left to put it. This used to clamp to the right edge, which
-           * meant every label that ran out of room landed on the same spot and
-           * stacked into something unreadable — worst on the timelines that
-           * need help most, where events bunch at one end. Hiding the label is
-           * the honest outcome: the dot still marks the date and still
-           * navigates, and zooming in spreads the events out until the label
-           * has room to come back.
-           */
-          labelMap.set(ev.index, { row: bestRow, centerPct: naturalPct, hidden: true });
-          continue;
-        }
-        rowRight[bestRow] = packedPct + halfPct;
-        labelMap.set(ev.index, { row: bestRow, centerPct: packedPct });
-      }
+      const packed = packRows(projected.map(candidate), displayRows, opts);
+      for (const [index, slot] of packed) labelMap.set(index, slot);
     }
 
     /*
@@ -877,6 +894,15 @@
 >
   <h2 class="tl-sr-only">{getMessage(tl, 'timeline.label')}</h2>
 
+  <!-- Hidden width mirrors — one per distinct label, read by the packer. See
+       "Label width measurement" above. These never move, so pan and zoom cost
+       nothing here. -->
+  <div class="tl-nav__measure" aria-hidden="true" bind:this={measureHost}>
+    {#each labelTexts as text (text)}
+      <button class="tl-nav__label tl-nav__measure-item" data-measure-label={text} tabindex="-1">{text}</button>
+    {/each}
+  </div>
+
   <!-- Grip handle — drag to expand/collapse label rows; click to toggle -->
   <button
     class="tl-nav__handle"
@@ -1129,11 +1155,13 @@
     height: 3px;
     border-radius: 2px;
     background: var(--tl-color-nav-marker);
-    opacity: 0.2;
+    opacity: var(--tl-nav-grip-opacity, 0.2);
     transition: opacity var(--tl-transition-speed) ease;
   }
   .tl-nav__handle:hover .tl-nav__grip,
-  .tl-nav__handle:focus-visible .tl-nav__grip { opacity: 0.5; }
+  .tl-nav__handle:focus-visible .tl-nav__grip {
+    opacity: var(--tl-nav-grip-hover-opacity, 0.5);
+  }
 
   /* Body — all nav content sits below the grip strip */
   .tl-nav__body {
@@ -1300,6 +1328,32 @@
     z-index: 1;
   }
 
+  /*
+   * Width mirrors. Out of flow, invisible and inert, but still laid out, so
+   * offsetWidth reports the real rendered width (including the 130px cap and
+   * the border-box padding). visibility: hidden rather than display: none —
+   * a display: none element has no box to measure.
+   */
+  .tl-nav__measure {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  /* width: max-content so the mirror's width comes from its own text and the
+     130px cap alone, never from the zero-width host it sits in. */
+  .tl-nav__measure-item {
+    position: static;
+    width: max-content;
+    transform: none;
+    transition: none;
+  }
+
   .tl-nav__label:hover,
   .tl-nav__label:focus-visible {
     color: var(--tl-color-nav-marker-hover);
@@ -1307,7 +1361,7 @@
     max-width: 400px;
     overflow: visible;
     z-index: 10;
-    box-shadow: 0 0 0 3px var(--tl-color-nav-bg);
+    box-shadow: var(--tl-nav-label-hover-ring, 0 0 0 3px var(--tl-color-nav-bg));
     transform: translate(calc(-50% + var(--hover-shift, 0px)), -50%);
   }
 
@@ -1332,6 +1386,8 @@
   .tl-nav__label--active:hover,
   .tl-nav__label--active:focus-visible {
     color: var(--tl-nav-label-active-hover, var(--tl-color-nav-marker-active));
+    box-shadow: var(--tl-nav-label-active-hover-ring,
+                    var(--tl-nav-label-hover-ring, 0 0 0 3px var(--tl-color-nav-bg)));
   }
 
   .tl-nav__label--active {
@@ -1355,7 +1411,7 @@
     border-right: 2px solid var(--tl-color-nav-marker);
     padding: 0;
     cursor: pointer;
-    opacity: .75;
+    opacity: var(--tl-nav-span-bar-opacity, 0.75);
     box-sizing: border-box;
     appearance: none;
     -webkit-appearance: none;
@@ -1373,7 +1429,12 @@
     transform: translateY(-50%);
     transition: background var(--tl-transition-speed) ease;
   }
-  .tl-nav__span-bar:hover { opacity: 0.75; }
+  /*
+   * Note: the default here equals the resting opacity above, so by default
+   * hover is a no-op on this mark — kept as-is rather than quietly changed,
+   * since the resting value is what every existing theme renders.
+   */
+  .tl-nav__span-bar:hover { opacity: var(--tl-nav-span-bar-hover-opacity, 0.75); }
   .tl-nav__span-bar--active {
     border-color: var(--tl-nav-mark-active, var(--tl-color-nav-marker-active));
     opacity: 1;
