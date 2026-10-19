@@ -1011,20 +1011,28 @@
     <div class="tl-nav__track" style="top: {sharedTrackTop}px; height: {TRACK_AREA}px;">
       {#each positioned as ev}
         {#if !ev.isDuration}
-            <!-- The label is normally this event's accessible control, so the
-                 mark is hidden from assistive tech to avoid duplicating it.
-                 When the label had nowhere to go, the mark takes that role
-                 instead — otherwise the event would be unreachable by keyboard
-                 or screen reader precisely on the crowded timelines where the
-                 label gets dropped. -->
+            <!-- Exactly one tab stop per event. The label is normally this
+                 event's accessible control, so the mark is hidden from
+                 assistive tech rather than doubling the nav's stops. The mark
+                 takes that role only where no label stands in for it: when the
+                 packer dropped this one for a collision, or when there are no
+                 label rows at all and the whole label block is gated out.
+                 Without the second case a compact player — or one whose drawer
+                 the reader dragged shut — holds events reachable by neither
+                 keyboard nor screen reader.
+
+                 Derived here rather than folded into `labelHidden`, which
+                 feeds the row-count layout reads back from it: making it
+                 depend on `displayRows` latches the drawer shut. -->
+            {@const isControl = displayRows === 0 || ev.labelHidden}
           <button
             class="tl-nav__dot"
             class:tl-nav__dot--active={ev.index === activeIndex}
             style="left: {ev.screenPct}%;"
-            tabindex={ev.labelHidden ? 0 : -1}
-            aria-hidden={ev.labelHidden ? undefined : 'true'}
-            aria-label={ev.labelHidden ? ev.ariaLabel : undefined}
-            aria-current={ev.labelHidden && ev.index === activeIndex ? 'true' : undefined}
+            tabindex={isControl ? 0 : -1}
+            aria-hidden={isControl ? undefined : 'true'}
+            aria-label={isControl ? ev.ariaLabel : undefined}
+            aria-current={isControl && ev.index === activeIndex ? 'true' : undefined}
             onpointerdown={(e) => e.stopPropagation()}
             onclick={() => onnavigate(ev.index)}
           ></button>
@@ -1034,14 +1042,16 @@
       <!-- Span bars: I-beam on the track line for duration events (visible at all drawer heights) -->
       {#each positioned as ev}
         {#if ev.isDuration}
+          <!-- Same rule as the dot above: one tab stop per event. -->
+          {@const isControl = displayRows === 0 || ev.labelHidden}
           <button
             class="tl-nav__span-bar"
             class:tl-nav__span-bar--active={ev.index === activeIndex}
             style="left: {ev.screenStartPct}%; width: {bracketWidthPct(ev.screenWidthPct!)};"
-            tabindex={ev.labelHidden ? 0 : -1}
-            aria-hidden={ev.labelHidden ? undefined : 'true'}
-            aria-label={ev.labelHidden ? ev.ariaLabel : undefined}
-            aria-current={ev.labelHidden && ev.index === activeIndex ? 'true' : undefined}
+            tabindex={isControl ? 0 : -1}
+            aria-hidden={isControl ? undefined : 'true'}
+            aria-label={isControl ? ev.ariaLabel : undefined}
+            aria-current={isControl && ev.index === activeIndex ? 'true' : undefined}
             onpointerdown={(e) => e.stopPropagation()}
             onclick={() => onnavigate(ev.index)}
           ></button>

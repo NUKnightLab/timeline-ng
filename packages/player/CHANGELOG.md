@@ -101,6 +101,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **Every event in the navigator is reachable, and only once.** A mark (dot or
+  span bar) is hidden from assistive tech while its label is present, so the
+  nav offers one tab stop per event rather than two; the mark takes the control
+  role only when no label stands in for it. That covered the packer dropping a
+  label for a collision, but not the case where there are no label rows at all
+  — a compact player, or one whose drawer the reader has dragged shut — where
+  the whole label block is gated out. The marks whose labels the packer *had*
+  placed stayed `aria-hidden` with `tabindex="-1"` and nothing in their place,
+  so those events were reachable by neither keyboard nor screen reader. On the
+  13-event test timeline, 2 of 13 were unreachable in the standard navigator
+  and 3 of 13 in `navChrome='minimal'`. The role is now derived where the mark
+  renders rather than folded into the label-layout state, which the row count
+  is itself computed from — making it depend on the row count latches the
+  drawer shut once it reaches zero.
+
 - **Navigator dots and span bars respond to hover.** Neither did. The span bar
   had a `:hover` rule whose default equalled its resting opacity, so it was a
   no-op; the dot had no `:hover` rule at all, only a `background` transition on
