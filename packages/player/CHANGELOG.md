@@ -77,6 +77,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **The minimal navigator's labels are readable again.** `navChrome='minimal'`
+  set `--tl-nav-label-bg: transparent`, on the theory that a label with no band
+  behind it should sit directly on the stage. What actually happened is that
+  the track line, the marker line above it and every leader ran straight
+  through the lettering, and a label overlapping a neighbour's leader was
+  unreadable. Labels now carry an opaque chip in `--tl-color-nav-bg`, which
+  this skin already sets to the stage background — invisible as a shape, but it
+  knocks those lines out from behind the text. The label rings stay off.
+  `contrast='high'` was never affected: it sets `--tl-nav-label-bg` itself.
+  Only `navChrome='minimal'` changes; `'standard'` renders as before.
+
 - **The slide date is legible on dark and image backgrounds in high contrast.**
   A dark-background slide flips the slide's text palette, but it had no
   `--tl-date-color`; nothing sets that token in the default themes, so the date

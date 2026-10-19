@@ -27,9 +27,23 @@
   --tl-color-nav-marker: #6e6e6e;
   --tl-color-nav-marker-hover: #000000;
 
-  --tl-nav-label-bg: transparent;
+  /*
+   * Labels keep an opaque chip, in the stage's own colour.
+   *
+   * They were transparent here, on the theory that a label with no band
+   * behind it should sit directly on the stage. In practice the track line,
+   * the marker line ~20px above it and the leaders all run straight through
+   * the lettering, and a label overlapping a neighbour's leader is
+   * unreadable. A chip in --tl-color-nav-bg — which this skin has already set
+   * to the stage background — is invisible as a shape and knocks those lines
+   * out from behind the text, which is the whole job. The rings stay off:
+   * those are the boundary minimal genuinely does without.
+   *
+   * --tl-nav-label-active-bg is left to base.css for the same reason
+   * (#ffffff light, #333333 dark) rather than overridden to transparent.
+   */
+  --tl-nav-label-bg: var(--tl-color-nav-bg);
   --tl-nav-label-ring: none;
-  --tl-nav-label-active-bg: transparent;
   --tl-nav-label-active-ring: none;
   --tl-nav-label-active-weight: 700;
   --tl-nav-label-padding: 1px 3px;
