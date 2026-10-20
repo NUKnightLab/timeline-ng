@@ -249,6 +249,12 @@
     labelCenterPct: number;
     /** True when no non-overlapping slot exists; the dot stands in for it. */
     labelHidden: boolean;
+    /**
+     * Position in date order across the whole timeline, counting from 0. Drives
+     * which of two overlapping labels is drawn on top; separate from `index`
+     * because nothing sorts the event list by date.
+     */
+    dateRank: number;
     groupIdx: number;
   }
 
@@ -332,9 +338,26 @@
       }
     }
 
+    /*
+     * Stacking order for overlapping labels, by date rather than by array
+     * position: nothing sorts the event list, so a timeline authored out of
+     * order would otherwise stack by whatever order it happens to be written
+     * in.
+     */
+    const dateRank = new Map<number, number>();
+    [...projected]
+      .sort((a, b) => a.dataPct - b.dataPct)
+      .forEach((ev, rank) => dateRank.set(ev.index, rank));
+
     return projected.map(ev => {
       const entry = labelMap.get(ev.index) ?? { row: 0, centerPct: ev.screenPct };
-      return { ...ev, row: entry.row, labelCenterPct: entry.centerPct, labelHidden: entry.hidden === true };
+      return {
+        ...ev,
+        row: entry.row,
+        labelCenterPct: entry.centerPct,
+        labelHidden: entry.hidden === true,
+        dateRank: dateRank.get(ev.index) ?? 0,
+      };
     });
   });
 
@@ -958,7 +981,7 @@
   <!-- Timeline content area — offset right of gutter when groups are present -->
   <div
     class="tl-nav__content"
-    style="left: {showGroups ? GROUP_GUTTER : controlGutter}px; bottom: {AXIS_H}px;"
+    style="left: {showGroups ? GROUP_GUTTER : controlGutter}px; bottom: {AXIS_H}px; --tl-nav-label-count: {positioned.length};"
     bind:clientWidth={timelineWidth}
   >
     {#if displayRows > 0}
@@ -993,7 +1016,7 @@
       <button
         class="tl-nav__label"
         class:tl-nav__label--active={isActive}
-        style="left: {ev.labelCenterPct}%; top: {absRowCenterY(ev)}px;"
+        style="left: {ev.labelCenterPct}%; top: {absRowCenterY(ev)}px; --tl-nav-label-z: {positioned.length - ev.dateRank};"
         data-nav-index={ev.index}
         aria-current={isActive ? 'true' : undefined}
         aria-label={ev.ariaLabel}
@@ -1335,7 +1358,18 @@
     transition: left 0.3s ease, top 0.3s ease,
                 color var(--tl-transition-speed) ease,
                 max-width 0.18s ease;
-    z-index: 1;
+    /*
+     * Where two labels overlap, the earlier event stays on top and the later
+     * one is the one clipped. Reading left to right, the label you have
+     * already passed is the one you can afford to lose the end of.
+     *
+     * --tl-nav-label-z counts down from the event count in date order, so it
+     * leaves room above itself for the two states that outrank every resting
+     * label: the active one, and whichever is under the pointer. Without the
+     * per-label value these all shared one z-index and DOM order decided it,
+     * which is array order, which nothing guarantees is date order.
+     */
+    z-index: var(--tl-nav-label-z, 1);
   }
 
   /*
@@ -1370,7 +1404,7 @@
     outline: none;
     max-width: 400px;
     overflow: visible;
-    z-index: 10;
+    z-index: calc(var(--tl-nav-label-count, 1) + 2);
     box-shadow: var(--tl-nav-label-hover-ring, 0 0 0 3px var(--tl-color-nav-bg));
     transform: translate(calc(-50% + var(--hover-shift, 0px)), -50%);
   }
@@ -1406,7 +1440,8 @@
     box-shadow: var(--tl-nav-label-active-ring, none);
     font-weight: var(--tl-nav-label-active-weight, 700);
     max-width: 130px;
-    z-index: 2;
+    /* The slide you are on is never the one clipped, whatever its date. */
+    z-index: calc(var(--tl-nav-label-count, 1) + 1);
   }
 
   /* Span bars — compact I-beam on the track line, always visible for duration events */

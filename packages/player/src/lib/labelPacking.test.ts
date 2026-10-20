@@ -160,41 +160,55 @@ describe('packRows', () => {
   });
 });
 
-describe('the rightward-only search', () => {
+describe('the leftward relaxation', () => {
   /*
-   * The packer only searches rightwards. The claim is that a leftward candidate
-   * can never succeed where the natural position failed, so exhaustively
-   * comparing against a both-directions search must produce identical results.
+   * The greedy pass commits a label before it can know what is coming, so on a
+   * band where two events nearly share a date the earlier label is frozen at
+   * its natural spot with the free space sitting unused beside it. These cover
+   * the two shapes that showed up on a real timeline.
    */
-  function packBothDirections(candidates: PackCandidate[], o: ReturnType<typeof opts>) {
-    const slots = new Map<number, number>();
-    let rowRight = -Infinity;
-    for (const ev of [...candidates].sort((a, b) => a.centerPct - b.centerPct)) {
-      const half = ev.halfPct;
-      const clamp = (c: number) => Math.max(half, Math.min(100 - half, c));
-      const natural = clamp(ev.centerPct);
-      let placed = false;
-      for (let mag = 0; mag <= o.maxShiftPct + 0.001; mag += o.stepPct) {
-        for (const dir of mag === 0 ? [0] : [1, -1]) {
-          const c = clamp(natural + mag * dir);
-          if (rowRight + o.gapPct <= c - half) {
-            rowRight = c + half;
-            slots.set(ev.index, c);
-            placed = true;
-            break;
-          }
-        }
-        if (placed) break;
-      }
-      if (!placed) {
-        rowRight = natural + half;
-        slots.set(ev.index, natural);
-      }
-    }
-    return slots;
-  }
 
-  it('matches a both-directions search on randomised layouts', () => {
+  it('pulls the earlier label left into free space when two labels share a date', () => {
+    // 439px band: two 96px labels 2px apart, with the whole left half empty.
+    const w = 439;
+    const slots = packBand(cands(w, [[159 / w * 100, 96], [161 / w * 100, 96]]), opts(w));
+    const a = slots.get(0)!.centerPct / 100 * w;
+    const b = slots.get(1)!.centerPct / 100 * w;
+
+    // The later label stays put; the earlier one goes left, not right.
+    expect(Math.round(b)).toBe(161);
+    expect(a).toBeLessThan(159);
+
+    // Overlap is substantially reduced. It cannot clear — separating two 96px
+    // labels needs 102px and the budget is 80 — but it must not stay at 94px.
+    const overlapPx = (a + 48) - (b - 48);
+    expect(overlapPx).toBeLessThan(30);
+  });
+
+  it('fully clears a pair that the shift budget can separate', () => {
+    // Both labels clamped against the right edge, 72px of separation needed.
+    const w = 439;
+    const slots = packBand(cands(w, [[374 / w * 100, 130], [406 / w * 100, 66]]), opts(w));
+    const a = slots.get(0)!.centerPct / 100 * w;
+    const b = slots.get(1)!.centerPct / 100 * w;
+
+    expect((a + 65) + LABEL_GAP_PX).toBeLessThanOrEqual(b - 33 + 0.001);
+  });
+
+  it('never moves a label further than the budget, in either direction', () => {
+    const w = 500;
+    const items: Array<[number, number]> = [[50, 130], [50.5, 130], [51, 130], [80, 100]];
+    const slots = packBand(cands(w, items), opts(w));
+    for (const [index, slot] of slots) {
+      const natural = Math.max(
+        cands(w, items)[index].halfPct,
+        Math.min(100 - cands(w, items)[index].halfPct, items[index][0]),
+      );
+      expect(Math.abs(shiftPx(slot.centerPct, natural, w))).toBeLessThanOrEqual(SHIFT_MAX_PX);
+    }
+  });
+
+  it('keeps every label in time order on randomised layouts, within budget', () => {
     let seed = 20_251_019;
     const rand = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
 
@@ -204,12 +218,62 @@ describe('the rightward-only search', () => {
       const items: Array<[number, number]> = Array.from({ length: n }, () =>
         [rand() * 100, 30 + rand() * 160] as [number, number]);
       const candidates = cands(w, items);
+      const slots = packBand(candidates, opts(w));
+
+      // Nothing is dropped — a band overlaps rather than hiding.
+      expect(slots.size).toBe(n);
+
       const o = opts(w);
-      const mine = packBand(candidates, o);
-      const both = packBothDirections(candidates, o);
-      for (const [index, slot] of mine) {
-        expect(both.get(index)).toBeCloseTo(slot.centerPct, 10);
+      const byDate = [...candidates].sort((a, b) => a.centerPct - b.centerPct);
+      let prevCenter = -Infinity;
+      let prevCapped = false;
+
+      for (const ev of byDate) {
+        const slot = slots.get(ev.index)!;
+        const natural = Math.max(ev.halfPct, Math.min(100 - ev.halfPct, ev.centerPct));
+        const shift = Math.abs(slot.centerPct - natural);
+        const capped = shift >= o.maxShiftPct - 1e-9;
+
+        /*
+         * Two things can make order unreachable, and neither is a defect.
+         *
+         * The shift budget: in a pile dense enough that a label cannot reach
+         * its predecessor without spending more than the budget, the budget
+         * wins. It bounds how far any label can misrepresent its own date,
+         * where order only matters against a neighbour already drawn on top
+         * of it.
+         *
+         * The viewport edge: a label can be centred no further right than
+         * `100 - halfPct`, and that bound is tighter for a wide label than a
+         * narrow one. So a wide label following a narrow one near the right
+         * edge can be geometrically unable to sit at or beyond it, however
+         * much budget is left. Pulling the narrow one left instead is the
+         * relaxation's job, and it does that whenever its own predecessor
+         * leaves it room.
+         */
+        const edgeBound = 100 - ev.halfPct;
+        if (!capped && !prevCapped && edgeBound >= prevCenter - 1e-9) {
+          expect(slot.centerPct).toBeGreaterThanOrEqual(prevCenter - 1e-9);
+        }
+        prevCenter = slot.centerPct;
+        prevCapped = capped;
+
+        // The budget itself is never exceeded, whichever way the label moved.
+        expect(shift).toBeLessThanOrEqual(o.maxShiftPct + 1e-9);
+
+        // Nor does a label leave the viewport.
+        expect(slot.centerPct).toBeGreaterThanOrEqual(ev.halfPct - 1e-9);
+        expect(slot.centerPct).toBeLessThanOrEqual(100 - ev.halfPct + 1e-9);
       }
+    }
+  });
+
+  it('leaves a row alone when nothing overlaps', () => {
+    const w = 1000;
+    const items: Array<[number, number]> = [[10, 80], [40, 80], [70, 80]];
+    const slots = packBand(cands(w, items), opts(w));
+    for (const [index, slot] of slots) {
+      expect(slot.centerPct).toBeCloseTo(items[index][0], 10);
     }
   });
 });

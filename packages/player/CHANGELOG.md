@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **The prev/next controls no longer cover the navigator's end markers.** They
+  are positioned against the stage, which spans the whole player, the navigator
+  included — `SlideContent` already pads its text clear of it using the same
+  `--tl-nav-overlap`, and these did not. Nothing was drawn over the navigator
+  while `--tl-btn-bg` was `transparent`, so it went unseen; `contrast='high'`
+  gives the control an opaque fill, and each button became a 2.5rem column of
+  solid white sitting on the first and last markers. They now stop at the top
+  of the navigator, which costs no horizontal room and sends a click over the
+  navigator to the navigator rather than paging the slide.
+- **Overlapping navigator labels spread into the free space beside them.** A
+  group band is one row, so where the shift budget could not separate two
+  labels they were drawn on top of each other — most visibly when two events in
+  a group share a date, which rendered as a single label with two leader lines.
+  The packer's search only moves rightward, correctly: everything to a label's
+  left is already placed, so a leftward candidate cannot succeed where its
+  natural position failed. What it could not do was reconsider a label already
+  placed, and that is the one with the free space beside it — the earlier of
+  the pair, committed before the packer knew the second was coming. A second
+  pass now walks back along the row and pulls that neighbour left, repeating so
+  the slack travels down a whole cluster, bounded by each label's own shift
+  budget, the viewport edge, and the label before it.
+- **Navigator labels no longer render out of date order.** A label that could
+  not be placed within the budget fell back to its natural position, which
+  could put it left of a predecessor that had been shifted right — two labels
+  in the wrong order, reading as two wrong dates. The fallback now holds the
+  row's order wherever the budget can pay for it. It cannot always: a wide
+  label near the right edge is clamped to `100 - halfPct` and may be unable to
+  sit as far right as a narrower neighbour, which is geometry rather than
+  something to fix.
+- **Overlapping labels stack by date, earliest on top.** They all shared one
+  z-index, so DOM order decided which was clipped — array order, which nothing
+  sorts by date. The earlier event now wins the overlap and the later one is
+  clipped, and the active slide's label is above every resting label whatever
+  its date. Tunable only in the sense that the order is now explicit rather
+  than incidental.
+
 ## [0.5.0] - 2026-10-19
 
 ### Changed

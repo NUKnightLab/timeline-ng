@@ -355,6 +355,24 @@
     z-index: 10;
   }
 
+  /*
+   * Stop above the navigator rather than running the full height of the stage.
+   *
+   * The stage spans the whole player, the nav included — SlideContent already
+   * pads its text clear of it with the same --tl-nav-overlap. These buttons did
+   * not, which went unnoticed while --tl-btn-bg was transparent: nothing was
+   * drawn over the nav to see. `contrast='high'` gives the control an opaque
+   * fill, because a white glyph separated from its backdrop by a blurred shadow
+   * is not a measurable ratio — and that turned each button into a 2.5rem
+   * column of solid white sitting on top of the navigator's first and last
+   * markers.
+   *
+   * Shortening them costs no horizontal room, which is the scarce axis here,
+   * and a click over the nav now reaches the nav instead of paging the slide.
+   */
+  .tl-player__btn--prev,
+  .tl-player__btn--next { bottom: var(--tl-nav-overlap, 0px); }
+
   .tl-player__btn--prev { left: 0; }
   .tl-player__btn--next { right: 0; }
 

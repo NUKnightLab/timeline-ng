@@ -78,30 +78,106 @@ export function packBand(
   candidates: PackCandidate[],
   { gapPct, stepPct, maxShiftPct }: PackOptions,
 ): Map<number, PackSlot> {
-  const slots = new Map<number, PackSlot>();
-  let rowRight = -Infinity;
+  const sorted = [...candidates].sort(byCenter);
+  const placed: Array<{ index: number; naturalPct: number; centerPct: number; halfPct: number }> = [];
 
-  for (const ev of [...candidates].sort(byCenter)) {
+  // Pass one: the greedy left-to-right placement.
+  let rowRight = -Infinity;
+  let prevCenter = -Infinity;
+  for (const ev of sorted) {
     const { halfPct } = ev;
     const naturalPct = clamp(ev.centerPct, halfPct);
-    let placed = false;
+    let centerPct: number | null = null;
 
     for (let mag = 0; mag <= maxShiftPct + 0.001; mag += stepPct) {
       const candidatePct = clamp(naturalPct + mag, halfPct);
       if (rowRight + gapPct <= candidatePct - halfPct) {
-        rowRight = candidatePct + halfPct;
-        slots.set(ev.index, { row: 0, centerPct: candidatePct, hidden: false });
-        placed = true;
+        centerPct = candidatePct;
         break;
       }
     }
 
-    if (!placed) {
-      rowRight = naturalPct + halfPct;
-      slots.set(ev.index, { row: 0, centerPct: naturalPct, hidden: false });
+    if (centerPct === null) {
+      /*
+       * No room within the budget, so this label overlaps. It used to fall
+       * back to its natural position flatly, which could place it *left* of
+       * the label before it — that one having been shifted right to clear its
+       * own neighbour. Two labels in the wrong order read as two wrong dates,
+       * which is worse than the overlap being settled for here, so the
+       * fallback holds the row's order where the budget can pay for it.
+       */
+      centerPct = clamp(
+        Math.min(Math.max(naturalPct, prevCenter), naturalPct + maxShiftPct),
+        halfPct,
+      );
     }
+
+    rowRight = centerPct + halfPct;
+    prevCenter = centerPct;
+    placed.push({ index: ev.index, naturalPct, centerPct, halfPct });
   }
 
+  /*
+   * Pass two: give the overlap back to the free space on the left.
+   *
+   * Pass one cannot use that space, and the reason is worth stating because it
+   * looks like a bug in the rightward-only search and is not. That search is
+   * exhaustive for the label being placed: everything to its left is already
+   * occupied, so a leftward candidate cannot succeed where the natural
+   * position failed. What pass one cannot do is reconsider a label it has
+   * already placed — and on a band where two events share a date, the label
+   * that should move is precisely the earlier one, committed to its natural
+   * spot before the packer had any idea a second label was coming.
+   *
+   * So walk back along the row: wherever a label overlaps its left neighbour,
+   * pull that neighbour left into whatever room it has. Repeat until nothing
+   * moves, which lets the slack travel down a whole cluster rather than
+   * stopping at the first pair.
+   *
+   * Each neighbour is bounded by its own shift budget, by the viewport edge,
+   * and by the right edge of the label before it — so this never reorders the
+   * row. That matters more than the overlap: a later event drawn to the left
+   * of an earlier one misreads as the wrong date, where an overlap merely
+   * reads as crowded. Moving only the earlier label further left keeps every
+   * label in time order, and its leader line confesses the deviation exactly
+   * as a rightward shift does.
+   *
+   * Not every overlap clears. Two labels needing more separation than one
+   * shift budget allows end up closer together but still touching, which is
+   * the honest outcome for a band with one row and no space to find.
+   */
+  for (let pass = 0; pass < placed.length; pass++) {
+    let moved = false;
+
+    for (let i = placed.length - 1; i >= 1; i--) {
+      const cur = placed[i];
+      const prev = placed[i - 1];
+
+      const overlapPct = (prev.centerPct + prev.halfPct + gapPct) - (cur.centerPct - cur.halfPct);
+      if (overlapPct <= 0) continue;
+
+      const blockedBy = i - 2 >= 0
+        ? placed[i - 2].centerPct + placed[i - 2].halfPct + gapPct + prev.halfPct
+        : -Infinity;
+      const lowerBound = Math.max(prev.halfPct, blockedBy, prev.naturalPct - maxShiftPct);
+
+      const room = prev.centerPct - lowerBound;
+      if (room <= 0) continue;
+
+      // Whole steps, as the rightward search uses, so a shift is the same
+      // size whichever direction it travels.
+      const steps = Math.floor((Math.min(overlapPct, room) + 1e-9) / stepPct);
+      if (steps < 1) continue;
+
+      prev.centerPct -= steps * stepPct;
+      moved = true;
+    }
+
+    if (!moved) break;
+  }
+
+  const slots = new Map<number, PackSlot>();
+  for (const ev of placed) slots.set(ev.index, { row: 0, centerPct: ev.centerPct, hidden: false });
   return slots;
 }
 
