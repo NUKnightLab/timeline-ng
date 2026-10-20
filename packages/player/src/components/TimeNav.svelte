@@ -37,7 +37,20 @@
   const ROW_HEIGHT    = 26;
   const TICK_H        = 6;
   const SPAN_PAD      = 4;
-  const TRACK_AREA    = 44;
+  /*
+   * The band the marks sit in. The track line is drawn across its middle, so
+   * half of this is the tail every leader line pays on top of the rows or
+   * bands between its label and the track.
+   *
+   * 44 reserved far more than the marks need: a dot is 12px, 16.8px while
+   * active, and a span bar 10px, leaving around 16px empty above and below.
+   * At 28 an active dot still clears by ~5.6px, every leader is 8px shorter,
+   * and the whole navigator gives back 16px of height — the axis follows on
+   * its own, being positioned from --tl-axis-track-offset, which is derived
+   * from this. It is also the drag surface for panning, which is why this is
+   * not smaller still.
+   */
+  const TRACK_AREA    = 28;
   const MAX_ROWS      = 3;
   const LABEL_MAX_PX  = 130;
   const LABEL_GAP_PX  = 6;

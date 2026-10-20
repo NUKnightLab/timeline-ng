@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **The navigator's leader lines are shorter, and the navigator itself is
+  16px less tall.** The band the marks sit in reserved 44px with the track
+  line drawn across its middle, so every leader paid a 22px tail on top of
+  the rows or bands between its label and the track. The marks never needed
+  that: a dot is 12px, 16.8px while active, a span bar 10px, leaving around
+  16px empty above and below. The band is 28px now, which shortens every
+  leader by 8px and gives the height back — measured on a three-group
+  timeline the leaders went from 64/44/24 to 56/36/16, and on an ungrouped
+  one from 88/62/36 to 80/54/28. An active dot still clears by 5.6px. The
+  axis follows on its own, being positioned from a `--tl-axis-track-offset`
+  derived from the same constant. Not smaller still because this band is also
+  the drag surface for panning the track.
+
 ### Fixed
 
 - **The prev/next controls no longer cover the navigator's end markers.** They
