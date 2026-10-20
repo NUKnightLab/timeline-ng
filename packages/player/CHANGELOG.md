@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-10-20
+
 ### Changed
 
 - **The navigator's leader lines are shorter, and the navigator itself is
@@ -503,7 +505,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 Initial public release. Earlier history predates this changelog; see
 `git log` for detail.
 
-[Unreleased]: https://github.com/NUKnightLab/timeline-ng/compare/player-v0.5.0...HEAD
+[Unreleased]: https://github.com/NUKnightLab/timeline-ng/compare/player-v0.5.1...HEAD
+[0.5.1]: https://github.com/NUKnightLab/timeline-ng/compare/player-v0.5.0...player-v0.5.1
 [0.5.0]: https://github.com/NUKnightLab/timeline-ng/compare/v0.4.0...player-v0.5.0
 [0.4.0]: https://github.com/NUKnightLab/timeline-ng/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/NUKnightLab/timeline-ng/compare/v0.2.1...v0.3.0
