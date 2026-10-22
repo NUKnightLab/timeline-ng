@@ -217,13 +217,40 @@ export function extractCid(ref: { $link: string } | unknown): string {
   return String(ref);
 }
 
+/**
+ * A blob reference in the plain `{ $link }` form the record itself stores.
+ *
+ * `uploadBlob` writes that form and the record holds it, but a `getRecord`
+ * response decodes it back into `BlobRef` and `CID` class instances. The
+ * declared type says `ref: { $link: string }` and the cast on
+ * `resp.data.value` lets the difference through, so nothing catches it at
+ * compile time.
+ *
+ * It matters because this object is stored verbatim in the collaborative
+ * document, and `Y.Map.set` switches on `value.constructor`: a plain object is
+ * accepted and anything else is rejected outright with "Unexpected content
+ * type". A `BlobRef` landing there threw inside `writeGroup`, which meant
+ * opening any published timeline with an uploaded image failed before the
+ * editor was ever shown.
+ */
+export function plainBlobRef(blobRef: ATProtoBlobRef): ATProtoBlobRef {
+  return {
+    $type: 'blob',
+    ref: { $link: extractCid(blobRef.ref) },
+    mimeType: blobRef.mimeType,
+    size: blobRef.size,
+  };
+}
+
 function hydrateBlobRefs(events: TLEvent[], base: string, did: string): TLEvent[] {
   return events.map(ev => {
     const cidUrl = (cid: string) => cid ? `${base}/xrpc/com.atproto.sync.getBlob?did=${did}&cid=${encodeURIComponent(cid)}` : '';
+    const media = ev.media?.blobRef ? plainBlobRef(ev.media.blobRef) : undefined;
+    const background = ev.background?.blobRef ? plainBlobRef(ev.background.blobRef) : undefined;
     return {
       ...ev,
-      ...(ev.media?.blobRef ? { media: { ...ev.media, url: cidUrl(extractCid(ev.media.blobRef.ref)), mimeType: ev.media.blobRef.mimeType } } : {}),
-      ...(ev.background?.blobRef ? { background: { ...ev.background, url: cidUrl(extractCid(ev.background.blobRef.ref)) } } : {}),
+      ...(media ? { media: { ...ev.media, blobRef: media, url: cidUrl(media.ref.$link), mimeType: media.mimeType } } : {}),
+      ...(background ? { background: { ...ev.background, blobRef: background, url: cidUrl(background.ref.$link) } } : {}),
     };
   });
 }
@@ -239,13 +266,23 @@ function stripBlobUrls(events: TLEvent[]): TLEvent[] {
 }
 
 function hydrateOgImage(settings: TLSettings | undefined, base: string, did: string): TLSettings | undefined {
-  const blobRef = settings?.ogImage?.blobRef;
-  if (!blobRef) return settings;
-  const cid = extractCid(blobRef.ref);
-  if (!cid) return settings;
+  const raw = settings?.ogImage?.blobRef;
+  if (!raw) return settings;
+  // Normalised before the cid check, not after: settings are written into a
+  // Y.Map too, and a class instance nested in there does not throw the way a
+  // top-level one does — it is encoded as whatever its internal fields happen
+  // to be, which would quietly replace a usable reference with rubbish and
+  // publish that back.
+  const blobRef = plainBlobRef(raw);
+  const cid = blobRef.ref.$link;
+  if (!cid) return { ...settings, ogImage: { ...settings.ogImage, blobRef } };
   return {
     ...settings,
-    ogImage: { ...settings.ogImage, url: `${base}/xrpc/com.atproto.sync.getBlob?did=${did}&cid=${encodeURIComponent(cid)}` },
+    ogImage: {
+      ...settings.ogImage,
+      blobRef,
+      url: `${base}/xrpc/com.atproto.sync.getBlob?did=${did}&cid=${encodeURIComponent(cid)}`,
+    },
   };
 }
 
