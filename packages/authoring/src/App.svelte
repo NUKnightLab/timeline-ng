@@ -118,6 +118,8 @@
     const title = timelineTitle;
     const uri = atUri;
     const hasContent = !!titleEvent || events.length > 0;
+    // Tracked, so marking clean on publish rewrites the index entry too.
+    const clean = pdsClean;
     void settings;
 
     if (_indexTimer !== null) clearTimeout(_indexTimer);
@@ -125,7 +127,7 @@
 
     _indexTimer = setTimeout(() => {
       _indexTimer = null;
-      noteDraft({ id, title, atUri: uri ?? undefined });
+      noteDraft({ id, title, atUri: uri ?? undefined, clean });
       drafts = listDrafts();
     }, 600);
 
@@ -191,7 +193,7 @@
     docId = id;
     sessionStorage.setItem(CURRENT_DOC_KEY, id);
     await attach(id);
-    noteDraft({ id, title: tldoc.title, atUri: meta.atUri });
+    noteDraft({ id, title: tldoc.title, atUri: meta.atUri, clean: tldoc.clean });
     drafts = listDrafts();
 
     selectedId = tldoc.titleEvent ? 'title' : (tldoc.entries[0]?.key ?? null);
@@ -262,7 +264,7 @@
     // the document has already persisted itself and this is where it lives.
     const id = docId;
     const empty = !titleEvent && events.length === 0;
-    if (id !== null && !empty) noteDraft({ id, title: timelineTitle, atUri: atUri ?? undefined });
+    if (id !== null && !empty) noteDraft({ id, title: timelineTitle, atUri: atUri ?? undefined, clean: pdsClean });
 
     await closeDraft();
     if (id !== null && empty) await forgetDraft(id);
@@ -297,7 +299,32 @@
     await enterEditor({ titleEvent: te, events: tl.events, clean: false, settings: tl.settings });
   }
 
-  async function handleOpenRecord(uri: string, result: { title?: string; timeline: TLTimeline }) {
+  async function handleOpenRecord(
+    uri: string,
+    result: { title?: string; timeline: TLTimeline },
+    opts: { replaceDraftId?: string } = {},
+  ) {
+    // Asked for the published copy in place of a local draft: that draft has
+    // to go, or the next line would find it and reopen the very edits the
+    // reader just chose to drop.
+    if (opts.replaceDraftId) {
+      await forgetDraft(opts.replaceDraftId);
+      drafts = listDrafts();
+    }
+
+    // Reopen this record's existing draft rather than starting another one.
+    // Every draft carries the `atUri` it would publish over, so two drafts of
+    // one record are two claims on the same thing: whichever is opened last
+    // wins the next publish, silently. The home screen asks before it gets
+    // here when the draft has unpublished edits; this is the backstop that
+    // keeps the one-draft-per-record invariant whatever the caller does, and
+    // reads from the store so it cannot act on a stale copy of the list.
+    const existing = listDrafts().find((d) => d.atUri === uri);
+    if (existing) {
+      await openDraft(existing.id);
+      return;
+    }
+
     const tl = result.timeline;
     assignSlideIds(tl);
     const te = tl.title ?? null;
@@ -309,9 +336,8 @@
   }
 
   async function handleDeleteDraft(id: string) {
-    const draft = drafts.find((d) => d.id === id);
-    const name = draft?.title ? `"${draft.title}"` : 'this untitled draft';
-    if (!window.confirm(`Delete ${name} from this browser? Anything already published stays published.`)) return;
+    // The row confirms inline, the same way the account list does, so there is
+    // no window.confirm here any more.
     await forgetDraft(id);
     drafts = listDrafts();
   }

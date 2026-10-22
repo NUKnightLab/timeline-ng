@@ -28,11 +28,17 @@
     drafts: DraftSummary[];
     /** Set when the browser will not store drafts locally. */
     persistWarning: string | null;
-    onopendraft: (id: string) => void;
+    /** Opening the editor is async and can fail; the row reports it rather than going dead. */
+    onopendraft: (id: string) => void | Promise<void>;
     ondeletedraft: (id: string) => void;
     onnew: () => void;
     onimport: (tl: TLTimeline) => void;
-    onopen: (uri: string, result: { title?: string; timeline: TLTimeline }) => void;
+    /** `replaceDraftId` drops that local draft first, so "start from published" really does. */
+    onopen: (
+      uri: string,
+      result: { title?: string; timeline: TLTimeline },
+      opts?: { replaceDraftId?: string },
+    ) => void | Promise<void>;
     onsignout: () => void;
   }
 
@@ -186,11 +192,96 @@
     }
   }
 
+  /**
+   * Why a row reports its own failures.
+   *
+   * Opening something is several awaits deep — fetch the record, attach a draft
+   * store, fill a document — and a failure anywhere along it used to leave the
+   * home screen exactly as it was. `getTimeline` returns `null` for every
+   * problem it meets, and anything thrown further in became an unhandled
+   * rejection, so either way the click did nothing and said nothing. That is
+   * how a crash writing a record's blob reference into the document presented
+   * itself: a dead button in this list.
+   */
+  let openError = $state<string | null>(null);
+
+  /** Which draft row is showing its delete confirmation, mirroring confirmDeleteUri. */
+  let confirmDeleteDraftId = $state<string | null>(null);
+
+  const reason = (cause: unknown) => (cause instanceof Error ? cause.message : String(cause));
+
+  /**
+   * An account row whose local draft has edits the published copy does not,
+   * held until the reader says which one they meant. The fetched record is
+   * kept with it so answering does not have to go back for it.
+   */
+  let pendingOpen = $state<{ uri: string; draftId: string; result: { title?: string; timeline: TLTimeline } } | null>(null);
+
   async function handleOpen(uri: string) {
+    openError = null;
+    pendingOpen = null;
     openingUri = uri;
-    const result = await getTimeline(uri);
-    openingUri = null;
-    if (result) onopen(uri, result);
+    try {
+      const result = await getTimeline(uri);
+      if (!result) {
+        openError = 'Could not load that timeline from your account. It may have been deleted, or stored in a format this editor does not recognise.';
+        return;
+      }
+
+      // Opening an account row lands in that timeline's local draft when one
+      // exists, which is right but invisible: the reader asked for the
+      // published copy and silently got edits they may have forgotten, or may
+      // have clicked precisely to get rid of. Ask — but only when the draft
+      // actually holds something the published copy does not.
+      //
+      // The document's own clean flag, not a timestamp comparison: publishing
+      // writes the new `atUri` and marks the document clean, and both are
+      // edits, so a freshly published draft always looks newer than the record
+      // it just produced. `!== true` rather than `=== false` so an entry
+      // written before this was recorded is asked about rather than assumed
+      // safe; it gains a real value the next time it is edited.
+      const draft = drafts.find((d) => d.atUri === uri);
+      if (draft && draft.clean !== true) {
+        pendingOpen = { uri, draftId: draft.id, result };
+        return;
+      }
+      if (draft) {
+        await onopendraft(draft.id);
+        return;
+      }
+      await onopen(uri, result);
+    } catch (cause) {
+      openError = `Could not open that timeline: ${reason(cause)}`;
+      console.error('Opening timeline failed', uri, cause);
+    } finally {
+      // In a `finally` so a failure re-enables the list. Left set, it disabled
+      // every row in the section, turning one bad record into a dead screen.
+      openingUri = null;
+    }
+  }
+
+  async function handleOpenDraft(id: string) {
+    openError = null;
+    try {
+      await onopendraft(id);
+    } catch (cause) {
+      openError = `Could not open that draft: ${reason(cause)}`;
+      console.error('Opening draft failed', id, cause);
+    }
+  }
+
+  /** Answer the unpublished-edits question: keep the draft, or drop it for the published copy. */
+  async function resolvePendingOpen(keepDraft: boolean) {
+    const pending = pendingOpen;
+    if (!pending) return;
+    pendingOpen = null;
+    try {
+      if (keepDraft) await onopendraft(pending.draftId);
+      else await onopen(pending.uri, pending.result, { replaceDraftId: pending.draftId });
+    } catch (cause) {
+      openError = `Could not open that timeline: ${reason(cause)}`;
+      console.error('Opening timeline failed', pending.uri, cause);
+    }
   }
 
   async function handleDelete(uri: string) {
@@ -245,17 +336,40 @@
     <ul class="draft-list">
       {#each drafts as draft (draft.id)}
         <li class="draft-row">
-          <button class="draft-row-open" onclick={() => onopendraft(draft.id)}>
+          {#if confirmDeleteDraftId === draft.id}
+            <!-- Same inline confirm as a timeline in the account list, rather
+                 than a native window.confirm. -->
+            <div class="timeline-item-confirm">
+              <span class="confirm-label">
+                Delete "{draftName(draft)}" from this browser?{draft.atUri ? ' Anything already published stays published.' : ''}
+              </span>
+              <button class="btn-confirm-delete" onclick={() => { confirmDeleteDraftId = null; ondeletedraft(draft.id); }}>
+                Delete
+              </button>
+              <button class="btn-cancel-delete" onclick={() => (confirmDeleteDraftId = null)}>
+                Cancel
+              </button>
+            </div>
+          {:else}
+          <button class="draft-row-open" onclick={() => handleOpenDraft(draft.id)}>
             <span class="draft-row-title">{draftName(draft)}</span>
             <span class="draft-row-meta">
-              edited {formatRelativeTime(draft.editedAt)}{draft.atUri ? '' : ' · never published'}
+              edited {formatRelativeTime(draft.editedAt)} ·
+              {#if !draft.atUri}
+                never published
+              {:else if draft.clean === true}
+                <span class="draft-row-published">published</span>
+              {:else}
+                <span class="draft-row-unpublished">unpublished changes</span>
+              {/if}
             </span>
           </button>
           <button
-            class="draft-row-delete"
+            class="btn-delete-timeline"
             aria-label={`Delete ${draftName(draft)}`}
-            onclick={() => ondeletedraft(draft.id)}
-          >Delete</button>
+            onclick={() => (confirmDeleteDraftId = draft.id)}
+          >✕</button>
+          {/if}
         </li>
       {/each}
     </ul>
@@ -352,7 +466,7 @@
         <p class="clone-hint">
           Want to try out the editor but you don't have a story?
           {#if demoTimeline}
-            <a href="#" class="clone-link" onclick={(e) => { e.preventDefault(); onimport(demoTimeline!); }}>Clone our example timeline.</a>
+            <button type="button" class="clone-link" onclick={() => onimport(demoTimeline!)}>Clone our example timeline.</button>
           {:else}
             Clone our example timeline.
           {/if}
@@ -365,6 +479,10 @@
           <h2 class="section-heading">Your timelines</h2>
           <AuthButton {onsignout} restoreView="home" />
         </div>
+        <!-- Both kinds of row live in this section, so one alert covers them. -->
+        {#if openError}
+          <p class="open-error" role="alert">{openError}</p>
+        {/if}
         {#if persistWarning}
           <p class="draft-warning" role="status">
             This browser isn’t storing drafts, so anything you write here will be
@@ -376,6 +494,11 @@
           {@render draftList()}
         {/if}
         {#if auth.status === 'signed-in'}
+          <!-- Paired with "In this browser" above: the two lists are the same
+               kind of thing in two places, so both say which place. Without
+               this the account list was simply unlabelled, and the drafts'
+               heading read as if it covered everything below it. -->
+          <h3 class="draft-list-heading">In your account</h3>
           {#if listLoading}
             <p class="list-loading">Loading…</p>
           {:else if publishedTimelines.length === 0}
@@ -419,6 +542,21 @@
                         </button>
                       </div>
                     {/if}
+                  {:else if pendingOpen?.uri === item.uri}
+                    <div class="timeline-item-choice">
+                      <span class="choice-label">
+                        You have edits to "{item.title}" in this browser that aren’t published yet.
+                      </span>
+                      <button class="btn-choice-primary" onclick={() => resolvePendingOpen(true)}>
+                        Continue editing
+                      </button>
+                      <button class="btn-cancel-delete" onclick={() => resolvePendingOpen(false)}>
+                        Discard them
+                      </button>
+                      <button class="btn-cancel-delete" onclick={() => (pendingOpen = null)}>
+                        Cancel
+                      </button>
+                    </div>
                   {:else}
                     <button
                       class="timeline-item-btn"
@@ -753,6 +891,16 @@
 
   .download-link { color: #2563eb; }
 
+  .open-error {
+    margin: 0;
+    padding: 0.5rem 0.7rem;
+    border-left: 3px solid #b91c1c;
+    background: #fef2f2;
+    font-size: 0.8rem;
+    line-height: 1.45;
+    color: #7f1d1d;
+  }
+
   /* ── Timeline list ───────────────────────────────────────────── */
   .list-loading, .list-empty {
     font-size: 0.85rem;
@@ -817,6 +965,43 @@
     flex: 1;
     background: #fef2f2;
   }
+
+  /* A question, not a warning — same shape as the delete confirm, amber
+     rather than red, since nothing is destroyed until "Discard them". */
+  .timeline-item-choice {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    flex: 1;
+    flex-wrap: wrap;
+    background: #fffbeb;
+  }
+
+  .choice-label {
+    font-size: 0.85rem;
+    color: #5b4508;
+    flex: 1;
+    min-width: 12rem;
+  }
+
+  .btn-choice-primary {
+    background: #df4e13;
+    border: 1px solid #df4e13;
+    color: #fff;
+    padding: 0.2rem 0.6rem;
+    font-size: 0.78rem;
+    font-family: inherit;
+    cursor: pointer;
+    border-radius: 2px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    margin: 0;
+    text-transform: none;
+    text-shadow: none;
+    box-shadow: none;
+  }
+  .btn-choice-primary:hover { background: #c44310; border-color: #c44310; }
 
   .confirm-label {
     font-size: 0.85rem;
@@ -889,7 +1074,22 @@
     margin: 0;
     line-height: 1.5;
   }
-  .clone-link { color: #2563eb; }
+  /* Acts in place rather than navigating, so it is a button wearing a link's
+     clothes. Orangeline styles every <button>, so the reset is explicit. */
+  .clone-link {
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    font: inherit;
+    color: #2563eb;
+    text-decoration: underline;
+    text-transform: none;
+    text-shadow: none;
+    box-shadow: none;
+    border-radius: 0;
+    cursor: pointer;
+  }
   .clone-link:hover { color: #1d4ed8; }
 
   /* ── Responsive ──────────────────────────────────────────────── */
@@ -969,21 +1169,23 @@
     text-align: left;
     cursor: pointer;
     font: inherit;
+    /* `font: inherit` does not cover these, and Orangeline sets all three on
+       every <button> — which is what made these rows read as raised cards in
+       small caps next to the flat account list. */
+    text-transform: none;
+    text-shadow: none;
+    box-shadow: none;
+    border-radius: 0;
+    margin: 0;
   }
   .draft-row-open:hover .draft-row-title { text-decoration: underline; }
   .draft-row-title { font-weight: 600; color: #1d1f21; }
   .draft-row-meta { font-size: 0.75rem; color: #666; }
-  .draft-row-delete {
-    align-self: center;
-    padding: 0.3rem 0.6rem;
-    background: none;
-    border: 1px solid #d4d4d4;
-    border-radius: 3px;
-    font-size: 0.75rem;
-    color: #666;
-    cursor: pointer;
-  }
-  .draft-row-delete:hover { border-color: #b00; color: #b00; }
+  /* A published draft is the same timeline as its row in the account list, not
+     separate work — saying so is what stops the two lists reading as two
+     unrelated things. */
+  .draft-row-published { color: #15803d; }
+  .draft-row-unpublished { color: #92400e; font-weight: 600; }
   .draft-warning {
     margin: 0.75rem 0;
     padding: 0.5rem 0.7rem;

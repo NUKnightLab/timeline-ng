@@ -33,6 +33,19 @@ export interface DraftSummary {
   editedAt: string;
   /** Set once published; the record on the PDS this draft would overwrite. */
   atUri?: string;
+  /**
+   * Whether this draft matches what is published — the document's own `clean`
+   * flag, not a guess from timestamps.
+   *
+   * Comparing `editedAt` against the record's publish time cannot answer this:
+   * publishing writes the new `atUri` and marks the document clean, and both
+   * of those are edits to the document, so a just-published draft always looks
+   * newer than the record it just produced.
+   *
+   * Absent on entries written before this was recorded, and on drafts that
+   * have never been published, where there is nothing to be clean against.
+   */
+  clean?: boolean;
 }
 
 function readIndex(): DraftSummary[] {
@@ -68,6 +81,7 @@ export function noteDraft(summary: Omit<DraftSummary, 'editedAt'> & { editedAt?:
   const rest = readIndex().filter((d) => d.id !== summary.id);
   const entry: DraftSummary = { id: summary.id, title: summary.title, editedAt };
   if (summary.atUri) entry.atUri = summary.atUri;
+  if (summary.clean !== undefined) entry.clean = summary.clean;
   writeIndex([entry, ...rest]);
 }
 
