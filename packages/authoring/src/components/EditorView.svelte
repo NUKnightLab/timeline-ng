@@ -14,6 +14,7 @@
   import AuthButton from './AuthButton.svelte';
   import HelpLink from './HelpLink.svelte';
   import SettingsPanel from './SettingsPanel.svelte';
+  import { modalDialog } from '../lib/modalDialog.ts';
   import { getAuthState } from '../lib/atproto.svelte.ts';
   import { getPairing, DEFAULT_PAIRING } from '@knight-lab/timeline-ng-core';
 
@@ -113,9 +114,41 @@
   let previewIframeEl = $state<HTMLIFrameElement | null>(null);
   let previewIframeReady = $state(false);
   let showSettingsPanel = $state(false);
+  let settingsPanelEl = $state<HTMLDivElement | null>(null);
+  let settingsToggleEl = $state<HTMLButtonElement | null>(null);
+  /** Shared by the panel and the `aria-controls` on the toggle that opens it. */
+  const SETTINGS_PANEL_ID = 'preview-settings-panel';
   let previewWidth = $state<number | null>(null);
   let previewPlayerEl = $state<HTMLDivElement | null>(null);
   let backdropWidth = $state(0);
+
+  /**
+   * Put the settings panel away, leaving the preview up.
+   *
+   * Focus goes back to the toggle because it has to go somewhere: the panel
+   * holds focus while it is open, and a focused element being unmounted drops
+   * focus to `<body>` without firing anything the dialog's own focus guard
+   * could notice — which would quietly take the dialog's Escape key away
+   * again, the same way it was broken before.
+   */
+  function closeSettingsPanel() {
+    showSettingsPanel = false;
+    settingsToggleEl?.focus();
+  }
+
+  /**
+   * Opening the panel moves focus to it, so the next Tab steps into its
+   * controls rather than walking the rest of the chrome and the player first —
+   * the panel renders last in the stage, so in document order it sits behind
+   * the close button and the iframe.
+   *
+   * The container, not its first control: that control is the panel's own close
+   * button, and landing on it means a stray Enter puts away the thing you just
+   * opened.
+   */
+  $effect(() => {
+    if (showSettingsPanel) settingsPanelEl?.focus();
+  });
 
   // What "Full" actually resolves to given the current window — presets wider
   // than this wouldn't render any differently, so don't offer them as if they
@@ -167,10 +200,16 @@
     );
   });
 
+  // Escape closes the share drawer, which is an inline panel rather than a
+  // dialog: it never takes focus, so a listener on the window is the only thing
+  // that could hear the key. The preview used to be dismissed from here too,
+  // and that was all that kept Escape working for it; now that it takes focus
+  // it handles its own key through `modalDialog`, which also reaches it when
+  // focus is on something inside it.
   $effect(() => {
-    if (!showPreview && !showShare) return;
+    if (!showShare) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { showPreview = false; showShare = false; }
+      if (e.key === 'Escape') showShare = false;
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
@@ -548,9 +587,12 @@
 
   <!-- ── Preview lightbox ────────────────────────────────────────────────────── -->
   {#if showPreview}
-    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
     <div class="preview-backdrop" role="dialog" aria-modal="true" aria-label="Timeline preview"
-      onclick={(e) => e.target === e.currentTarget && (showPreview = false)}
+      tabindex="-1"
+      use:modalDialog={{
+        onclose: () => (showPreview = false),
+        onescape: () => (showSettingsPanel ? closeSettingsPanel() : (showPreview = false)),
+      }}
       bind:clientWidth={backdropWidth}>
       <div class="preview-box">
         <div class="preview-box__chrome">
@@ -575,12 +617,20 @@
             >Full</button>
           </div>
           <div class="preview-chrome-right">
+            <!--
+              A disclosure, not a toggle button: it governs whether a panel is
+              there, so `aria-expanded` rather than `aria-pressed`. `aria-controls`
+              only while open — the panel is conditionally rendered, so naming it
+              when it is closed would point at an id that is not in the document.
+            -->
             <button
               type="button"
               class="preview-settings-toggle"
               class:active={showSettingsPanel}
-              aria-pressed={showSettingsPanel}
-              onclick={() => (showSettingsPanel = !showSettingsPanel)}
+              aria-expanded={showSettingsPanel}
+              aria-controls={showSettingsPanel ? SETTINGS_PANEL_ID : undefined}
+              bind:this={settingsToggleEl}
+              onclick={() => (showSettingsPanel ? closeSettingsPanel() : (showSettingsPanel = true))}
             >⚙ {showSettingsPanel ? 'Hide settings' : 'Settings'}</button>
             <span class="preview-chrome-sep" aria-hidden="true"></span>
             <button class="preview-drawer__close" onclick={() => (showPreview = false)} aria-label="Close preview" title="Close preview">✕ Preview</button>
@@ -605,11 +655,16 @@
             <div class="preview-resize-handle" onpointerdown={startResize} aria-hidden="true"></div>
           </div>
           {#if showSettingsPanel}
-            <div class="preview-box__settings" transition:fly={{ x: 240, duration: 180 }}>
+            <!-- tabindex so opening the panel can put focus here; not a tab stop
+                 itself, so Tab from here steps straight into its controls. -->
+            <div class="preview-box__settings" tabindex="-1"
+              id={SETTINGS_PANEL_ID}
+              bind:this={settingsPanelEl}
+              transition:fly={{ x: 240, duration: 180 }}>
               <SettingsPanel
                 {settings}
                 onchange={onsettingschange}
-                onclose={() => (showSettingsPanel = false)}
+                onclose={closeSettingsPanel}
               />
             </div>
           {/if}

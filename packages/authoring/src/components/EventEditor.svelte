@@ -16,6 +16,7 @@
   import type * as Y from 'yjs';
   import { fetchWikipediaImagePrefill } from '../lib/wikipediaPrefill.ts';
   import { fetchFlickrPrefill } from '../lib/flickrPrefill.ts';
+  import { modalDialog } from '../lib/modalDialog.ts';
 
   interface Props {
     event: TLEvent;
@@ -936,7 +937,7 @@
                 {:else}
                   <div class="media-signin-notice">
                     <p>Sign in to upload media and publish your timeline.</p>
-                    <a href="#" class="learn-more-link" onclick={(e) => { e.preventDefault(); modal = 'sign-in'; }}>Learn more</a>
+                    <button type="button" class="learn-more-link" onclick={() => (modal = 'sign-in')}>Learn more</button>
                   </div>
                 {/if}
               {:else}
@@ -964,7 +965,7 @@
                 {/if}
                 <p class="media-panel-hint">
                   Embed YouTube, SoundCloud, Wikipedia, and more.
-                  <a href="#" class="learn-more-link" onclick={(e) => { e.preventDefault(); modal = 'media-types'; }}>Learn more</a>
+                  <button type="button" class="learn-more-link" onclick={() => (modal = 'media-types')}>Learn more</button>
                 </p>
               {/if}
             </div>
@@ -1347,15 +1348,13 @@
 </div>
 
 {#if modal}
-  <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
   <div
     class="modal-backdrop"
     role="dialog"
     aria-modal="true"
     aria-label={modal === 'media-types' ? 'Supported media types' : 'About signing in'}
     tabindex="-1"
-    onkeydown={(e) => e.key === 'Escape' && (modal = null)}
-    onclick={(e) => e.target === e.currentTarget && (modal = null)}
+    use:modalDialog={{ onclose: () => (modal = null) }}
   >
     <div class="modal">
       <button class="modal-close" onclick={() => (modal = null)} aria-label="Close">✕</button>
@@ -2139,9 +2138,14 @@
   .clear-btn:hover { color: #c0392b; }
 
 
+  /* Opens a modal rather than navigating, so it is a button wearing a link's
+     clothes — hence the background/border/padding reset on top of the
+     Orangeline overrides this rule already carried as an <a>. */
   .learn-more-link {
+    background: none; border: none; padding: 0; font: inherit;
+    cursor: pointer;
     color: #13a4df; text-decoration: underline;
-    margin-bottom: 0; font-weight: normal; text-transform: none;
+    margin: 0; font-weight: normal; text-transform: none;
     box-shadow: none; text-shadow: none; border-radius: 0;
   }
   .learn-more-link:hover { color: #0a7cb8; }
