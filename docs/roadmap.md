@@ -12,16 +12,89 @@ Where TL3 issues are cited, the number links back to the original for detail.
    platform's own CC UI. Needs a schema field + authoring UI + passthrough — **medium**
    complexity, candidate for a fast-follow rather than blocking launch. — TL3 #624
 
-**Authoring app a11y: a modal with no keyboard path, and placeholder links — high
-   priority.** `svelte-check` has been reporting these for a while and they are real,
-   not lint noise. `EditorView.svelte` has an element with `role="dialog"` that has no
-   `tabindex` and a click handler with no keyboard equivalent, so the dialog cannot be
-   focused or dismissed from the keyboard. Three `href="#"` links (one in
-   `HomeView.svelte`, two in `EventEditor.svelte`) are anchors standing in for buttons:
-   they take focus, announce as links, and go nowhere. Both are small fixes —
-   `tabindex="-1"` plus focus management and a keydown handler on the dialog, and
-   `<button>` in place of the placeholder anchors — and both sit in the authoring tool,
-   which is the surface a contributor is most likely to be driving by keyboard.
+**Authoring app a11y: dialogs that never took focus, and placeholder links — done.**
+   The three `href="#"` anchors are now `<button type="button">` — one in
+   `HomeView.svelte` ("Clone our example timeline"), two in `EventEditor.svelte`
+   ("Learn more"). Each already called `preventDefault` and acted in place, so they
+   took focus and announced as links that went nowhere. Orangeline styles every
+   `<button>`, so each carries an explicit reset back to link appearance rather than
+   inheriting margin, text-transform and text-shadow it did not want.
+
+   Both dialogs now take focus when they open, hold Tab and Shift-Tab, close on Escape
+   and on a backdrop click, and hand focus back to whatever opened them — all of it
+   from one place, `lib/modalDialog.ts`, used by `EventEditor.svelte`'s info modal and
+   `EditorView.svelte`'s preview lightbox. Focus, not the markup, was the actual
+   defect.
+
+   This entry previously described the problem as `EditorView.svelte` having a
+   `role="dialog"` with no `tabindex` and no keyboard dismissal. Both halves were
+   wrong, and the dialog it named was the healthier of the two. The preview lightbox
+   *was* dismissable all along — its Escape listener is on `window`, not on the
+   dialog element. Meanwhile `EventEditor.svelte`'s modal, which the entry did not
+   mention, already had `tabindex="-1"` and its own Escape handler — but nothing ever
+   moved focus into it, so the handler listened from an element that never had focus
+   and **Escape did nothing at all** unless you first happened to click inside the
+   dialog. An attribute audit found the dialog with the missing attribute; the broken
+   one was the dialog whose attributes were all present and inert.
+
+   So the fix was focus management in both, not `tabindex` in one. Closing either
+   dialog also used to drop focus to `<body>`, restarting Tab at the top of the
+   document. Escape is now handled by the dialog itself in both, which let the
+   `window` listener in `EditorView.svelte` narrow to the share drawer — that drawer
+   is an inline panel that never takes focus, so a window listener is the only thing
+   that could hear the key for it. Two `svelte-ignore` comments went with the change:
+   both dialogs' interaction handlers now live in the action, so there is no inline
+   handler left to warn about.
+
+   **An action, not a `<Modal>` component.** The two dialogs share every piece of this
+   behaviour and none of their markup. The info modal is a title, prose and a close
+   button; the preview lightbox is a toolbar around a cross-origin iframe, binds its
+   backdrop's `clientWidth` to decide which size presets are reachable, and has
+   responsive rules that reach into that backdrop — put the backdrop in a component
+   and one responsive layout spans two files with scoped styles in between. A
+   component covering both would exist to share a `<div>`. Worth revisiting if a third
+   dialog shaped like the info modal appears: at that point two of three share markup,
+   and such a component would use this action internally.
+
+   **The iframe is the interesting case.** The preview lightbox holds the player in a
+   cross-origin iframe. Once focus is inside it the parent document sees only the
+   iframe as `activeElement`; key presses within it are not observable, so Tabbing off
+   the end of the player's own controls hands focus back to the parent *after* the
+   iframe, skipping a keydown-based trap entirely. The iframe is deliberately left
+   tabbable — a preview you cannot reach by keyboard is not much of a preview — and
+   the leak is caught by a `focusin` listener on the document that pulls focus back
+   when it lands outside the dialog. That handover does fire in the parent, which is
+   what makes it recoverable. It also covers programmatic focus moves from elsewhere
+   in the app, which a keydown handler equally cannot see.
+
+   One known limit, unchanged by this work: with focus inside that iframe, Escape does
+   not reach the parent, so it will not close the preview. Clicking outside the player
+   first, or Tabbing out to the chrome, restores it.
+
+   **The settings panel is a layer inside the lightbox, and behaves like one.** Escape
+   works inwards: with the panel open it puts the panel away and leaves the preview up,
+   and a second Escape then closes the preview. A click on the dark backdrop does not
+   layer — it means the whole box, however much is open inside it — so `modalDialog`
+   takes `onescape` separately from `onclose` rather than treating the two gestures as
+   one.
+
+   The toggle says `aria-expanded` rather than `aria-pressed`, since it governs
+   whether the panel is there rather than holding a pressed state, and names the panel
+   with `aria-controls` — only while open, because the panel is conditionally rendered
+   and naming it when closed would point at an id that is not in the document.
+   (`aria-pressed` stays correct on the rich-text editor's formatting buttons, which
+   really are toggles.)
+
+   Opening the panel moves focus to it, because tab order is document order and the
+   panel renders last in the stage: without that, reaching it from the toggle meant
+   Tabbing through the close button and the whole player first. Focus lands on the
+   panel's container rather than its first control, since that control is its own close
+   button and a stray Enter there would put away what you just opened — from the
+   container, one Tab steps into the real controls. Closing the panel hands focus back
+   to the toggle, which is not a nicety: the panel holds focus while open, and a focused
+   element being unmounted drops focus to `<body>` without firing anything the dialog's
+   focus guard can see, which would silently cost the dialog its Escape key again in
+   exactly the way this entry started out describing.
 
 **TimeNav has no roving tabindex.** Every marker (`tl-nav__label` button in
    `TimeNav.svelte`) is its own native tab stop, and its keydown handler only handles
@@ -231,6 +304,76 @@ doing so; it is simply no longer the only thing hover has to work with.
   Would need an `at://` parsing branch plus sharing the per-app record-shape knowledge with
   `core`/`player`, following the existing async-resolve pattern (Bluesky/Twitter/TikTok).
   Notably the only path for Grain/Plyr, which have no confirmed web-view URL to fall back on.
+
+### Opening a published timeline twice made two drafts — fixed, with one case left open
+
+Opening a record from "In your account" used to mint a fresh local draft every time:
+`createDraft` calls `newDocId()` unconditionally, and `noteDraft` dedupes by draft id,
+which a new draft never collides on. Open the same timeline twice and the home screen
+listed it twice, both "edited just now", both carrying the same `atUri` — two claims on
+one published record, where whichever was opened last silently won the next publish.
+
+Not a Yjs merge problem, though the comments nearby explain why it looked like one. A
+fresh `Y.Doc` per draft is deliberate: a document carries its whole history, so pouring
+a second timeline into an existing one persists both, and `openDraft` attaches to an
+empty doc because attaching merges. That is a reason not to reuse a *document*, not a
+reason to skip looking for an existing *draft*. `handleOpenRecord` now checks
+`listDrafts()` for one carrying this `atUri` and reopens it.
+
+**Left open: the stale case.** If the record was published from another browser since,
+the local draft is older than what is in the account, and reopening it shows the older
+content without saying so. `listTimelines` already returns each record's `createdAt`
+and every draft has an `editedAt`, so the comparison is available — what is missing is
+the decision about what to do with it: warn, offer both, or let the newer one win.
+Related, and removed by the same fix: there is now no way to pull a fresh copy from
+the published version and abandon local edits, which the duplicate drafts used to
+provide by accident.
+
+### Authoring vocabulary pass — Needs focused attention, Small complexity
+
+"PDS" appears in eight user-facing strings: a `PDS · image` badge, "Stored on your
+personal data server (PDS).", "Publish to your PDS", "Reload from your PDS", an
+upload/URL help line, and two glossary entries in the media-types modal. The audience
+is people who reached for Google Sheets, so the term is wrong in a label — but the two
+glossary entries deliberately *define* it, so this is not a find-and-replace.
+
+Tangled with it: the save/publish split. A PDS write is "publish", never "save", and
+the home screen mostly holds that line ("Nothing published yet", "never published",
+and the lists now read "In this browser" / "In your account") — but the persistence
+warning still says "Save to your account to keep it", which crosses it. Worth settling
+the whole vocabulary in one pass rather than per-string.
+
+### Renaming a timeline may read as "Save as" — Low priority, unconfirmed
+
+Changing the display name in the editor subnav edits the title of the timeline you are
+already in. Someone used to desktop software could take it for "Save as" and expect a
+second, separately-named copy, then find their original gone — and the draft index
+lists drafts by title, so the old name genuinely disappears from the home screen.
+
+Unlikely enough to leave alone for now, and worth confirming against a real user before
+designing for it. If it turns out to bite, the cheap answer is wording near the field
+rather than a new concept; a real duplicate command is a different feature.
+
+### Component testing — Infrastructure, Medium complexity
+
+There are no Svelte component tests. The suite covers `lib/` thoroughly — documents,
+history, persistence, media resolution, the focus trap's own logic — and stops at the
+component boundary, so everything about how a component actually behaves when mounted
+is verified by hand or not at all.
+
+What that costs is specific rather than theoretical. The dialog work landed with its
+tabbable-set and wrap logic tested and its *wiring* untested: whether opening the
+settings panel from the subnav resolves focus in the right order, whether an error
+banner appears when an open fails, whether a row re-enables after a failure. Those are
+the parts that broke, and the parts no test watches. The blob-ref regression is the
+same shape — a crash on a path with no coverage between the store and the screen.
+
+`@testing-library/svelte` with the existing happy-dom setup is the obvious starting
+point. The first one is the expensive one: mounting a component means confronting the
+auth module, `import.meta.env`, IndexedDB persistence and the OAuth client, so part of
+this work is deciding what gets faked and where that seam lives. Worth doing on a
+component with few dependencies first — `SettingsPanel` or `DatePicker` — rather than
+starting with `EditorView`.
 
 ### Alternative calendars & generalized timespans — Low priority, Large complexity, speculative
 
