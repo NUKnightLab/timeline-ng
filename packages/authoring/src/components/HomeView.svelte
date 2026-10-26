@@ -23,6 +23,44 @@
     });
   });
 
+  let startSection = $state<HTMLElement | null>(null);
+
+  /** Drives the arrival flash. The page is short enough that the scroll alone
+      doesn't always make it obvious you went anywhere. */
+  let justLanded = $state(false);
+  let landedTimer: ReturnType<typeof setTimeout> | undefined;
+
+  /** The hero button's only job: put the start section in front of you, and
+      give it focus so a keyboard lands there too rather than back at the top. */
+  function scrollToStart() {
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    startSection?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+    startSection?.focus({ preventScroll: true });
+    if (reduceMotion) return;
+
+    // Flash once the scrolling stops, not while it's still moving, or the
+    // whole thing is over before you've arrived. `scrollend` is the real
+    // signal; the timeout covers browsers that don't fire it.
+    clearTimeout(landedTimer);
+    justLanded = false;
+    const flash = () => {
+      clearTimeout(landedTimer);
+      justLanded = true;
+      landedTimer = setTimeout(() => (justLanded = false), 1200);
+    };
+    if ('onscrollend' in window) {
+      const scroller = startSection?.closest('.home-main');
+      scroller?.addEventListener('scrollend', flash, { once: true });
+      // A scroll that never happens (already in view) fires no scrollend.
+      landedTimer = setTimeout(() => {
+        scroller?.removeEventListener('scrollend', flash);
+        flash();
+      }, 700);
+    } else {
+      landedTimer = setTimeout(flash, 450);
+    }
+  }
+
   interface Props {
     /** Drafts held in this browser, most recently edited first. */
     drafts: DraftSummary[];
@@ -377,13 +415,18 @@
 
   <!-- ── Main ──────────────────────────────────────────────────────────────── -->
   <main class="home-main">
-    <div class="home-layout">
 
-      <div class="home-content">
-        <div class="home-header">
-          <h1 class="home-title">TimelineJS Reimagined</h1>
-          <h2 class="product-tagline">Even easier-to-make, beautiful timelines.</h2>
-        </div>
+    <!-- ── Top band: the pitch, the demo, and the one button that starts it ── -->
+    <div class="home-top">
+      <div class="home-header">
+        <h1 class="home-title">TimelineJS Reimagined</h1>
+        <h2 class="product-tagline">Even easier-to-make, beautiful timelines.</h2>
+        <!-- Goes to the section rather than straight into a new timeline:
+             there is more than one way to start, and the account lists have
+             nowhere else to live. -->
+        <button class="btn-hero" onclick={scrollToStart}>Make a timeline</button>
+      </div>
+
       <!-- Demo timeline -->
       <section class="home-section demo-section">
         {#if demoTimeline}
@@ -397,8 +440,25 @@
         {/if}
       </section>
 
+      <div class="home-intro">
+        <p>TimelineJS has been Knight Lab's most popular project. More than 1 million timelines have been created by people around the world and collectively they've been viewed over 1 billion times.</p>
+        <p>A lot has changed since 2012 when it was released. We thought we'd try a little experiment to see how it might be different today.</p>
+      </div>
+    </div>
+
+    <div class="home-layout">
+
+      <div class="home-content">
+
       <!-- Start section -->
-      <section class="home-section">
+      <section
+        class="home-section start-section"
+        class:just-landed={justLanded}
+        id="start"
+        bind:this={startSection}
+        tabindex="-1"
+      >
+        <h2 class="section-heading">Make a timeline</h2>
         <div class="start-actions">
           <button class="btn-make" onclick={onnew}>New timeline</button>
           <button class="btn-import-file" onclick={() => fileInput.click()}>From file</button>
@@ -477,7 +537,13 @@
       <section class="home-section">
         <div class="section-header-row">
           <h2 class="section-heading">Your timelines</h2>
-          <AuthButton {onsignout} restoreView="home" />
+          <!-- Signed in this is an account chip, and signing in it is a status,
+               so both belong up here beside the heading. Signed out it is an
+               offer, and an offer belongs with the sentence making it — see
+               the empty state below. -->
+          {#if auth.status === 'signed-in' || auth.status === 'loading'}
+            <AuthButton {onsignout} restoreView="home" />
+          {/if}
         </div>
         <!-- Both kinds of row live in this section, so one alert covers them. -->
         {#if openError}
@@ -579,16 +645,19 @@
               {/each}
             </ul>
           {/if}
+        {:else if auth.status === 'loading'}
+          <p class="list-empty">Signing you in…</p>
         {:else}
-          <p class="list-empty">Sign in to publish your timelines and pick them up again here.</p>
+          <div class="signed-out-offer">
+            <p class="list-empty">Sign in to publish your timelines and pick them up again here.</p>
+            <AuthButton {onsignout} restoreView="home" />
+          </div>
         {/if}
       </section>
 
       </div>
 
       <aside class="home-sidebar">
-        <p>TimelineJS has been Knight Lab's most popular project. More than 1 million timelines have been created by people around the world and collectively they've been viewed over 1 billion times.</p>
-        <p>A lot has changed since 2012 when it was released. We thought we'd try a little experiment to see how it might be different today.</p>
         <nav class="sidebar-docs" aria-label="Documentation">
         <h2>Documentation</h2>
           <a href="./docs.html#intro" target="_blank" rel="noopener noreferrer">Getting Started</a>
@@ -623,14 +692,14 @@
   .demo-section { gap: 0; }
 
   .demo-player {
-    height: 420px;
+    height: 500px;
     border: 1px solid #e8e8e8;
     border-radius: 4px;
     overflow: hidden;
   }
 
   .demo-loading {
-    height: 420px;
+    height: 500px;
     background: #f3f4f6;
     border: 1px solid #e8e8e8;
     border-radius: 4px;
@@ -651,20 +720,71 @@
   /* ── Main content ────────────────────────────────────────────── */
   .home-main { overflow-y: auto; }
 
+  /* Two stacked bands share one measure: the pitch and the demo run the full
+     width, and the two-column split only starts at "Make a timeline". */
+  .home-top,
+  .home-layout {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+
+  .home-top {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    padding-top: 1.75rem;
+    padding-bottom: 2rem;
+  }
+
   .home-layout {
     display: flex;
     gap: 0;
-    max-width: 1100px;
-    margin: 0 auto;
-    padding: 1.25rem 1.5rem 2.5rem;
+    padding-bottom: 2.5rem;
     align-items: flex-start;
   }
 
   .home-header {
     display: flex;
     flex-direction: column;
+    align-items: center;
+    text-align: center;
     gap: 0.5rem;
   }
+
+  /* The demo is the pitch, so the one green button above it points at the
+     section that starts a timeline rather than competing with the demo. */
+  .btn-hero {
+    background: #57a141;
+    border: 1px solid #57a141;
+    color: #fff;
+    margin: 0.5rem 0 0;
+    padding: 0.6rem 1.75rem;
+    font-size: 0.95rem;
+    font-family: inherit;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    text-shadow: none;
+    box-shadow: none;
+    cursor: pointer;
+    border-radius: 4px;
+  }
+  .btn-hero:hover { background: #4a8c37; border-color: #4a8c37; }
+
+  /* Was the top of the right rail; at full width it reads better as two
+     columns of prose under the demo than as one very long line. */
+  .home-intro {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2.5rem;
+    font-size: 0.9rem;
+    color: #6b7280;
+    line-height: 1.6;
+  }
+
+  .home-intro p { margin: 0; }
 
   .home-title {
     font-size: 1.75rem;
@@ -703,14 +823,10 @@
     gap: 1rem;
   }
 
-  .home-sidebar p { margin: 0; }
-
   .sidebar-docs {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
-    padding-top: 0.75rem;
-    border-top: 1px solid #e8e8e8;
   }
 
   .sidebar-docs h2 {
@@ -731,6 +847,32 @@
   .sidebar-docs a:hover { color: #b93e0d; text-decoration: underline; }
 
   .home-section { display: flex; flex-direction: column; gap: 1rem; }
+  /* Focused only because the hero button sent you here. */
+  .home-section:focus { outline: none; }
+  .home-section:focus-visible { outline: none; }
+
+  /* The landing. The wash bleeds past the content so it reads as "this part of
+     the page", and the padding is there whether or not it ever flashes. */
+  .start-section {
+    padding: 0.75rem;
+    margin: -0.75rem;
+    border-radius: 4px;
+    scroll-margin-top: 0.75rem;
+  }
+
+  .start-section.just-landed {
+    animation: land 1.2s ease-out;
+  }
+
+  @keyframes land {
+    0%   { background: rgba(223, 78, 19, 0.14); }
+    60%  { background: rgba(223, 78, 19, 0.1); }
+    100% { background: rgba(223, 78, 19, 0); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .start-section.just-landed { animation: none; }
+  }
 
   .section-heading {
     font-size: 0.7rem;
@@ -902,6 +1044,15 @@
   }
 
   /* ── Timeline list ───────────────────────────────────────────── */
+  /* The reason and the button, in that order and close enough to read as one
+     offer. They used to sit at opposite ends of the column. */
+  .signed-out-offer {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
   .list-loading, .list-empty {
     font-size: 0.85rem;
     color: #9ca3af;
@@ -1098,10 +1249,26 @@
   @media (max-width: 820px) {
     .home-shell { height: 100dvh; }
 
+    .home-top,
+    .home-layout {
+      padding-left: 1rem;
+      padding-right: 1rem;
+    }
+
+    .home-top {
+      padding-top: 1rem;
+      padding-bottom: 1.5rem;
+    }
+
+    .home-intro {
+      grid-template-columns: 1fr;
+      gap: 1rem;
+    }
+
     .home-layout {
       flex-direction: column;
       align-items: stretch;
-      padding: 0.75rem 1rem 1.5rem;
+      padding-bottom: 1.5rem;
       gap: 1.5rem;
     }
 
