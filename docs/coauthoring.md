@@ -1,7 +1,11 @@
 # Co-authoring timelines
 
-**Status: design; Phase 1 shipped.** Revised 2026-10-27 (v7).
+**Status: design; Phase 1 shipped.** Revised 2026-10-27 (v8).
 
+> **v8 answers v7's question.** Q12 is settled: Phase 2 ships invite-only, deferred rather than
+> refused, and §3.3 now records the seam that keeps the other answer cheap — a Durable Object exists
+> because a timeline was *promoted*, not because it has members.
+>
 > **v7 is a correction and a question.** The decision that only shared timelines touch the server
 > was recorded in §10.3 among the things that keep media costs down, which is not the argument that
 > supports it; it now has its own §3.3 on the blast-radius argument that does. §3.3 also records a
@@ -210,7 +214,26 @@ Their cross-device story is publish, reopen elsewhere, diverge, reconcile — wh
 scaffolding to be replaced later**: for the majority of users they are the permanent mechanism, and
 should be built as such. Phases 2 and 3 dissolve them only for timelines that have been promoted.
 
-Whether promotion must be an invitation is Q12.
+**Must promotion be an invitation? For now, yes — deferred, not refused.** *(Q12, settled
+2026-10-27.)* Phase 2 ships one trigger: inviting someone. A "sync this across my devices" trigger
+is the same mechanism with a second entry point, and it is the feature most users would actually
+notice — collaboration serves a minority, cross-device serves anyone with a laptop and a desktop.
+But Phase 2 is when the service is newest and its operational story least proven, which is the worst
+moment to hold the most content, and [phase1-sync-conflicts.md](phase1-sync-conflicts.md) makes
+publish-and-reopen good enough to live with in the meantime.
+
+**What keeps that answer cheap to revisit.** A Durable Object must exist because a timeline was
+*promoted*, never because it has collaborators, and the retention policy (§10.5) must be written in
+terms of promotion for the same reason. Get that right and adding the second trigger later is UI
+work; bake "has members" into the invariants — which §10.2's lazy credential acquisition makes an
+easy habit — and it becomes a refactor. Note that credentials are genuinely a different question:
+a solo-synced timeline has no collaborators and publishes from the owner's browser, so it needs no
+server-held tokens either way.
+
+One consequence to carry: while promotion means invitation, the sync-conflict scripts are the
+cross-device story for every solo author. If the second trigger ever ships they become the fallback
+for authors who decline it instead — still needed, since a stale publish and the offline case can
+happen to anyone, but no longer the main path.
 
 ---
 
@@ -441,7 +464,7 @@ narrow case.
 Nine of the original eleven are resolved and have moved into the body — rich text, slide-ID keying
 and the Svelte bridge to §3.2, review and draft-state UI to §4.2, credential scope to §10.2, local
 drafts to §9, retention to §10.5, and undo into its own spec ([phase1-undo.md](phase1-undo.md)).
-What is left, plus one opened since (Q12):
+Q12 was opened and settled on 2026-10-27; its answer lives in §3.3. What is left:
 
 - **Q1. What are the manual and review UXs?** The mechanism is settled (§4.2); the interaction is
   not. How does an owner see what changed since they last published — a diff, a slide-level change
@@ -454,15 +477,6 @@ What is left, plus one opened since (Q12):
   drive expiry handling off what a token response actually says, and measure the reference
   implementation (`bluesky-social/atproto`) only to get a sanity baseline. Fold in the `jwks_uri`
   cache behaviour from §4.1 while measuring.
-
-- **Q12. Can an author promote a timeline without inviting anyone?** *(new, 2026-10-27)* §3.3 keeps
-  solo drafts local, which is the right default but makes cross-device editing structurally
-  impossible rather than merely absent. "Sync this across my devices" and "invite a collaborator"
-  are the same mechanism — seed a Durable Object, point this browser at it — with two entry points,
-  so offering both costs one trigger rather than a second system, and the invite path exercises the
-  code continuously. Against: every promotion moves a draft inside the retention and breach surface,
-  and someone choosing it for convenience may not read that as the same decision as inviting a
-  person. Worth settling before Phase 2 commits to a single promotion trigger in the UI.
 
 ---
 
