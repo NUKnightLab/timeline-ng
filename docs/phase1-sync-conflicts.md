@@ -7,11 +7,12 @@
 **What has shipped since this was written.** [P4] landed in `536221b` (2026-10-22), and with it the
 second of the two bugs below. The dangerous one — publishing a stale draft over a newer record — is
 untouched: there is no `swapRecord` and no base CID anywhere in `packages/*/src`. What remains is
-[P1]–[P3] plus the conflict choice in Scripts 5 and 6, and A1–A3 still need answers.
+[P1]–[P3] plus the conflict choice in Scripts 5 and 6. **A1–A4 were answered on 2026-10-27**, all
+four as their defaults; the body now states them rather than asking.
 
 **Added 2026-10-27:** how the difference between two versions is described to a person, automatic
 merging when the two sides do not collide, and what reconciliation after *Keep both* actually looks
-like — [P6]–[P12], plus [A4]. The opening claim that a second browser can only see the PDS is also
+like — [P6]–[P12]. The opening claim that a second browser can only see the PDS is also
 qualified: true today, not from Phase 2 — see *Joining an existing server draft*, which adds [P13].
 
 Writing to the PDS is called **publishing** throughout, never "saving": an atproto repo is public,
@@ -162,7 +163,9 @@ carry the CID comparison, not before.
 Nothing local is at risk, since the draft has no edits of its own.
 
 1. The local draft is replaced with the published content, and base CID and snapshot updated.
-2. **[A1]** A quiet, dismissible note: *"Updated to the version published from another device."*
+2. **[A1 · answered]** A quiet, dismissible note: *"Updated to the version published from another
+   device."* Not a prompt: nothing local is at risk, so there is no decision to hand over — but the
+   content did change, and Script 8's rule cuts both ways, so it is said rather than hidden.
 
 ## Script 4 — only local changed
 
@@ -176,8 +179,9 @@ Reached only when the two sides genuinely collide; disjoint changes merge withou
 1. The editor does **not** open silently onto either version.
 2. A choice is offered, naming what differs: *"This timeline was published from another device
    after you last edited it here."*
-3. **[A2]** Options in the first version: **Keep mine**, **Use the published version**, **Keep
-   both**.
+3. **[A2 · answered]** Three options, with no per-slide merge UI: **Keep mine**, **Use the
+   published version**, **Keep both**. Per-slide work belongs in the pull-list after *Keep both*
+   ([P12]), where it is built once and met in a calmer moment than a modal hit mid-publish.
    - *Keep mine* opens the local draft and marks its base as the current record, so publishing next
      overwrites the newer version *knowingly*.
    - *Use the published version* replaces the local draft. It discards local edits, so the button
@@ -186,7 +190,9 @@ Reached only when the two sides genuinely collide; disjoint changes merge withou
      **fork** — a separate draft that is not a publish claim ([P10]) and that carries the base it
      diverged from ([P11]). Nothing is lost, and the reconciliation afterwards is a pull-list rather
      than two windows side by side ([P12]). Dropbox's "conflicted copy", with the ancestor kept.
-4. **[A3]** Which option carries the visual emphasis.
+4. **[A3 · answered]** ***Keep both* carries the emphasis** — the only option that cannot lose
+   work. The fast path is then also the safe one, and the cost of taking it without much thought is
+   a reconciliation task rather than discarded edits.
 
 ## Script 6 — publishing hits a changed record
 
@@ -340,10 +346,10 @@ proves too blunt in practice.
 
 ### How the fork is presented
 
-**[A4]** A fork shown in the home list as "Rome (my changes)" reads as a separate project, and will be
-deleted or accidentally published. Shown attached to its original — indented beneath it, labelled
-*"3 changes not in the published version"*, with a **Reconcile** action — it reads as an open task.
-Same data, very different odds of ever being resolved.
+**[A4 · answered]** A fork is shown **attached to its original** — indented beneath it, labelled
+*"3 changes not in the published version"*, with a **Reconcile** action. Shown instead as its own row
+reading "Rome (my changes)", it looks like a separate project and will be deleted or published by
+mistake. Same data, very different odds of ever being resolved.
 
 ## Deliberately not decided here
 
@@ -362,12 +368,14 @@ Same data, very different odds of ever being resolved.
 
 ## Asks
 
-| | Ask | Default if you have no view |
+All four answered 2026-10-27, each as its default.
+
+| | Ask | Answered |
 |---|---|---|
-| A1 | When only the published version changed, update quietly with a dismissible note, or ask first? | Update, with a quiet note; nothing local is at risk |
-| A2 | With unambiguous merges now automatic ([P9]), should the choice shown for a real collision include a per-slide merge UI, or only Keep mine / Use published / Keep both? | The three without a merge UI; the pull-list after *Keep both* ([P12]) is where that work goes |
-| A3 | Which option in the conflict choice gets the emphasis? | *Keep both*, the only choice that cannot lose work |
-| A4 | Is a fork shown attached to its original as an open task, or as its own row in the list? | Attached, with a **Reconcile** action; a free-floating row gets deleted or published by accident |
+| A1 | When only the published version changed, update quietly with a dismissible note, or ask first? | **Update, with a quiet note.** Nothing local is at risk, so a prompt would spend a modal on a non-decision |
+| A2 | With unambiguous merges now automatic ([P9]), should the choice shown for a real collision include a per-slide merge UI, or only Keep mine / Use published / Keep both? | **The three, without a merge UI.** The per-slide work goes in the pull-list after *Keep both* ([P12]) |
+| A3 | Which option in the conflict choice gets the emphasis? | ***Keep both*** — the only choice that cannot lose work |
+| A4 | Is a fork shown attached to its original as an open task, or as its own row in the list? | **Attached**, with a **Reconcile** action; a free-floating row gets deleted or published by accident |
 
 ## Decisions I made
 
