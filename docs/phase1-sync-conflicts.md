@@ -1,8 +1,18 @@
 # Local drafts and the published record
 
-**Status: proposal, for markup.** Written 2026-09-11. Picks up a gap Stage 5 exposed: a timeline can
-now exist as a local draft in this browser *and* as a published record that something else has since
-changed.
+**Status: partly shipped; the rest is proposal, for markup.** Written 2026-09-11, revised
+2026-10-27. Picks up a gap Stage 5 exposed: a timeline can now exist as a local draft in this browser
+*and* as a published record that something else has since changed.
+
+**What has shipped since this was written.** [P4] landed in `536221b` (2026-10-22), and with it the
+second of the two bugs below. The dangerous one — publishing a stale draft over a newer record — is
+untouched: there is no `swapRecord` and no base CID anywhere in `packages/*/src`. What remains is
+[P1]–[P3] plus the conflict choice in Scripts 5 and 6, and A1–A3 still need answers.
+
+**Added 2026-10-27:** how the difference between two versions is described to a person, automatic
+merging when the two sides do not collide, and what reconciliation after *Keep both* actually looks
+like — [P6]–[P12], plus [A4]. The opening claim that a second browser can only see the PDS is also
+qualified: true today, not from Phase 2 — see *Joining an existing server draft*, which adds [P13].
 
 Writing to the PDS is called **publishing** throughout, never "saving": an atproto repo is public,
 so the record is readable by anyone the moment the write succeeds.
@@ -18,10 +28,12 @@ for visibility, not questions. *(feel)* marks what only a prototype can settle.
 
 ## The problem, and why it is smaller than it looks
 
-A second browser can only see what is on the PDS. So a timeline opened "somewhere else" has
-necessarily been published, and the only thing that can disagree with a local draft is the
+**Today**, a second browser can only see what is on the PDS. So a timeline opened "somewhere else"
+has necessarily been published, and the only thing that can disagree with a local draft is the
 **published record**. Another browser's own local draft is invisible from here, and you cannot
-reconcile with what you cannot see.
+reconcile with what you cannot see. From Phase 2 that stops being true — a Durable Object is
+precisely a view of unpublished edits that a second browser *can* see — and the conclusion still
+holds, but conditionally; see *Joining an existing server draft* below.
 
 There are three copies in play, and they are not equal:
 
@@ -36,14 +48,53 @@ rather than a rival. A real conflict then needs something outside the app to wri
 Phase 1 it happens whenever two browsers publish, because the PDS is the only thing they share. That is
 now, and it is what hand-testing Stage 5 ran into.
 
+### Joining an existing server draft
+
+"Sharing history" above is a property of how a document was *created*, not something Yjs provides —
+so it is worth saying when it is true.
+
+**It is always true for collaborators.** Someone invited to a timeline receives the document; they
+never build one. The case below cannot arise for them.
+
+**It is normally true for the owner's own browsers too**, because a browser joining an existing
+server draft should connect an **empty** document and let the provider fill it from the Durable
+Object. It has no reason to build one from the published record, and if it does not, there is
+nothing to diverge.
+
+**[P13]** A browser joining a server draft connects empty and syncs. A local draft that already
+exists is reconciled separately and **never attached**. The default wiring makes this easy to get
+wrong: `y-indexeddb` and the network provider attach to the *same* `Y.Doc`, so a populated local
+store and a populated Durable Object both load into one document.
+
+That is the failure worth naming, because the result is silent and ugly. Internal keys are random
+and explicitly per-document (`newSlideKey` in `lib/doc.ts`), while `unique_id` is derived
+deterministically from the headline (`assignSlideIds` in core). Two browsers that each opened the
+same published record therefore hold the **same `unique_id`s under different internal keys**, and
+since slides live in a `Y.Map` keyed by the internal key, loading both into one document yields
+every slide twice.
+
+**When this can actually happen: at promotion.** Promotion is lazy — only shared timelines get a
+Durable Object ([coauthoring.md](coauthoring.md) §3.3) — so there is a moment when a timeline that
+has been edited locally in more than one browser first acquires a server draft. One of those local
+documents seeds it; the others are independently built and cannot simply be attached. Because
+promotion is lazy rather than a one-time migration, this moment recurs for as long as the feature
+exists, which is why [P13] is a standing rule and not a migration note.
+
+The leftover documents are then the same shape as *Keep both*: diverged from a known base, to be
+reconciled rather than merged, which is what [P10]–[P12] describe. Note the direction of that
+dependency — the fork machinery is the mechanism available here, not the reason to build it. Its
+justification stays Scripts 5 and 6.
+
 ## Two bugs this fixes, not just a feature
 
 1. **Publishing a stale draft silently overwrites a newer version.** Publish in one browser, then
    publish an older local draft in another: `putRecord` replaces the record, and the first
-   browser's work is gone with no warning. This is the more dangerous direction and it exists
-   today.
-2. **Opening a published timeline always makes a new local draft.** Open the same timeline twice and
-   you have two drafts of it, which never converge and clutter the list.
+   browser's work is gone with no warning. This is the more dangerous direction and it **still
+   exists today**.
+2. ~~**Opening a published timeline always makes a new local draft.**~~ **Fixed in `536221b`.**
+   Opening the same timeline twice used to leave two drafts of it, which never converged and
+   cluttered the list. `handleOpenRecord` now looks for a draft carrying that `atUri` and reopens it
+   instead of minting another — see [P4].
 
 ---
 
@@ -77,12 +128,20 @@ write if the record has changed since, which turns the stale-overwrite check int
 compare-and-swap enforced by the server. A check done before writing would leave a gap between the
 check and the write. A rejected swap goes into the conflict flow, Script 6.
 
-**[P4]** Opening a published timeline reuses an existing local draft with that `atUri`, instead of
-making a new one.
+**[P4]** *(shipped, `536221b`)* Opening a published timeline reuses an existing local draft with
+that `atUri`, instead of making a new one. The implementation reads the draft list from the store
+rather than a component's copy of it, so the one-draft-per-record invariant holds whatever the caller
+does. The home screen also asks before replacing a draft that has unpublished edits, and discarding
+forgets that draft first — otherwise the reopen would find the very edits the reader chose to drop.
 
 **[P5]** The home screen shows **one row per timeline**. At the moment a published timeline with a
 local draft appears in both lists. `listRecords` already returns each record's CID, so a row can say
 "changed since your draft" without fetching the record.
+
+*Partly overtaken.* The two lists remain — "In this browser" and "In your account" — but [P4] stopped
+duplicates accumulating, and rows now say whether they are published. What is left here is
+presentation rather than correctness, which lowers its priority: merge the lists when a row can also
+carry the CID comparison, not before.
 
 ---
 
@@ -94,8 +153,9 @@ local draft appears in both lists. `listRecords` already returns each record's C
 
 ## Script 2 — open a published timeline, local draft exists, both in sync
 
-1. The existing local draft opens ([P4]), with no fetch of the record's content.
-2. Its CID is compared with the one the list already has. They match; nothing is shown.
+1. The existing local draft opens ([P4], shipped), with no fetch of the record's content.
+2. Its CID is compared with the one the list already has. They match; nothing is shown. *(Not built:
+   nothing records a CID yet.)*
 
 ## Script 3 — only published changed (fast-forward)
 
@@ -111,6 +171,8 @@ Nothing local is at risk, since the draft has no edits of its own.
 
 ## Script 5 — both changed (conflict)
 
+Reached only when the two sides genuinely collide; disjoint changes merge without asking ([P9]).
+
 1. The editor does **not** open silently onto either version.
 2. A choice is offered, naming what differs: *"This timeline was published from another device
    after you last edited it here."*
@@ -121,8 +183,9 @@ Nothing local is at risk, since the draft has no edits of its own.
    - *Use the published version* replaces the local draft. It discards local edits, so the button
      says so.
    - *Keep both* opens the published version as the timeline and keeps the local edits as a
-     separate, unpublished draft titled "… (my changes)". Nothing is lost. This is Dropbox's
-     "conflicted copy".
+     **fork** — a separate draft that is not a publish claim ([P10]) and that carries the base it
+     diverged from ([P11]). Nothing is lost, and the reconciliation afterwards is a pull-list rather
+     than two windows side by side ([P12]). Dropbox's "conflicted copy", with the ancestor kept.
 4. **[A3]** Which option carries the visual emphasis.
 
 ## Script 6 — publishing hits a changed record
@@ -146,25 +209,150 @@ Nothing local is at risk, since the draft has no edits of its own.
 
 ---
 
-## Merge: deferred, and the groundwork is already in place
+## Describing the difference (Scripts 5 and 6)
+
+"Naming what differs" understates the problem: a symmetric diff of two timelines is not what someone
+needs at that moment. They do not need to compare two documents, they need to know **what each button
+costs them**. So the summary is loss-framed per option rather than neutral:
+
+- *Keep mine* → the 2 slides published from the other device go away
+- *Use the published version* → your last 40 minutes here go away
+- *Keep both* → nothing is lost; there is a reconciliation to do later
+
+**[P6]** The description is computed as a three-way, never a two-way: base ([P2]), mine, theirs. A
+two-way diff makes every difference look like a disagreement, including the person's own unpublished
+work, which is not in dispute with anything. The three-way attributes each change to a side — *you
+changed this; the published version changed that.* The derived fact that matters most is the
+**overlap**, what both sides touched, and everything else follows from it, including whether there is
+a decision to make at all ([P9]).
+
+**Fidelity.** Slide-level per side is the floor worth shipping: added, removed, edited, matched by
+`unique_id`, which a published record guarantees is unique. Field-level inside contested slides is a
+cheap extension, since the walk already compares field by field, and it is often reassuring —
+slide-level overlap is frequently non-empty when field-level overlap is empty. `sameValue` in
+`lib/doc.ts` is already the structural equality this needs; it is module-private today.
+
+Diffing the *text* of contested rich-text fields is deliberately out of the first version. Note this
+is a different question from merging them: a display diff needs no history, so it stays available
+later if the slide-level account proves too coarse.
+
+**[P7]** Offer **Preview the published version**, opened at the first contested slide. A timeline is a
+visual artifact and a prose change list is a poor proxy for one. This is nearly free: the preview
+harness already accepts an arbitrary timeline object — `EditorView.svelte` posts
+`{ type: 'tl-preview', timeline, initialIndex }` and the embed handles it — and nothing binds it to
+the document being edited.
+
+**Two honest limits.** We can report only *net* change on the published side, never an activity log:
+our own history is in Yjs, theirs is flat JSON, and "changed the title" may have been six edits by
+two people. And the base can be missing — drafts predating base CIDs, and Script 7's deleted record —
+in which case the comparison degrades to a two-way that cannot attribute sides, and should say less
+rather than guess.
+
+**One asymmetry between the two scripts.** Script 5 catches someone at open, before they have invested
+anything in the session, and a comparison is welcome there. Script 6 interrupts a deliberate publish,
+after an editing session, when they are attached to their version and have already decided they want
+it out. Same mechanism; Script 6 leads with what they would *replace* and keeps the comparison one
+click away, rather than making them study a two-column screen to finish what they asked for.
+
+**[P8]** `listTimelines` returns `{ uri, title, createdAt }` and drops each record's `cid`; it has to
+carry the CID for detection anyway. Note the inversion with [P1]: `createdAt` is useless for
+*detecting* change, being rewritten on every publish, but it is the only thing we have for
+*displaying* "published 20 minutes ago" — often the fact that settles the decision.
+
+---
+
+## Merging: automatic when unambiguous, a choice only when not
 
 Merging is feasible, and Stage 5 already paid for the hard part. A three-way merge needs a common
 ancestor, and `publishedSnapshot` plus the base CID ([P2]) *is* that ancestor. Per slide, matched by
-`unique_id`, which a published record guarantees is unique, and then per field:
+`unique_id`, and then per field:
 
 - changed on one side only → take that side;
 - changed on both sides to the same value → take it;
-- changed on both sides differently → a per-field conflict.
+- changed on both sides differently → a genuine collision.
 
-The limit is rich text. A headline or body edited on *both* sides cannot merge character by
-character, because the published side is HTML with no history, so those fields surface as per-field
-choices. That makes merge a real piece of UI and not just a button, which is the reason [A2]
-defaults to leaving it out of the first version.
+The limit is rich text. A headline or body edited on *both* sides cannot merge character by character,
+because the published side is HTML with no history. **But that limit only bites inside the overlap.**
+When the two sides touched disjoint slides there is no judgement call anywhere in the merge: no field
+has two values, so nothing needs a UI to choose between them.
+
+**[P9]** When the overlap is empty, merge automatically and say so in a line. The conflict choice
+appears only on a real collision.
+
+This is the largest reduction in drag available here, because it is the difference between
+reconciliation being the routine outcome and the uncommon one. Everything downstream — the fork, its
+provenance, the pull-list — is then polish spent on a rare path rather than the default one. It also
+costs nothing extra: the overlap is already computed to describe the difference ([P6]).
+
+---
+
+## *Keep both*, and the reconciliation after it
+
+"Nothing is lost" is true but incomplete — nothing is lost *yet*, and the cost is deferred to a moment
+when it is more expensive to pay. If reconciliation means opening two windows and eyeballing them, the
+option is a trap.
+
+### The fork is not a second claim on the record
+
+As originally written, *Keep both* produces a second draft of the same record, which collides head-on
+with [P4]: `listDrafts().find((d) => d.atUri === uri)` would choose between the two arbitrarily. That
+is exactly the two-claims-on-one-record bug `536221b` fixed.
+
+Dropping the `atUri` instead is worse. `publishTimeline` generates a fresh rkey whenever `existingUri`
+is absent, so a stray publish of a fork silently creates a **second public timeline** while existing
+share links still point at the first.
+
+**[P10]** The fork is a third kind of thing: not a publish claim, not an orphan. It holds no `atUri` in
+the draft index, so [P4]'s invariant is untouched, and it is **publish-blocked by default**. Publishing
+it at all takes an explicit choice between *publish over the original* and *publish as a new timeline*.
+
+### The fork keeps the comparison, not just the content
+
+This is what decides whether reconciliation is a drag. Reconciling later degenerates into eyeballing
+precisely because the **base is gone** — and the base is in hand, for free, at the moment the fork is
+created.
+
+**[P11]** The fork carries `forkedFrom: { atUri, baseCid, baseSnapshot }` alongside its content;
+`DraftSummary` takes one optional field. With provenance kept, reconciliation a week later is still a
+three-way — the same analysis as Script 5, re-runnable on demand — rather than a two-way diff that
+cannot tell the person's own work from anyone else's. *Keep both* then means "defer with the materials
+kept," not "defer forever."
+
+### Reconciliation is a pull-list, not a merge screen
+
+**[P12]** The fork is treated as a **source to pull from**, not a peer to be merged:
+
+- the published-backed timeline is the working document — the one with the `atUri`, the one links
+  point at;
+- a side panel lists what the fork has that the working document does not: *"3 changes not in this
+  version"*;
+- each entry has **Bring this over**, at slide granularity.
+
+Two properties fall out. Each *bring over* is one `USER_ORIGIN` transaction, so **Cmd-Z undoes it** —
+already paid for in Phase 1 — which makes the panel safe to experiment with instead of a sequence of
+commitments. And when the panel empties the fork has served its purpose, so the app can offer to
+delete it: reconciliation gets a visible end state rather than trailing off.
+
+The panel usually holds two or three entries, because the overlap is small. It is "here are the things
+you did," not "merge two documents." For a slide edited on both sides the same control degrades to
+*replace this slide with my version*, comprehensible with no field-level UI. Field-level only if that
+proves too blunt in practice.
+
+### How the fork is presented
+
+**[A4]** A fork shown in the home list as "Rome (my changes)" reads as a separate project, and will be
+deleted or accidentally published. Shown attached to its original — indented beneath it, labelled
+*"3 changes not in the published version"*, with a **Reconcile** action — it reads as an open task.
+Same data, very different odds of ever being resolved.
 
 ## Deliberately not decided here
 
-- **Phase 2 wording.** Once a server holds drafts, "published from another device" mostly means "a
-  collaborator published". The mechanism is unchanged; the copy is not.
+- **Phase 2 wording, and more than wording.** Once a server holds drafts, "published from another
+  device" mostly means "a collaborator published", and that copy is not written here. The *conflict*
+  mechanism is genuinely unchanged — the published record remains the only thing that can disagree.
+  But this line used to say the mechanism was unchanged full stop, and that was wrong: seeding the
+  shared document, and reconciling the local drafts that predate it, are real Phase 2 work. See
+  *Joining an existing server draft*.
 - **Other people's timelines.** Everything here assumes the owner's own records. A collaborator
   cannot publish, so they never hit Script 6.
 - **Checking in the background** while a draft is open. It is useful and possible, but polling is its
@@ -177,8 +365,9 @@ defaults to leaving it out of the first version.
 | | Ask | Default if you have no view |
 |---|---|---|
 | A1 | When only the published version changed, update quietly with a dismissible note, or ask first? | Update, with a quiet note; nothing local is at risk |
-| A2 | Should the first version of the conflict choice include merge, or only Keep mine / Use published / Keep both? | The three without merge; merge later |
+| A2 | With unambiguous merges now automatic ([P9]), should the choice shown for a real collision include a per-slide merge UI, or only Keep mine / Use published / Keep both? | The three without a merge UI; the pull-list after *Keep both* ([P12]) is where that work goes |
 | A3 | Which option in the conflict choice gets the emphasis? | *Keep both*, the only choice that cannot lose work |
+| A4 | Is a fork shown attached to its original as an open task, or as its own row in the list? | Attached, with a **Reconcile** action; a free-floating row gets deleted or published by accident |
 
 ## Decisions I made
 
@@ -187,5 +376,13 @@ defaults to leaving it out of the first version.
 | P1 | Detect change by CID, never by timestamp | |
 | P2 | Store the base CID beside `publishedSnapshot`, written together | |
 | P3 | Publish with `swapRecord` so the overwrite check is atomic on the server | A PDS implementation mishandles `swapRecord` |
-| P4 | Opening a published timeline reuses its existing local draft | |
-| P5 | One home-screen row per timeline, using `listRecords` CIDs | Merged rows prove harder to read than two lists |
+| P4 | Opening a published timeline reuses its existing local draft — **shipped, `536221b`** | |
+| P5 | One home-screen row per timeline, using `listRecords` CIDs — **partly overtaken by P4**; what remains is presentation | Merged rows prove harder to read than two lists |
+| P6 | Describe the conflict as a three-way, loss-framed per option, with the overlap as the key fact | |
+| P7 | Offer a preview of the published version, opened at the first contested slide | It turns out to be read past rather than used |
+| P8 | `listTimelines` carries each record's CID; `createdAt` is for display only, never detection | |
+| P9 | Merge automatically when the overlap is empty; ask only on a real collision | Silent merges surprise people in testing |
+| P10 | A fork is not a publish claim: no `atUri` in the index, publish-blocked by default | |
+| P11 | A fork carries `forkedFrom` — atUri, base CID, base snapshot — not just content | |
+| P12 | Reconciliation is an asymmetric pull-list against the working document, not a merge screen | The overlap turns out to be large often enough that symmetric merging earns its keep |
+| P13 | A browser joining a server draft connects empty; an existing local draft is reconciled, never attached | |
