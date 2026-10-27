@@ -1,7 +1,15 @@
 # Co-authoring timelines
 
-**Status: design, not started.** Revised 2026-09-04 (v6).
+**Status: design; Phase 1 shipped.** Revised 2026-10-27 (v7).
 
+> **v7 is a correction and a question.** The decision that only shared timelines touch the server
+> was recorded in §10.3 among the things that keep media costs down, which is not the argument that
+> supports it; it now has its own §3.3 on the blast-radius argument that does. §3.3 also records a
+> consequence that was never written down: for a solo author the sync-conflict scripts are
+> permanent, not Phase 1 scaffolding. And §8 opens Q12, on whether an author can promote a timeline
+> to the server without inviting anyone. The status line is also fixed — Phase 1 shipped on
+> 2026-10-19 and this still read "not started".
+>
 > **v3 changed the architecture.** v1 and v2 proposed building co-authoring on Atproto Spaces with
 > no server. That's now the *deferred* option — see §7. The plan is a collaboration server holding
 > drafts, publishing to the owner's repo. The deciding argument is in §1.
@@ -166,6 +174,34 @@ keeps Phase 2 a provider swap instead of an editor rewrite.
 **Slide ordering is free.** TimelineJS orders slides by date, so a keyed `Y.Map` suffices and we never
 need list-CRDT semantics — no fractional indexing, no order convergence. The single hardest part of
 collaborative document editing simply doesn't apply to us. Only the title slide is pinned.
+
+---
+
+### 3.3 Which timelines touch the server
+
+**Only the ones that have been promoted to it.** A solo author's drafts stay in their browser and
+publish straight to the PDS, exactly as today. The server holds a draft only once a timeline is
+shared.
+
+This was first written down in §10.3, as the third of three things that keep media volume small, and
+that is the wrong justification. By the numbers in that same section it would be nearly free to give
+every timeline a Durable Object: compute is near zero under hibernation, a 30-slide document is
+"hundreds of KB including history. Negligible," and the section ends by saying not to optimize there.
+
+The reason that actually holds this up is §10.7 and §1. Every draft the server holds is user content
+we become custodians of — inside the breach surface, subject to the retention policy (§10.5), and
+something we have to answer for. Keeping solo drafts local means most users' unpublished work never
+reaches us at all. That preserves most of what §1 concedes we are giving up (*"even our drafts are
+yours"*), and it keeps §10.7's failure story true: if this service disappears, solo authoring is
+unaffected.
+
+**What it costs, and who pays it.** A solo author with two browsers gets nothing from the server.
+Their cross-device story is publish, reopen elsewhere, diverge, reconcile — which is
+[phase1-sync-conflicts.md](phase1-sync-conflicts.md) in full. So those scripts are **not Phase 1
+scaffolding to be replaced later**: for the majority of users they are the permanent mechanism, and
+should be built as such. Phases 2 and 3 dissolve them only for timelines that have been promoted.
+
+Whether promotion must be an invitation is Q12.
 
 ---
 
@@ -396,7 +432,7 @@ narrow case.
 Nine of the original eleven are resolved and have moved into the body — rich text, slide-ID keying
 and the Svelte bridge to §3.2, review and draft-state UI to §4.2, credential scope to §10.2, local
 drafts to §9, retention to §10.5, and undo into its own spec ([phase1-undo.md](phase1-undo.md)).
-What is left:
+What is left, plus one opened since (Q12):
 
 - **Q1. What are the manual and review UXs?** The mechanism is settled (§4.2); the interaction is
   not. How does an owner see what changed since they last published — a diff, a slide-level change
@@ -410,12 +446,23 @@ What is left:
   implementation (`bluesky-social/atproto`) only to get a sanity baseline. Fold in the `jwks_uri`
   cache behaviour from §4.1 while measuring.
 
+- **Q12. Can an author promote a timeline without inviting anyone?** *(new, 2026-10-27)* §3.3 keeps
+  solo drafts local, which is the right default but makes cross-device editing structurally
+  impossible rather than merely absent. "Sync this across my devices" and "invite a collaborator"
+  are the same mechanism — seed a Durable Object, point this browser at it — with two entry points,
+  so offering both costs one trigger rather than a second system, and the invite path exercises the
+  code continuously. Against: every promotion moves a draft inside the retention and breach surface,
+  and someone choosing it for convenience may not read that as the same decision as inviting a
+  person. Worth settling before Phase 2 commits to a single promotion trigger in the UI.
+
 ---
 
 ## 9. Sequencing
 
-- **Phase 1 — adopt Yjs locally.** Single user, no server, no collaboration. Move the editor onto the
-  §3.2 document model, persist with `y-indexeddb`, keep publishing to the same single PDS record.
+- **Phase 1 — adopt Yjs locally. ✅ Shipped 2026-10-19.** Single user, no server, no collaboration.
+  Move the editor onto the §3.2 document model, persist with `y-indexeddb`, keep publishing to the
+  same single PDS record. See [phase1-plan.md](phase1-plan.md) for what landed; the one specified
+  piece still unbuilt is [phase1-sync-conflicts.md](phase1-sync-conflicts.md).
 
   **Several local drafts, not one.** `lib/draft.ts` is a single localStorage slot (`tl-draft-v1`)
   today, so opening a second timeline silently discards the first — a live data-loss bug. Since
@@ -549,7 +596,8 @@ Three decisions keep media small:
    versions × media. It also makes §4.5 exact rather than hopeful: the CID we hold is the CID the PDS
    computes on re-upload, so revert is verifiable. Retention becomes refcount-and-GC on our side, the
    same pattern the PDS runs.
-3. **Only co-authored timelines touch the server.** Solo authoring stays browser → PDS, as today.
+3. **Only promoted timelines touch the server.** Solo authoring stays browser → PDS, as today. The
+   effect on media volume is real, but it is not *why* we do it — see §3.3.
 
 Sizing: a heavy co-authored timeline at ~30 MB of unique media, times a thousand timelines, is ~30 GB
 — well under a dollar a month on R2 at current rates. Ten thousand is still a rounding error. **Don't
