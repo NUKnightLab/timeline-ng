@@ -121,7 +121,7 @@ The **player, embeds, and share links are untouched** — no regression risk to 
 Only the owner can, because it's their repo — editorially defensible: they're the publisher of
 record. Using the timeline's rkey as the `skey` links workspace and publication both ways.
 
-Encouragingly, this is exactly what [Longform](https://longform.social/qsje6f4zgb) does: collaborate
+Encouragingly, this is exactly what [Longform](https://standard-reader.app/a/did:plc:ticz2qmqh2vqxnehf5zalkpl/qsje6f4zgb) does: collaborate
 on a draft, and *"only the document owner can publish… Your collaborators' contributions are part of
 the published document, but the record lives under your DID."*
 
@@ -219,7 +219,7 @@ colliding, so the UI only needs to *inform*, not *prevent*.
 
 ### 4.4 The honest alternative: don't use spaces for the draft
 
-[Longform](https://longform.social/qsje6f4zgb) shipped real-time collaborative longform editing on
+[Longform](https://standard-reader.app/a/did:plc:ticz2qmqh2vqxnehf5zalkpl/qsje6f4zgb) shipped real-time collaborative longform editing on
 atproto. It's worth being precise about what they built, because it is *not* what's proposed above:
 
 > Yjs + Hocuspocus over WebSockets. *"Access control is stored server-side, checked on every
@@ -229,7 +229,9 @@ Drafts don't touch atproto at all. Atproto provides identity (OAuth) and the pub
 publish does a record land in the owner's PDS. They also offer a public read-only draft link — which
 they can, precisely *because* the draft is on their server and not in a space (constraint B).
 
-That's a real, shipping, working design and it's cheaper than everything in §4.1–4.3. The tradeoff:
+That's a real, working design that shipped, and it's cheaper than everything in §4.1–4.3. (Its
+domain stopped resolving some time before 2026-10-27; see the link note in
+[coauthoring.md](coauthoring.md) §2.) The tradeoff:
 drafts aren't portable, aren't yours, and die with the service. Choosing spaces means choosing the
 harder path for a specific reason — co-authored drafts that live in the authors' own repos. Worth
 being deliberate that we're paying for that, and it's worth asking Longform's author whether they'd

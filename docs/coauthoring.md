@@ -74,7 +74,7 @@ Third argument: it ships without waiting on the Spaces alpha, which is Draft-sta
 
 ## 2. Prior art: Longform
 
-[Longform](https://longform.social/qsje6f4zgb) shipped exactly this and is worth copying closely:
+[Longform](https://standard-reader.app/a/did:plc:ticz2qmqh2vqxnehf5zalkpl/qsje6f4zgb) shipped exactly this and is worth copying closely:
 
 - Yjs + Hocuspocus over WebSockets for real-time sync, with live cursors
 - *"Access control is stored server-side, checked on every WebSocket connection. So is the draft data."*
@@ -90,6 +90,15 @@ Third argument: it ships without waiting on the Spaces alpha, which is Draft-sta
   Treat it as opt-in and off by default. Drafts are private unless their owner decides otherwise.
 
 Their model is our model, plus deferred publishing (§4), which they don't appear to do.
+
+*Link note (2026-10-27).* `longform.social` no longer resolves — the domain is not delegated, so the
+service's status is unknown; search engines still index it, so it was up recently. The article
+survives as an atproto record,
+`at://did:plc:ticz2qmqh2vqxnehf5zalkpl/site.standard.document/qsje6f4zgb`, and the link above reads
+it from there. Every claim in this section was re-verified against that record, both quotes
+included. Note what it may be an instance of: §1 concedes that unpublished work dies with the
+service, and if Longform has gone, that is the concession happening to someone. An argument for
+taking the export path in §10.5 seriously, not against the design.
 
 ---
 
