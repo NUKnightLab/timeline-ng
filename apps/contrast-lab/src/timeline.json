@@ -166,6 +166,86 @@
       "background": {
         "url": "/bg-white.png"
       }
+    },
+    {
+      "start_date": {
+        "year": 2025
+      },
+      "group": "Standards",
+      "text": {
+        "headline": "Media Caption Over a White Image",
+        "text": "<p>The figcaption sits in the media column, outside the text scrim.</p>"
+      },
+      "media": {
+        "url": "/bg.png",
+        "alt": "fixture image",
+        "credit": "<p>Fixture Credit</p>",
+        "caption": "<p>Fixture caption text, the faintest copy in the media column.</p>"
+      },
+      "background": {
+        "url": "/bg-white.png"
+      }
+    },
+    {
+      "start_date": {
+        "year": 2026
+      },
+      "group": "Standards",
+      "text": {
+        "headline": "Body Link Over a White Image",
+        "text": "<p>Body copy containing <a href=\"https://example.com\">a link</a>, which takes the accent rather than the flipped body colour.</p>"
+      },
+      "background": {
+        "url": "/bg-white.png"
+      }
+    },
+    {
+      "start_date": {
+        "year": 2027
+      },
+      "group": "Standards",
+      "text": {
+        "headline": "Wikipedia Card Over a White Image",
+        "text": "<p>The card paints --tl-color-surface, which the dark-bg flip does not touch.</p>"
+      },
+      "media": {
+        "url": "https://en.wikipedia.org/wiki/World_Wide_Web"
+      },
+      "background": {
+        "url": "/bg-white.png"
+      }
+    },
+    {
+      "start_date": {
+        "year": 2028
+      },
+      "group": "Standards",
+      "text": {
+        "headline": "Blockquote Over a White Image",
+        "text": "<p>Raw blockquote markup, which also paints --tl-color-surface.</p>"
+      },
+      "media": {
+        "url": "<blockquote>Fixture quotation standing in for pasted embed markup.<cite>Fixture Attribution</cite></blockquote>"
+      },
+      "background": {
+        "url": "/bg-white.png"
+      }
+    },
+    {
+      "start_date": {
+        "year": 2029
+      },
+      "group": "Standards",
+      "text": {
+        "headline": "TikTok Link Over a White Image",
+        "text": "<p>The \"view on TikTok\" link sits outside the player's own dark frame.</p>"
+      },
+      "media": {
+        "url": "https://www.tiktok.com/@fixture/video/1234567890123456789"
+      },
+      "background": {
+        "url": "/bg-white.png"
+      }
     }
   ]
 }

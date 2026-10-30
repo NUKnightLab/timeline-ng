@@ -80,10 +80,11 @@
  *   8. `--tl-slide-text-scrim` was reachable but never set, so on an image
  *      background the text's contrast was a property of the photo: over a
  *      near-white image the body measured 2.33:1 and the headline 2.85:1.
- *      The component's own default has since been raised from 40% to 72% —
- *      see the note on that rule — so the default themes no longer depend on
- *      the photo either. This still takes it further, to 92%, because here
- *      the photo is the thing that may be given up.
+ *      The component's own default has since been raised from 40%, and sits
+ *      at 62% now that the faintest copy on the panel is #e8e8e8 rather than
+ *      #cccccc — see the note on that rule — so the default themes no longer
+ *      depend on the photo either. This still takes it further, to 92%,
+ *      because here the photo is the thing that may be given up.
  *   9. The worst of the lot, and the one the sweep nearly missed: on a dark or
  *      image background `.tl-slide--dark-bg` flips the slide's palette, but it
  *      had no `--tl-date-color`. Nothing sets that token in the default
@@ -261,6 +262,31 @@
    * without buying a single ratio.
    */
   --tl-slide-dark-date: #ffffff;
+
+  /*
+   * The slide's own dark palette flips --tl-color-surface now, so the
+   * Wikipedia card and a pasted blockquote get a dark card on a dark slide
+   * instead of this file's light one. Its default is #2a2a2a, which would
+   * quietly lighten the card this mode had set to pure black, so the pure
+   * black is restated through the token the slide reads. Copy on it measures
+   * 18.42:1 for the headline and 15.04:1 for body, caption and links.
+   *
+   * --tl-slide-dark-link is left alone deliberately. The slide takes links to
+   * #e8e8e8 on a dark ground, which is 15.04:1 over this mode's 92% scrim and
+   * already past AAA — and the accent values this file sets are chosen for a
+   * light page, which is exactly how the link reached 1.83:1 over the scrim
+   * before the slide stopped falling through to them.
+   */
+  --tl-slide-dark-surface: #000000;
+
+  /*
+   * The slide flips --tl-color-border on a dark ground now, so the media
+   * placeholder's dashed boundary holds against the card it is drawn on. Its
+   * default is #8a8a8a, chosen for 4.22:1 against #2a2a2a; this mode draws
+   * every boundary in pure white, and would otherwise have had that one
+   * replaced by a grey on its black card.
+   */
+  --tl-slide-dark-border: #ffffff;
 
   /*
    * The Bluesky card shipped Bluesky's palette as declarations on its own

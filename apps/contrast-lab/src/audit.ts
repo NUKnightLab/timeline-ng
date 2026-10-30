@@ -109,6 +109,35 @@ const SPECS: Spec[] = [
   { label: 'slide date over image (worst case)', selector: '.tl-slide--active.tl-slide--image-bg .tl-slide__date', required: 4.5 },
   { label: 'slide body over image (worst case)', selector: '.tl-slide--active.tl-slide--image-bg .tl-slide__body', required: 4.5 },
   { label: 'slide headline over image (worst case)', selector: '.tl-slide--active.tl-slide--image-bg .tl-slide__headline', required: 3 },
+  /*
+   * The rest of what can land on a background image. The three rows above
+   * were the only ones, and they all live in `.tl-slide__text` — so the audit
+   * reported the scrim as sound while every other mark on an image-background
+   * slide went unmeasured. That is the SPECS failure mode named above, and it
+   * held because the fixture's image-background slides carried no media: the
+   * marks and the background never co-occurred to be measured.
+   *
+   * Two distinct grounds here, and they fail for opposite reasons:
+   *
+   *   - The figcaption, the TikTok link and the placeholder states sit on the
+   *     photo itself with nothing between.
+   *   - The Wikipedia card and the blockquote paint `--tl-color-surface`,
+   *     which `.tl-slide--dark-bg` does not flip — so in the light theme they
+   *     are flipped light copy on a light card, which is worse than the photo
+   *     would have been.
+   */
+  { label: 'media caption over image (worst case)', selector: '.tl-slide--active.tl-slide--image-bg .tl-slide__media-caption-text', required: 4.5 },
+  { label: 'media credit over image (worst case)', selector: '.tl-slide--active.tl-slide--image-bg .tl-slide__media-credit', required: 4.5 },
+  { label: 'body link over image (worst case)', selector: '.tl-slide--active.tl-slide--image-bg .tl-slide__body a', required: 4.5 },
+  { label: 'wiki title over image', selector: '.tl-slide--active.tl-slide--image-bg .tl-wiki__title', required: 4.5 },
+  { label: 'wiki extract over image', selector: '.tl-slide--active.tl-slide--image-bg .tl-wiki__extract', required: 4.5 },
+  { label: 'wiki link over image', selector: '.tl-slide--active.tl-slide--image-bg .tl-wiki__link', required: 4.5 },
+  { label: 'blockquote over image', selector: '.tl-slide--active.tl-slide--image-bg .tl-media--embed-markup blockquote', required: 4.5 },
+  { label: 'blockquote cite over image', selector: '.tl-slide--active.tl-slide--image-bg .tl-media--embed-markup blockquote cite', required: 4.5 },
+  { label: 'tiktok link over image (worst case)', selector: '.tl-slide--active.tl-slide--image-bg .tl-tiktok__link', required: 4.5 },
+  { label: 'media placeholder over image (worst case)', selector: '.tl-slide--active.tl-slide--image-bg .tl-media--loading, .tl-slide--active.tl-slide--image-bg .tl-media--error', required: 4.5 },
+  { label: 'placeholder border over image (worst case)', selector: '.tl-slide--active.tl-slide--image-bg .tl-media--loading, .tl-slide--active.tl-slide--image-bg .tl-media--error', prop: 'borderTopColor', required: 3 },
+  { label: 'unknown media over image (worst case)', selector: '.tl-slide--active.tl-slide--image-bg .tl-media--unknown', required: 4.5 },
   // Decorative: conveys no information the user could otherwise miss.
   { label: 'track rule', selector: '.tl-nav__track', pseudo: '::before', prop: 'backgroundColor', required: 0, useOpacity: true },
 ];

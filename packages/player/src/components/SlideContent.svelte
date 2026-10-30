@@ -226,7 +226,7 @@
    */
   .tl-slide--dark-bg {
     --tl-color-text: var(--tl-slide-dark-text, #f0f0f0);
-    --tl-color-text-muted: var(--tl-slide-dark-text-muted, #cccccc);
+    --tl-color-text-muted: var(--tl-slide-dark-text-muted, #e8e8e8);
     /*
      * Headline, body and date carry their own tokens now, so they have to be
      * flipped here too — inheriting --tl-color-text is no longer enough, and a
@@ -241,11 +241,82 @@
      */
     --tl-headline-color: var(--tl-slide-dark-headline, #ffffff);
     --tl-body-color: var(--tl-slide-dark-body, #e8e8e8);
-    --tl-date-color: var(--tl-slide-dark-date, #cccccc);
+    --tl-date-color: var(--tl-slide-dark-date, #e8e8e8);
+
+    /*
+     * Copy was not the whole of it. This block flipped the text tokens and
+     * nothing else, so every token the *light* theme sets to a dark value
+     * stayed dark and then landed on a dark ground. Two did real damage:
+     *
+     *   --tl-color-surface. The Wikipedia card and a pasted blockquote both
+     *   paint it, so in the light theme they were a #f5f5f5 card carrying
+     *   copy this block had just flipped to #f0f0f0 — 1.05:1, worse than the
+     *   photo they sit on would have been. It is flipped here rather than
+     *   scrimmed because the box already exists; it was only the wrong
+     *   colour.
+     *
+     *   --tl-body-link-color. Unset in every theme, so a link in slide copy
+     *   fell through to --tl-color-accent: #d4550e over the 62% scrim's
+     *   #616161 is 1.51:1, and the contrast skin is worse rather than better
+     *   — its light value is the navy #0b3d91, which over that skin's 92%
+     *   scrim composites to 1.83:1, in the mode that promises 7:1.
+     *
+     *   A link cannot keep the accent on this ground: clearing 4.5:1 over
+     *   #616161 needs luminance 0.713, which in the accent's hue is a pale
+     *   peach that no longer reads as the accent. So links take the body
+     *   colour here and are carried by the underline instead, which prose.css
+     *   already restores for exactly this reason — see its note on 1.4.1.
+     *   That is 5.05:1 by default and 15.04:1 under the contrast skin.
+     */
+    --tl-color-surface: var(--tl-slide-dark-surface, #2a2a2a);
+    --tl-body-link-color: var(--tl-slide-dark-link, #e8e8e8);
+
+    /*
+     * The same three ideas, for the media column.
+     *
+     * --tl-media-link-color is what the Wikipedia and TikTok links read, for
+     * the reason given on those rules in MediaDisplay: unset it falls back to
+     * the accent, so a light slide is untouched.
+     *
+     * --tl-color-border is flipped because the placeholder's dashed border is
+     * now drawn on the flipped surface rather than on the photo. In the dark
+     * theme that would have put #444444 on #2a2a2a — 1.47:1, under the 3:1 a
+     * meaningful boundary needs. Fixing the placeholder's text by giving it a
+     * ground is no good if the ground breaks its border.
+     *
+     * --tl-media-ground is for the TikTok link alone, which sits outside its
+     * own dark frame with nothing behind it. A token rather than a
+     * :global(.tl-slide--dark-bg) descendant selector: unset it is
+     * `transparent`, so the declaration in MediaDisplay costs a light slide
+     * nothing, and no cross-component ancestor selector has to be introduced
+     * to the player for one link.
+     */
+    --tl-media-link-color: var(--tl-slide-dark-link, #e8e8e8);
+    --tl-color-border: var(--tl-slide-dark-border, #8a8a8a);
+    --tl-media-ground: var(--tl-slide-dark-surface, #2a2a2a);
+    --tl-media-ground-pad: 0.5rem;
   }
 
   /*
-   * When a slide has an image background, scrim the text column.
+   * Those last three are deliberately the same value.
+   *
+   * The date and the media caption used to be #cccccc against the body's
+   * #e8e8e8 — a 1.311:1 step, well under the 3:1 that makes a non-text
+   * difference visible, and spent across two separate panels where nothing
+   * can be compared side by side. It bought no legible hierarchy and it cost
+   * the scrim 7 points of alpha, because the faintest colour on the panel is
+   * what sets the panel's floor. On a dark slide the hierarchy is carried by
+   * the pure-white headline and by size, not by value.
+   *
+   * So they are still three tokens and still themeable, but a theme that
+   * wants a real muted step has to go *darker* — which on an image background
+   * means putting --tl-slide-text-scrim back up to match. The numbers on that
+   * rule assume #e8e8e8 is the faintest thing on it.
+   */
+
+  /*
+   * When a slide has an image background, scrim the copy that sits on it:
+   * the text column, and the media figcaption.
    *
    * An image background always takes the light-text treatment above
    * (`hasDarkBg || hasImageBg`), so this scrim is the only thing standing
@@ -255,25 +326,38 @@
    * the headline 2.96:1, all failing 1.4.3, in both themes: the photo covers
    * the theme's own background, so the theme makes no difference here.
    *
-   * 0.72 is the figure that holds for the *lightest possible* photo. The
-   * binding case is the date, the faintest of the three at #cccccc, which
-   * needs 0.659 against pure white to clear 4.5:1; 0.72 leaves some margin and
-   * puts the three at 5.78:1, 7.58:1 and 9.29:1 in the worst case.
+   * 0.62 is the figure that holds for the *lightest possible* photo. The
+   * binding case is whatever is faintest on the panel, now #e8e8e8 for the
+   * body, date and caption alike, which needs 0.591 against pure white to
+   * clear 4.5:1; 0.62 leaves some margin and puts the copy at 5.05:1 and the
+   * headline at 6.19:1 in the worst case.
    *
-   * It is a heavier panel than before, and that is the cost. The alternative
-   * was to keep it light and lean on the blur or a text shadow, but neither is
-   * a contrast mechanism WCAG will credit, and a ratio that holds only for
-   * photos that happen to be dark is the bug being fixed. What makes 0.72
-   * affordable is that the scrim covers this column alone: the image is still
-   * fully visible around the text and behind the media, so the slide still
-   * reads as a photo, not as a dark box.
+   * It was 0.72 while the date and caption were #cccccc, whose floor is
+   * 0.661. Brightening them by 28 grey levels — a step that measured 1.311:1
+   * and was not visible anyway — is what paid for the 10 points: the photo now
+   * comes through at 38% rather than 28%. That is the whole trade, and it is
+   * the only lever of its kind left; the alternative was to keep the panel
+   * light and lean on the blur or a text shadow, but neither is a contrast
+   * mechanism WCAG will credit, and a ratio that holds only for photos that
+   * happen to be dark is the bug being fixed. What makes 0.62 affordable at
+   * all is that the scrim covers only the boxes that hold copy: the
+   * image is still fully visible around them and behind the media, so the
+   * slide still reads as a photo, not as a dark box.
+   *
+   * The figcaption needs the same treatment at the same figure, and until now
+   * it did not get it. It takes --tl-color-text-muted, which the dark-bg flip
+   * above sets to the same value as the body and the date — so it is the same
+   * binding case, on the one box of copy that was still sitting directly on
+   * the author's image. At the #cccccc it had then, over the pale scanned-map
+   * backgrounds this turns up on, it measured about 1.8:1.
    *
    * The blur is one token because the two properties disagreed — the standard
    * one said 2px and the -webkit- alias said 4px, so Safari blurred twice as
    * hard as everything else. It is decorative either way; none of the ratios
    * above depend on it.
    */
-  .tl-slide--image-bg .tl-slide__text {
+  .tl-slide--image-bg .tl-slide__text,
+  .tl-slide--image-bg .tl-slide__media-caption {
     /*
      * The padding is the fade's runway, so it scales with the player rather
      * than being fixed: at 1.25rem/1.5rem — what the flat panel used — the
@@ -292,7 +376,7 @@
     --_plateau-x: calc(var(--_pad-x) * var(--_fade));
     --_plateau-y: calc(var(--_pad-y) * var(--_fade));
 
-    background: var(--tl-slide-text-scrim, rgba(0, 0, 0, 0.72));
+    background: var(--tl-slide-text-scrim, rgba(0, 0, 0, 0.62));
     backdrop-filter: blur(var(--tl-slide-text-scrim-blur, 2px));
     -webkit-backdrop-filter: blur(var(--tl-slide-text-scrim-blur, 2px));
     padding: var(--_pad-y) var(--_pad-x);
@@ -323,6 +407,18 @@
       linear-gradient(to right, transparent 0, #000 var(--_plateau-x), #000 calc(100% - var(--_plateau-x)), transparent 100%),
       linear-gradient(to bottom, transparent 0, #000 var(--_plateau-y), #000 calc(100% - var(--_plateau-y)), transparent 100%);
     mask-composite: intersect;
+  }
+
+  /*
+   * The text column's runway is sized for a column. On a caption of two short
+   * lines it would spend more of a narrow embed on panel than on glyphs, so
+   * the padding is retuned here and nothing else is: alpha, blur, fade
+   * fraction and mask all come from the rule above, which keeps a theme that
+   * retunes the scrim — contrast.css takes it to 92% — in charge of both.
+   */
+  .tl-slide--image-bg .tl-slide__media-caption {
+    --_pad-x: var(--tl-slide-caption-scrim-pad-x, clamp(0.6rem, 2cqw, 1.25rem));
+    --_pad-y: var(--tl-slide-caption-scrim-pad-y, clamp(0.5rem, 1.5cqw, 1rem));
   }
 
   .tl-slide__inner {

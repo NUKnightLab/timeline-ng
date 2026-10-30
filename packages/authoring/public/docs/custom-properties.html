@@ -101,11 +101,21 @@
   <tr><td><code>--tl-headline-size</code></td><td><code>clamp(1.2rem, 3cqi, 2.5rem)</code></td></tr>
   <tr><td><code>--tl-headline-transform</code></td><td><code>none</code></td></tr>
   <tr><td><code>--tl-headline-weight</code></td><td><code>700</code></td></tr>
+  <tr><td><code>--tl-slide-caption-scrim-pad-x</code></td><td><code>clamp(0.6rem, 2cqw, 1.25rem)</code></td></tr>
+  <tr><td><code>--tl-slide-caption-scrim-pad-y</code></td><td><code>clamp(0.5rem, 1.5cqw, 1rem)</code></td></tr>
+  <tr><td><code>--tl-slide-dark-headline</code></td><td><code>#ffffff</code></td></tr>
 </table>
 
 <h3>Slide layout</h3>
 <table class="field-table token-table">
   <tr><th>Property</th><th>Default</th></tr>
+  <tr><td><code>--tl-slide-dark-body</code></td><td><code>#e8e8e8</code></td></tr>
+  <tr><td><code>--tl-slide-dark-border</code></td><td><code>#8a8a8a</code></td></tr>
+  <tr><td><code>--tl-slide-dark-date</code></td><td><code>#e8e8e8</code></td></tr>
+  <tr><td><code>--tl-slide-dark-link</code></td><td><code>#e8e8e8</code></td></tr>
+  <tr><td><code>--tl-slide-dark-surface</code></td><td><code>#2a2a2a</code></td></tr>
+  <tr><td><code>--tl-slide-dark-text</code></td><td><code>#f0f0f0</code></td></tr>
+  <tr><td><code>--tl-slide-dark-text-muted</code></td><td><code>#e8e8e8</code></td></tr>
   <tr><td><code>--tl-slide-max-width</code></td><td><code>1100px</code></td></tr>
   <tr><td><code>--tl-slide-media-align</code></td><td><code>center</code></td></tr>
   <tr><td><code>--tl-slide-media-col</code></td><td><code>1fr</code></td></tr>
@@ -114,7 +124,11 @@
   <tr><td><code>--tl-slide-text-only-align</code></td><td><code>left</code></td></tr>
   <tr><td><code>--tl-slide-text-only-margin</code></td><td><code>0</code></td></tr>
   <tr><td><code>--tl-slide-text-only-width</code></td><td><code>100%</code></td></tr>
-  <tr><td><code>--tl-slide-text-scrim</code></td><td><code>rgba(0, 0, 0, 0.4)</code></td></tr>
+  <tr><td><code>--tl-slide-text-scrim</code></td><td><code>rgba(0, 0, 0, 0.62)</code></td></tr>
+  <tr><td><code>--tl-slide-text-scrim-blur</code></td><td><code>2px</code></td></tr>
+  <tr><td><code>--tl-slide-text-scrim-fade</code></td><td><code>0.6</code></td></tr>
+  <tr><td><code>--tl-slide-text-scrim-pad-x</code></td><td><code>clamp(1.5rem, 6cqw, 4.5rem)</code></td></tr>
+  <tr><td><code>--tl-slide-text-scrim-pad-y</code></td><td><code>clamp(1.25rem, 4cqw, 3.5rem)</code></td></tr>
   <tr><td><code>--tl-slide-valign</code></td><td><code>auto</code></td></tr>
 </table>
 
@@ -138,6 +152,11 @@
   <tr><td><code>--tl-nav-dot-active-scale</code></td><td><code>1.4</code></td></tr>
   <tr><td><code>--tl-nav-dot-target-x</code></td><td><code>6px</code></td></tr>
   <tr><td><code>--tl-nav-dot-target-y</code></td><td><code>12px</code></td></tr>
+  <tr><td><code>--tl-nav-grip-hover-opacity</code></td><td><code>0.5</code></td></tr>
+  <tr><td><code>--tl-nav-grip-opacity</code></td><td><code>0.2</code></td></tr>
+  <tr><td><code>--tl-nav-group-name-color</code></td><td><code>var(--tl-color-text-muted)</code></td></tr>
+  <tr><td><code>--tl-nav-group-name-opacity</code></td><td><code>0.55</code></td></tr>
+  <tr><td><code>--tl-nav-group-name-weight</code></td><td><code>700</code></td></tr>
   <tr><td><code>--tl-nav-gutter-bg</code></td><td><code>transparent</code></td></tr>
   <tr><td><code>--tl-nav-gutter-border</code></td><td><code>none</code></td></tr>
   <tr><td><code>--tl-nav-height</code></td><td><code>80px</code></td></tr>
@@ -145,9 +164,11 @@
   <tr><td><code>--tl-nav-hint-color</code></td><td><code>#ffffff</code></td></tr>
   <tr><td><code>--tl-nav-label-active-bg</code> <span class="tok-themed" title="has a separate dark-mode value">dark</span></td><td><code>#ffffff</code></td></tr>
   <tr><td><code>--tl-nav-label-active-hover</code></td><td><code>var(--tl-color-nav-marker-active)</code></td></tr>
+  <tr><td><code>--tl-nav-label-active-hover-ring</code></td><td><code>var(--tl-nav-label-hover-ring, 0 0 0 3px var(--tl-color-nav-bg))</code></td></tr>
   <tr><td><code>--tl-nav-label-active-ring</code></td><td><code>none</code></td></tr>
   <tr><td><code>--tl-nav-label-active-weight</code></td><td><code>700</code></td></tr>
   <tr><td><code>--tl-nav-label-bg</code></td><td><code>var(--tl-color-nav-bg)</code></td></tr>
+  <tr><td><code>--tl-nav-label-hover-ring</code></td><td><code>0 0 0 3px var(--tl-color-nav-bg)</code></td></tr>
   <tr><td><code>--tl-nav-label-padding</code></td><td><code>2px 5px</code></td></tr>
   <tr><td><code>--tl-nav-label-radius</code></td><td><code>4px</code></td></tr>
   <tr><td><code>--tl-nav-label-ring</code></td><td><code>none</code></td></tr>
@@ -156,6 +177,8 @@
   <tr><td><code>--tl-nav-leader-opacity</code></td><td><code>0.8</code></td></tr>
   <tr><td><code>--tl-nav-mark-active</code></td><td><code>var(--tl-color-nav-marker-active)</code></td></tr>
   <tr><td><code>--tl-nav-marker-size</code></td><td><code>12px</code></td></tr>
+  <tr><td><code>--tl-nav-span-bar-hover-opacity</code></td><td><code>0.75</code></td></tr>
+  <tr><td><code>--tl-nav-span-bar-opacity</code></td><td><code>0.75</code></td></tr>
   <tr><td><code>--tl-nav-track-opacity</code></td><td><code>0.35</code></td></tr>
 </table>
 
@@ -166,6 +189,7 @@
   <tr><td><code>--tl-bsky-card-border</code></td><td><code>rgba(17, 17, 17, 0.12)</code></td></tr>
   <tr><td><code>--tl-bsky-card-link</code></td><td><code>#0a66c2</code></td></tr>
   <tr><td><code>--tl-bsky-card-muted</code></td><td><code>#536471</code></td></tr>
+  <tr><td><code>--tl-bsky-card-nested-bg</code></td><td><code>rgba(255, 255, 255, 0.9)</code></td></tr>
   <tr><td><code>--tl-bsky-card-text</code></td><td><code>#16181c</code></td></tr>
 </table>
 
@@ -175,8 +199,11 @@
   <tr><td><code>--tl-blockquote-color</code></td><td><code>inherit</code></td></tr>
   <tr><td><code>--tl-blockquote-indent</code></td><td><code>1em</code></td></tr>
   <tr><td><code>--tl-blockquote-rule</code></td><td><code>3px solid var(--tl-color-accent)</code></td></tr>
+  <tr><td><code>--tl-btn-bg</code></td><td><code>transparent</code></td></tr>
   <tr><td><code>--tl-btn-bg-hover</code></td><td><code>rgba(0, 0, 0, 0.35)</code></td></tr>
+  <tr><td><code>--tl-btn-color</code></td><td><code>#fff</code></td></tr>
   <tr><td><code>--tl-btn-size</code></td><td><code>2.5rem</code></td></tr>
+  <tr><td><code>--tl-btn-text-shadow</code></td><td><code>0 0 4px rgba(0,0,0,0.8), 0 0 8px rgba(0,0,0,0.6)</code></td></tr>
   <tr><td><code>--tl-code-bg</code></td><td><code>color-mix(in srgb, currentColor 10%, transparent)</code></td></tr>
   <tr><td><code>--tl-focus-ring-color</code></td><td><code>var(--tl-color-accent)</code></td></tr>
   <tr><td><code>--tl-focus-ring-offset</code></td><td><code>2px</code></td></tr>
@@ -185,6 +212,11 @@
   <tr><td><code>--tl-list-indent</code></td><td><code>1.5em</code></td></tr>
   <tr><td><code>--tl-list-style-bullet</code></td><td><code>disc</code></td></tr>
   <tr><td><code>--tl-list-style-number</code></td><td><code>decimal</code></td></tr>
+  <tr><td><code>--tl-media-ground</code></td><td><code>transparent</code></td></tr>
+  <tr><td><code>--tl-media-ground-pad</code></td><td><code>0</code></td></tr>
+  <tr><td><code>--tl-media-link-color</code></td><td><code>var(--tl-color-accent, #1185fe)</code></td></tr>
+  <tr><td><code>--tl-media-link-decoration</code></td><td><code>underline</code></td></tr>
+  <tr><td><code>--tl-media-link-underline-offset</code></td><td><code>0.15em</code></td></tr>
   <tr><td><code>--tl-min-height</code></td><td><code>300px</code></td></tr>
   <tr><td><code>--tl-radius</code></td><td><code>4px</code></td></tr>
   <tr><td><code>--tl-rule</code></td><td><code>1px solid color-mix(in srgb, currentColor 25%, transparent)</code></td></tr>

@@ -7,6 +7,66 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **A media caption and credit are legible on a slide with an image
+  background.** An image background flips the slide to the light-text palette,
+  which takes the caption and credit to `#cccccc` — the same value as the
+  date, whose contrast over a pale photo is what the text column's scrim was
+  raised to 72% to fix. The scrim covered `.tl-slide__text` only, so the
+  figcaption, which sits in the media column, kept light copy directly on the
+  author's image and measured around 1.8:1 over a pale one. It is scrimmed
+  now, by the same rule and at the same alpha, so `--tl-slide-text-scrim` and
+  the `contrast='high'` value it already takes govern both. Its padding is its
+  own, since the text column's runway is sized for a column:
+  `--tl-slide-caption-scrim-pad-x` / `--tl-slide-caption-scrim-pad-y`.
+
+### Changed
+
+- **The scrim over an image background is lighter, and the copy on it is
+  brighter.** `--tl-slide-text-scrim` goes from 72% to 62%, so the author's
+  photo comes through at 38% rather than 28%. What paid for it is
+  `--tl-slide-dark-date` and `--tl-slide-dark-text-muted`, both `#cccccc`,
+  moving to the `#e8e8e8` that `--tl-slide-dark-body` already used: the
+  faintest colour on the panel sets the panel's floor, and #cccccc's is 0.661
+  against a white photo where #e8e8e8's is 0.591. The step given up measured
+  1.311:1, below the 3:1 at which a non-text difference is visible, and fell
+  between two separate panels — it was not legible hierarchy, which on a dark
+  slide comes from the pure-white headline and from size. Worst-case ratios
+  are now 5.05:1 for the copy and 6.19:1 for the headline, against 4.5:1
+  required. The three tokens remain themeable, but a theme that wants a real
+  muted step must go darker and raise `--tl-slide-text-scrim` to match.
+- **A dark or image slide background now flips the card surface and body-link
+  colour, not just the copy.** The flip covered text, headline, body, muted
+  and date, so every token the light theme sets to a *dark* value stayed dark
+  and then landed on a dark ground. A link in slide copy fell through to
+  `--tl-color-accent`: `#d4550e` over the scrim measured 1.51:1, and
+  `contrast='high'` was worse rather than better, its light accent `#0b3d91`
+  giving 1.83:1 over that mode's 92% scrim — in the mode that promises 7:1.
+  The Wikipedia card and a pasted blockquote both paint `--tl-color-surface`,
+  so in the light theme they were a `#f5f5f5` card holding copy the flip had
+  just taken to `#f0f0f0`: 1.05:1. Links now take the body colour and are
+  carried by the underline `prose.css` already restores, and the surface
+  flips to `#2a2a2a`. New overrides: `--tl-slide-dark-surface` and
+  `--tl-slide-dark-link`. Nothing new is drawn — the cards already had a
+  ground, it was the wrong colour. Measured after: links 5.05:1 by default
+  and 15.04:1 under the contrast skin, cards 11.71:1 to 18.43:1.
+- **The media column's links, placeholders and unknown-media fallback hold up
+  on a background image too.** The Wikipedia and TikTok links read
+  `--tl-media-link-color`, which the slide points at its body colour on a dark
+  or image ground and which falls back to the accent otherwise, so a light
+  slide is unchanged; both also gain the resting underline `prose.css` already
+  restores for body links, since they rested at `text-decoration: none` and
+  identified themselves by colour alone — which fails outright once the colour
+  follows the body. The loading, error and unknown states take
+  `--tl-color-surface`, so the one declaration is a light card on a light
+  slide and a dark one on a dark slide; they had the dashed border already, so
+  no new panel is drawn. `--tl-color-border` is flipped on a dark ground
+  (`--tl-slide-dark-border`, `#8a8a8a`) because that border is now drawn on
+  the card rather than on the photo, where the dark theme's `#444444` would
+  have been 1.47:1. The TikTok link, which sits outside its own dark frame
+  with nothing behind it, gets a ground from `--tl-media-ground`.
+
 ## [0.5.1] - 2026-10-20
 
 ### Changed

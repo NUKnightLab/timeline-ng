@@ -833,6 +833,15 @@
   }
 
   /* ── TikTok ─────────────────────────────────────────────────── */
+  /*
+   * The "view on TikTok" link sits below .tl-tiktok__frame, outside its #111
+   * fill, so on a slide with a background image it was on the photo: 4.11:1
+   * over a pale one with the accent, and worse once the colour follows the
+   * slide. --tl-media-ground gives it one. Filling the container groups the
+   * frame and the link instead of drawing a panel around a single line, and
+   * the token is `transparent` unless a dark or image slide sets it, so this
+   * changes nothing on a light slide.
+   */
   .tl-media--tiktok {
     width: 100%;
     display: flex;
@@ -840,6 +849,9 @@
     align-items: center;
     gap: 0.5rem;
     justify-content: center;
+    background: var(--tl-media-ground, transparent);
+    border-radius: var(--tl-radius, 4px);
+    padding: var(--tl-media-ground-pad, 0);
   }
 
   .tl-tiktok__frame {
@@ -865,12 +877,9 @@
   .tl-tiktok__link {
     font-size: 0.78rem;
     line-height: 1.3;
-    color: var(--tl-color-accent, #1185fe);
-    text-decoration: none;
-  }
-
-  .tl-tiktok__link:hover {
-    text-decoration: underline;
+    color: var(--tl-media-link-color, var(--tl-color-accent, #1185fe));
+    text-decoration: var(--tl-media-link-decoration, underline);
+    text-underline-offset: var(--tl-media-link-underline-offset, 0.15em);
   }
 
   /* ── Wikipedia card ─────────────────────────────────────────── */
@@ -915,10 +924,31 @@
     overflow: hidden;
   }
 
+  /*
+   * --tl-media-link-color, not --tl-color-accent directly.
+   *
+   * These two links are the media column's equivalent of a link in slide
+   * copy, and they carried the same bug: the accent is chosen for the page's
+   * own background, so on a dark or image slide it was a dark mark on a dark
+   * ground — #d4550e on the flipped card surface is 3.49:1, and the TikTok
+   * link, which sits outside its own dark frame, was 4.11:1 over a pale
+   * photo. `.tl-slide--dark-bg` points this token at the body colour, so both
+   * follow the slide; unset, it falls back to the accent and nothing about a
+   * light slide changes.
+   *
+   * The underline is not decoration. Both rested at `text-decoration: none`
+   * and underlined only on hover, which identifies a link by colour alone —
+   * WCAG 1.4.1 unless the link and its surrounding text differ by 3:1, which
+   * a themeable accent cannot promise. It fails outright once the colour
+   * follows the body, since then there is no difference at all. prose.css
+   * restored the resting underline on body links for this reason; these two
+   * were missed.
+   */
   .tl-wiki__link {
     font-size: 0.8rem;
-    color: var(--tl-color-accent, #1185fe);
-    text-decoration: none;
+    color: var(--tl-media-link-color, var(--tl-color-accent, #1185fe));
+    text-decoration: var(--tl-media-link-decoration, underline);
+    text-underline-offset: var(--tl-media-link-underline-offset, 0.15em);
     margin-top: auto;
   }
 
@@ -942,6 +972,16 @@
   }
 
   /* ── Loading / error states ─────────────────────────────────── */
+  /*
+   * These carry copy on whatever is behind the media, which on a slide with a
+   * background image is the author's photo: over a pale one the text measured
+   * 1.23:1 and the dashed border 1.36:1. They take an opaque fill rather than
+   * a scrim, because `--tl-color-surface` is flipped by `.tl-slide--dark-bg`
+   * — so one declaration is a light card on a light slide and a dark one on a
+   * dark or image slide, and no second panel is drawn. Both already read as
+   * boxes, having had the border all along; this finishes the box rather than
+   * adding one.
+   */
   .tl-media--loading,
   .tl-media--error {
     min-height: 4rem;
@@ -949,6 +989,7 @@
     align-items: center;
     justify-content: center;
     color: var(--tl-color-text-muted);
+    background: var(--tl-color-surface);
     border: 1px dashed var(--tl-color-border, #ddd);
     border-radius: var(--tl-radius);
     padding: 1rem;
@@ -960,6 +1001,8 @@
     font-size: 0.8rem;
     word-break: break-all;
     color: var(--tl-color-text-muted);
+    background: var(--tl-color-surface);
+    border-radius: var(--tl-radius, 4px);
     padding: 0.5rem;
   }
 </style>
