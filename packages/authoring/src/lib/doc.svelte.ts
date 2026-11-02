@@ -19,6 +19,7 @@ import {
   loadTimeline, locateFragment, readMeta, readSettings, readSlide, removeSlide,
   setMirror, settingsMap, slidesMap, titleMap, writeMeta, writeSlide,
 } from './doc.ts';
+import { sameValue } from './doc.ts';
 import type { DocMeta, SlideEntry } from './doc.ts';
 import { RICH_TEXT_FIELDS } from './doc.ts';
 import type { RichTextField } from './doc.ts';
@@ -214,10 +215,17 @@ export class TimelineDoc {
    * hand at every mutation site, which is the same information computed less
    * reliably. Comparing content rather than Yjs state means undoing back to the
    * saved text reports clean again, which the flag could not do.
+   *
+   * Structurally, not as JSON text. A settings map that gained its keys in a
+   * different order than the record lists them serializes differently while
+   * holding exactly the same settings, and string equality called that an
+   * unpublished change: a draft that had just taken on the published version
+   * still offered to publish it back. `sameValue` is the document's own notion
+   * of whether a field changed, which is the one that should decide this.
    */
   get clean(): boolean {
-    const saved = this.#meta.publishedSnapshot;
-    return typeof saved === 'string' && JSON.stringify(this.#timeline) === saved;
+    const saved = this.publishedSnapshot;
+    return saved !== null && sameValue(this.#timeline, saved);
   }
 
   /**
@@ -349,6 +357,69 @@ export class TimelineDoc {
     );
   }
 
+  /**
+   * Take on reconciled content, recording which published version it was
+   * reconciled against.
+   *
+   * `published` is what the record holds now, and becomes the snapshot — the
+   * base a later comparison works from. `content` is what the document should
+   * hold, which is the same thing after a fast-forward and a merge of both
+   * sides after [P9]. Cleanliness then falls out of comparing the two rather
+   * than being asserted: a fast-forward is clean because the content *is* the
+   * record, a merge is dirty because it is not, and neither case needs a flag
+   * that could disagree with the content.
+   *
+   * The history goes, as it does on any load. A merge is not an edit the
+   * author made, and undoing back through one would restore a document that
+   * disagrees with the record it has just recorded agreement with.
+   */
+  adopt(content: TLTimeline, published: TLTimeline, baseCid: string): void {
+    this.doc.transact(() => loadTimeline(this.doc, content, { ...this.#meta, baseCid }), LOAD_ORIGIN);
+    this.rebase(published, baseCid);
+    this.#history.clear();
+  }
+
+
+  /**
+   * Record agreement with a published version without touching the content.
+   *
+   * What *Keep mine* needs: the document keeps every local edit, and the base
+   * moves to the record as it is now, so the next publish swaps against that
+   * version and replaces it knowingly rather than being refused. It stays
+   * dirty, because the content and the record still differ — which is the
+   * whole point of the choice.
+   */
+  rebase(published: TLTimeline, baseCid: string): void {
+    this.flushMirrors();
+    this.doc.transact(
+      () => writeMeta(this.doc, { ...this.#meta, baseCid, publishedSnapshot: JSON.stringify(asStored(published)) }),
+      BOOKKEEPING_ORIGIN,
+    );
+  }
+
+  /**
+   * The published version this document was last reconciled against.
+   *
+   * Parsed once per distinct snapshot rather than per read: `clean` is read on
+   * every render, and the snapshot changes only on a publish or a
+   * reconciliation.
+   */
+  get publishedSnapshot(): TLTimeline | null {
+    const raw = this.#meta.publishedSnapshot ?? null;
+    if (raw !== this.#snapshotRaw) {
+      this.#snapshotRaw = raw;
+      try {
+        this.#snapshotParsed = raw === null ? null : (JSON.parse(raw) as TLTimeline);
+      } catch {
+        this.#snapshotParsed = null;
+      }
+    }
+    return this.#snapshotParsed;
+  }
+
+  #snapshotRaw: string | null = null;
+  #snapshotParsed: TLTimeline | null = null;
+
   /** Add a slide, returning the internal key it was stored under. */
   addEvent(event: TLEvent): string {
     let key = '';
@@ -391,6 +462,28 @@ export class TimelineDoc {
         else if (map.get(k) !== v) map.set(k, v);
       }
     });
+  }
+
+  /**
+   * Record a setting the app produced rather than the author — today only the
+   * share-preview image, generated and uploaded during a publish.
+   *
+   * Bookkeeping, not an edit: it is not the author's doing, so it has no place
+   * on the undo stack, and the write must happen *before* the publish is
+   * marked clean so that the snapshot describes what actually went out. While
+   * it did not, every draft disagreed with its own record about
+   * `settings.ogImage` from its first publish onwards — invisible until
+   * something compared the two, and then visible as a conflict dialog claiming
+   * the settings had changed on the other side every single time.
+   */
+  recordPublishedSettings(patch: Partial<TLSettings>): void {
+    const map = settingsMap(this.doc);
+    this.doc.transact(() => {
+      for (const [k, v] of Object.entries(patch)) {
+        if (v === undefined) map.delete(k);
+        else if (!sameValue(map.get(k), v)) map.set(k, v);
+      }
+    }, BOOKKEEPING_ORIGIN);
   }
 
   /**
@@ -449,4 +542,27 @@ export class TimelineDoc {
       ? (slide.get(field.fragmentKey) as Y.XmlFragment)
       : null;
   }
+}
+
+/**
+ * A timeline as this editor's document would hold it.
+ *
+ * The published record is raw JSON from the PDS; the editor's own snapshot has
+ * been through `Y.Map`s and rich-text fragments, which settles key order and
+ * normalizes prose. Comparing one against the other directly reports
+ * differences that are not differences — which cost a fast-forward its
+ * cleanliness, so a draft that exactly matched the record still said
+ * "unpublished changes" and offered a pointless publish.
+ *
+ * So the record is put through an empty document first, and both sides of
+ * every later comparison are in the same shape. The throwaway document is the
+ * same class rather than a bare `Y.Doc`, because the thing being matched is
+ * specifically `TimelineDoc`'s snapshot.
+ */
+export function asStored(timeline: TLTimeline): TLTimeline {
+  const probe = new TimelineDoc();
+  probe.load(timeline, {}, { clean: false });
+  const stored = probe.timeline;
+  probe.destroy();
+  return stored;
 }

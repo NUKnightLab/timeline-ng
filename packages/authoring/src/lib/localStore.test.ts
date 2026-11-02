@@ -201,3 +201,28 @@ describe('whether a draft matches what was published', () => {
     await pb.destroy();
   });
 });
+
+describe('fork provenance', () => {
+  const forkedFrom = { atUri: 'at://did:plc:x/c/1', baseCid: 'bafyreibase', baseSnapshot: '{"events":[]}' };
+
+  it('survives a routine write that knows nothing about it', () => {
+    // Going home, or autosaving a title, rebuilds the entry. Losing the
+    // ancestor there would turn the fork's reconciliation back into a two-way
+    // diff that cannot tell the author's own work from anyone else's.
+    const id = newDocId();
+    noteDraft({ id, title: 'Spaceflight', clean: false, forkedFrom });
+    noteDraft({ id, title: 'Spaceflight, revised', clean: false });
+
+    expect(listDrafts().find((d) => d.id === id)?.forkedFrom).toEqual(forkedFrom);
+  });
+
+  it('holds no atUri, so one record still has exactly one draft', () => {
+    const original = newDocId();
+    const fork = newDocId();
+    noteDraft({ id: original, title: 'Spaceflight', atUri: forkedFrom.atUri, clean: true });
+    noteDraft({ id: fork, title: 'Spaceflight', clean: false, forkedFrom });
+
+    const claims = listDrafts().filter((d) => d.atUri === forkedFrom.atUri);
+    expect(claims.map((d) => d.id)).toEqual([original]);
+  });
+});

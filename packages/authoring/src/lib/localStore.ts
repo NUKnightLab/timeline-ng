@@ -46,6 +46,29 @@ export interface DraftSummary {
    * have never been published, where there is nothing to be clean against.
    */
   clean?: boolean;
+  /**
+   * Set on a fork — the draft *Keep both* leaves behind ([P10], [P11] in
+   * `docs/phase1-sync-conflicts.md`).
+   *
+   * A fork holds no `atUri`, deliberately: two drafts claiming one record is
+   * the bug `536221b` fixed, and `listDrafts().find(d => d.atUri === uri)`
+   * would choose between them arbitrarily. But an `atUri`-less draft publishes
+   * as a *new* record, which would quietly create a second public timeline
+   * while existing share links still point at the first. So a fork is a third
+   * kind of thing: it remembers where it came from without claiming it, and is
+   * publish-blocked until someone says which they meant.
+   *
+   * It carries the base it diverged from, not just its content. With the
+   * ancestor kept, reconciliation a week later is still the same three-way
+   * analysis as the moment it forked, rather than a two-way diff that cannot
+   * tell the author's own work from anyone else's.
+   */
+  forkedFrom?: {
+    atUri: string;
+    baseCid: string;
+    /** The published version both sides diverged from, serialized. */
+    baseSnapshot: string;
+  };
 }
 
 function readIndex(): DraftSummary[] {
@@ -78,10 +101,17 @@ export function newDocId(): string {
 /** Record or update a draft's entry. Called as the document changes. */
 export function noteDraft(summary: Omit<DraftSummary, 'editedAt'> & { editedAt?: string }): void {
   const editedAt = summary.editedAt ?? new Date().toISOString();
+  const existing = readIndex().find((d) => d.id === summary.id);
   const rest = readIndex().filter((d) => d.id !== summary.id);
   const entry: DraftSummary = { id: summary.id, title: summary.title, editedAt };
   if (summary.atUri) entry.atUri = summary.atUri;
   if (summary.clean !== undefined) entry.clean = summary.clean;
+  // Provenance survives a caller that does not know about it. Most writers of
+  // this index are routine — going home, autosaving a title — and rebuilding
+  // the entry from scratch each time would quietly strip a fork's ancestor,
+  // which is the one thing that makes its reconciliation cheap.
+  const forkedFrom = summary.forkedFrom ?? existing?.forkedFrom;
+  if (forkedFrom) entry.forkedFrom = forkedFrom;
   writeIndex([entry, ...rest]);
 }
 

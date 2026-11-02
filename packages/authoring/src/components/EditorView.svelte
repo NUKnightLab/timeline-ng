@@ -34,6 +34,12 @@
     publishStatus: string | null;
     /** Whether that status is good news. A refusal in success green reads as a success. */
     publishTone?: 'ok' | 'warn';
+    /**
+     * What reconciling with the published record did, or could not do
+     * (Scripts 3, 7 and 8, and an automatic merge). A statement, not a prompt.
+     */
+    syncNote?: string | null;
+    ondismissnote?: () => void;
     canPublish: boolean;
     deletedItem: { event: TLEvent; isTitle: boolean; sortedIndex: number } | null;
     deletedItemLeaving: boolean;
@@ -63,7 +69,8 @@
 
   let {
     timelineTitle, titleEvent, entries, selectedId, selectedEvent, isEditingTitle,
-    timeline, atUri, pdsClean, publishStatus, publishTone = 'ok', canPublish, deletedItem, deletedItemLeaving, settings,
+    timeline, atUri, pdsClean, publishStatus, publishTone = 'ok', syncNote = null, ondismissnote,
+    canPublish, deletedItem, deletedItemLeaving, settings,
     headlineFragment = null, bodyFragment = null,
     onback, onsignout, ontitlechange, onselect, onadd, onaddtitle, ondelete, onupdate, onpublish, onexport, onexportcsv, onundo,
     onsettingschange, onpeekhistory, onapplyhistory, historyVersion,
@@ -529,6 +536,20 @@
     </div>
   </nav>
 
+  <!--
+    A line under the subnav rather than a modal: each of these is something
+    that already happened, so there is nothing to confirm. Full width because
+    the subnav is where the short status belongs and this one is a sentence.
+  -->
+  {#if syncNote}
+    <div class="sync-note" role="status">
+      <span>{syncNote}</span>
+      {#if ondismissnote}
+        <button class="sync-note__close" onclick={ondismissnote} aria-label="Dismiss">×</button>
+      {/if}
+    </div>
+  {/if}
+
   <!-- ── Publish drawer ──────────────────────────────────────────────────────── -->
   {#if showShare}
     <div class="share-panel">
@@ -945,6 +966,29 @@
     white-space: normal;
     max-width: 32ch;
     line-height: 1.25;
+  }
+
+  .sync-note {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    padding: 0.5rem 1.25rem;
+    background: #eef3f8;
+    border-bottom: 1px solid #d3dde6;
+    font-size: 0.82rem;
+    color: #2d4356;
+  }
+
+  .sync-note__close {
+    margin: 0 0 0 auto;
+    padding: 0 0.25rem;
+    background: none;
+    border: 0;
+    color: inherit;
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+    text-shadow: none;
   }
 
   /* ── Publish drawer ──────────────────────────────────────────── */

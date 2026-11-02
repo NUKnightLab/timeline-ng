@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import type { TLEvent, TLTimeline, TLSettings } from '@knight-lab/timeline-ng-core';
   import { toTL3CSV, assignSlideIds } from '@knight-lab/timeline-ng-core';
-  import { getAuthState, publishTimeline, signOut, uploadBlob, blobUrl, extractCid } from './lib/atproto.svelte.ts';
+  import { getAuthState, publishTimeline, signOut, uploadBlob, blobUrl, extractCid, listTimelines, getTimeline } from './lib/atproto.svelte.ts';
   import { initAuth } from './lib/atproto.svelte.ts';
   import { generatePoster } from './lib/poster.ts';
   import { listDrafts, newDocId, noteDraft, forgetDraft, persistDoc } from './lib/localStore.ts';
@@ -12,8 +12,11 @@
   import { TimelineDoc, HEADLINE_FIELD, BODY_FIELD } from './lib/doc.svelte.ts';
   import { requestHistory } from './lib/historyBus.ts';
   import { stripHtml } from './lib/text.ts';
+  import { reconcile } from './lib/reconcile.ts';
+  import type { ThreeWay } from './lib/threeWay.ts';
   import HomeView from './components/HomeView.svelte';
   import EditorView from './components/EditorView.svelte';
+  import ConflictChoice from './components/ConflictChoice.svelte';
 
   // ── Synchronous OAuth restore check (must run before first render) ───────────
 
@@ -62,6 +65,34 @@
   let selectedId = $state<string | null>(null);
   let publishStatus = $state<string | null>(null);
   let publishTone = $state<'ok' | 'warn'>('ok');
+
+  /**
+   * The collision from Scripts 5 and 6, held until the author settles it.
+   *
+   * The editor stays behind the dialog rather than being replaced by it: what
+   * is behind it is their own draft, which is useful context for the choice and
+   * is not at risk from looking at it.
+   */
+  let conflict = $state<{
+    analysis: ThreeWay;
+    published: TLTimeline;
+    publishedCid: string;
+    publishedAt?: string;
+    occasion: 'open' | 'publish';
+  } | null>(null);
+
+  /**
+   * The quiet line from Scripts 3, 7 and 8, and from an automatic merge.
+   *
+   * Dismissible and not a prompt: each of these is something that happened, not
+   * something to decide. But they are said rather than hidden — Script 8's rule
+   * that the editor must never claim to be in sync when it has not checked cuts
+   * both ways, so a change it made on the author's behalf is announced too.
+   */
+  let syncNote = $state<string | null>(null);
+
+  /** Set while the open draft is a fork: it holds no claim on a record ([P10]). */
+  let forkOf = $state<DraftSummary['forkedFrom'] | null>(null);
   /** Bumped after each undo or redo; the slide editor re-reads its fields when it moves. */
   let historyVersion = $state(0);
 
@@ -164,6 +195,9 @@
   /** Detach persistence and let the current document go. */
   async function closeDraft() {
     if (_indexTimer !== null) { clearTimeout(_indexTimer); _indexTimer = null; }
+    // Whatever the last reconciliation said was about the draft being closed.
+    syncNote = null;
+    conflict = null;
     if (provider) {
       await provider.destroy();
       provider = null;
@@ -198,6 +232,7 @@
     drafts = listDrafts();
 
     selectedId = tldoc.titleEvent ? 'title' : (tldoc.entries[0]?.key ?? null);
+    forkOf = null;
     view = 'editor';
   }
 
@@ -216,7 +251,180 @@
     await attach(id);
 
     selectedId = tldoc.titleEvent ? 'title' : (tldoc.entries[0]?.key ?? null);
+    forkOf = listDrafts().find((d) => d.id === id)?.forkedFrom ?? null;
     view = 'editor';
+
+    // A disabled control with no explanation is worse than no control. The
+    // choice it is waiting for — over the original, or as a new timeline —
+    // does not exist yet ([P10]), so for now it says what it is instead.
+    if (forkOf) {
+      syncNote = 'This is a copy kept aside from a timeline in your account. It publishes nowhere until you bring its changes back into that one.';
+      return;
+    }
+
+    // After the editor is up, not before: the comparison is two requests and
+    // nothing about it should hold up opening a draft the author already has.
+    void checkPublished('open');
+  }
+
+  // ── Reconciling with the published record ─────────────────────────────────────
+
+  /**
+   * Compare the open draft with the record it publishes over, and act.
+   *
+   * Runs on open and on a refused publish, and nowhere else: checking in the
+   * background while a draft is open is useful and possible, but polling is its
+   * own decision (docs/phase1-sync-conflicts.md, *Deliberately not decided
+   * here*).
+   *
+   * Returns whether the author is now being asked something, so a publish that
+   * triggered this can stop rather than reporting its own failure over the top
+   * of the question.
+   */
+  async function checkPublished(occasion: 'open' | 'publish'): Promise<'clear' | 'asked'> {
+    const uri = tldoc.atUri;
+    if (!uri) return 'clear';
+
+    // Script 8. No claim either way — the editor must not show "in sync" when
+    // it has not checked, and must not invent a conflict either.
+    if (auth.status !== 'signed-in') {
+      syncNote = 'Signed out, so this could not be checked against the version in your account.';
+      return 'clear';
+    }
+
+    // One cheap request first: the list carries each record's CID, so the
+    // common case — nothing changed — costs no content fetch at all.
+    const listed = await listTimelines();
+    const row = listed.find((r) => r.uri === uri);
+
+    // Script 7. The record is gone; the draft stays and says so. Nothing is
+    // deleted, and publishing will write it back.
+    if (!row) {
+      syncNote = 'This timeline is no longer in your account. Publishing will put it back.';
+      return 'clear';
+    }
+    if (row.cid === tldoc.baseCid) return 'clear';
+
+    const fetched = await getTimeline(uri);
+    if (!fetched) {
+      syncNote = 'The version in your account could not be read, so this was not compared against it.';
+      return 'clear';
+    }
+    // The same normalization the editor applies to anything it imports, so the
+    // two sides are matched on ids assigned the same way. `assignSlideIds` is
+    // deterministic from the headline, so a slide both copies already hold
+    // keeps one id across both.
+    assignSlideIds(fetched.timeline);
+
+    const outcome = reconcile({
+      localClean: tldoc.clean,
+      baseCid: tldoc.baseCid,
+      publishedCid: row.cid,
+      base: tldoc.publishedSnapshot,
+      mine: tldoc.toTimeline(),
+      published: fetched.timeline,
+    });
+
+    switch (outcome.kind) {
+      case 'fast-forward':
+        // Script 3. Nothing local is at risk, so there is no decision to hand
+        // over — but the content did change under them, so it is said.
+        tldoc.adopt(outcome.published, outcome.published, row.cid);
+        selectedId = tldoc.titleEvent ? 'title' : (tldoc.entries[0]?.key ?? null);
+        syncNote = 'Updated to the version published from another device.';
+        return 'clear';
+      case 'merged': {
+        // [P9]. The two sides touched different things, so no field has two
+        // values and there is nothing to choose between.
+        tldoc.adopt(outcome.timeline, outcome.published, row.cid);
+        selectedId = tldoc.titleEvent ? 'title' : (tldoc.entries[0]?.key ?? null);
+        const theirs = outcome.analysis.theirs.length;
+        syncNote = `Merged ${theirs} change${theirs === 1 ? '' : 's'} published from another device. Publish again to include your own.`;
+        return 'clear';
+      }
+      case 'conflict':
+        conflict = {
+          analysis: outcome.analysis,
+          published: outcome.published ?? fetched.timeline,
+          publishedCid: row.cid,
+          ...(row.createdAt ? { publishedAt: row.createdAt } : {}),
+          occasion,
+        };
+        return 'asked';
+      default:
+        return 'clear';
+    }
+  }
+
+  /** *Keep mine*: the next publish overwrites the newer version knowingly. */
+  function keepMine() {
+    const c = conflict;
+    if (!c) return;
+    conflict = null;
+    tldoc.rebase(c.published, c.publishedCid);
+    syncNote = 'Keeping your version. Publishing will replace the one in your account.';
+  }
+
+  /** *Use the published version*: the local edits go. */
+  function usePublished() {
+    const c = conflict;
+    if (!c) return;
+    conflict = null;
+    tldoc.adopt(c.published, c.published, c.publishedCid);
+    selectedId = tldoc.titleEvent ? 'title' : (tldoc.entries[0]?.key ?? null);
+    syncNote = 'Using the version from your account. Your unpublished changes are gone.';
+  }
+
+  /**
+   * *Keep both*: this draft becomes a fork and the published version opens as
+   * the working timeline.
+   *
+   * The draft that already exists becomes the fork, rather than the fork being
+   * written as a new one. It is already persisted, it already holds the local
+   * edits and their whole Yjs history, and the working document is the one with
+   * the `atUri` — which is what the published version becomes. Inverting it
+   * would mean building a second document by hand and hoping it reached storage
+   * before being closed.
+   */
+  async function keepBoth() {
+    const c = conflict;
+    if (!c) return;
+    conflict = null;
+    const forkId = docId;
+    const uri = tldoc.atUri;
+    const baseCid = tldoc.baseCid;
+    const snapshot = tldoc.publishedSnapshot;
+
+    if (forkId && uri && baseCid) {
+      // No longer a claim on the record: [P4]'s one-draft-per-record invariant
+      // must keep finding exactly one draft for this uri, and that is about to
+      // be the new one.
+      tldoc.setAtUri(null);
+      noteDraft({
+        id: forkId,
+        title: tldoc.title,
+        clean: false,
+        forkedFrom: { atUri: uri, baseCid, baseSnapshot: JSON.stringify(snapshot ?? null) },
+      });
+    }
+
+    const tl = c.published;
+    await enterEditor({
+      title: tldoc.title,
+      titleSetByUser: tldoc.titleSetByUser,
+      titleEvent: tl.title ?? null,
+      events: tl.events,
+      atUri: uri ?? undefined,
+      baseCid: c.publishedCid,
+      clean: true,
+      settings: tl.settings,
+    });
+    syncNote = 'Your edits are kept as a separate copy, listed on the home screen under this timeline.';
+  }
+
+  function dismissConflict() {
+    conflict = null;
+    syncNote = 'Left as it is. Publishing will be refused until this is settled.';
   }
 
   // ── Init ─────────────────────────────────────────────────────────────────────
@@ -432,6 +640,9 @@
   // Clear "Published ✓" as soon as the data is dirtied; errors auto-dismiss separately
   $effect(() => { if (!pdsClean) publishStatus = null; });
 
+  /** A fork holds no claim on a record, so it cannot publish until that is settled ([P10]). */
+  const canPublishHere = $derived(canPublish && !forkOf);
+
   function handleTitleChange(t: string) {
     tldoc.setTitle(t, t.trim() !== '');
   }
@@ -473,17 +684,33 @@
     const result = await publishTimeline(timelineToPublish, { title: timelineTitle }, atUri ?? undefined, tldoc.baseCid ?? undefined);
     if (result.ok) {
       tldoc.setAtUri(result.uri);
+      // What went out, before recording that it did: the poster is generated
+      // here and uploaded, so without this the document never learns which
+      // share image its own record holds.
+      tldoc.recordPublishedSettings({ ogImage });
       // The CID the PDS just minted, recorded with the snapshot it describes.
       tldoc.markClean(result.cid);
       publishStatus = 'Published ✓';
+      // Whatever the last reconciliation had to say, publishing is the thing
+      // it was asking for — "publish again to include your own" outlives its
+      // usefulness the moment they do.
+      syncNote = null;
     } else if (result.conflict) {
       // The write was refused, not failed: something published over this
       // record since this draft last agreed with it, and the PDS declined to
       // let that work be overwritten. Nothing here is lost — the draft is
-      // untouched and still holds everything. Left on screen rather than
-      // timed out like an ordinary error, because it needs a decision.
-      publishStatus = 'Not published: this timeline changed in your account since you last loaded it.';
-      publishTone = 'warn';
+      // untouched and still holds everything.
+      //
+      // Script 6. The same comparison as Script 5, which may merge the two
+      // sides on its own; only a real collision reaches the author, and then
+      // the dialog says what did not happen, so the status line does not
+      // repeat it underneath.
+      publishStatus = null;
+      const asked = await checkPublished('publish');
+      if (asked === 'clear' && !syncNote) {
+        publishStatus = 'Not published: this timeline changed in your account since you last loaded it.';
+        publishTone = 'warn';
+      }
     } else {
       publishStatus = `Publish failed: ${result.error}`;
       publishTone = 'warn';
@@ -565,7 +792,9 @@
     {pdsClean}
     {publishStatus}
     {publishTone}
-    {canPublish}
+    canPublish={canPublishHere}
+    {syncNote}
+    ondismissnote={() => (syncNote = null)}
     {deletedItem}
     {deletedItemLeaving}
     {settings}
@@ -596,5 +825,17 @@
       return true;
     }}
     {historyVersion}
+  />
+{/if}
+
+{#if conflict}
+  <ConflictChoice
+    analysis={conflict.analysis}
+    occasion={conflict.occasion}
+    publishedAt={conflict.publishedAt}
+    onkeepmine={keepMine}
+    onusepublished={usePublished}
+    onkeepboth={keepBoth}
+    ondismiss={dismissConflict}
   />
 {/if}

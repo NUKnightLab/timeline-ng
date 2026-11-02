@@ -24,14 +24,40 @@ current CID (`Record was at bafy…`), so the published version is knowable with
 on — parsing an error message is brittle, and Scripts 5 and 6 need the record's *content* to describe
 the difference anyway, which means fetching it regardless.
 
-What remains is the part a person sees: Scripts 3 and 4's quiet handling, the conflict choice in
-Scripts 5 and 6, how the difference is described ([P6], [P7]), automatic merging ([P9]), the fork
-and its pull-list ([P10]–[P12]), and [P5]'s row presentation. The mechanism is in place and
-currently surfaces as one refusal message at publish, which is correct but unhelpful — it says what
-did not happen and offers nothing to do about it. Hand-testing also showed the status span replaces
-the Publish button while it is up, so the message announcing a decision is where the control to act
-on it used to be; it is amber and wraps now, rather than green and `nowrap`, which was pushing Share
-and the account menu off the end of the subnav.
+**The scripts landed the same day.** Scripts 2, 3, 4, 7 and 8 behave as written; [P9] merges when
+the overlap is empty and says so in a line; Scripts 5 and 6 present the three-way choice with [P6]'s
+loss framing, *Keep both* emphasized ([A3]), and [P10]/[P11]'s fork, shown attached to its original
+([A4]). The comparison itself is `lib/threeWay.ts` and the decision `lib/reconcile.ts`; the editor
+does the fetching and the asking.
+
+All of it was exercised against the devnet PDS, one device against a script standing in for another:
+a fast-forward updates quietly, disjoint edits merge with no prompt, a collision on one field raises
+the dialog at both open and publish, *Keep mine* then publishes over the newer version, and *Keep
+both* leaves a fork that is listed under its original and cannot publish. *Use the published
+version* is covered by tests rather than by hand.
+
+Three things the design did not anticipate, all found by hand-testing:
+
+- **Cleanliness was compared as JSON text.** A settings map that gained its keys in a different order
+  than the record lists them serializes differently while holding the same settings, so a draft that
+  had just taken on the published version still reported unpublished changes — which turned Script 3
+  into Script 5 on the next comparison. It compares structurally now, with `sameValue`.
+- **The share image was published but never recorded.** `handlePublish` generates a poster, uploads
+  it and publishes it without writing it back into the document, so from its first publish every
+  draft disagreed with its own record about `settings.ogImage`. Invisible until something compared
+  the two — and then visible as a conflict dialog claiming the settings had changed on the other side
+  every single time.
+- **URLs derived from blob references are not content.** `getTimeline` builds one for each
+  blob-backed image from the CID and the PDS origin. They are left out of the comparison: they are
+  recomputed on every read and would change if the account moved hosts.
+
+What remains: [P12]'s pull-list, which is what makes *Keep both* a deferral rather than a trap — a
+fork today can be opened and read but not reconciled, and says so instead of offering a Reconcile it
+cannot honour. Then [P7]'s preview at the first contested slide, [P6]'s field-level fidelity inside
+contested slides, and [P5]'s one-row-per-timeline presentation. The status span also still replaces
+the Publish button while it is up, so a refusal sits where the control to act on it used to be; it is
+amber and wraps now, rather than green and `nowrap`, which was pushing Share and the account menu off
+the end of the subnav.
 
 **A1–A4 were answered on 2026-10-27**, all four as their defaults; the body now states them rather
 than asking.

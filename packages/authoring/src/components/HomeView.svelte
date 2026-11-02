@@ -255,6 +255,20 @@
    */
   let pendingOpen = $state<{ uri: string; draftId: string; result: { title?: string; cid?: string; timeline: TLTimeline } } | null>(null);
 
+  /**
+   * A fork belongs under the draft that holds the record it diverged from.
+   * One that has lost its original — the draft was deleted, or published from
+   * somewhere else entirely — is listed on its own instead.
+   */
+  function forksFor(draft: DraftSummary): DraftSummary[] {
+    if (!draft.atUri) return [];
+    return drafts.filter((d) => d.forkedFrom?.atUri === draft.atUri);
+  }
+
+  const rootDrafts = $derived(
+    drafts.filter((d) => !d.forkedFrom || !drafts.some((o) => o.atUri && o.atUri === d.forkedFrom?.atUri)),
+  );
+
   async function handleOpen(uri: string) {
     openError = null;
     pendingOpen = null;
@@ -370,10 +384,7 @@
   <!-- ── Navbar ─────────────────────────────────────────────────────────────── -->
   <AppNavbar hidetitle />
 
-  {#snippet draftList()}
-    <ul class="draft-list">
-      {#each drafts as draft (draft.id)}
-        <li class="draft-row">
+  {#snippet draftRow(draft: DraftSummary)}
           {#if confirmDeleteDraftId === draft.id}
             <!-- Same inline confirm as a timeline in the account list, rather
                  than a native window.confirm. -->
@@ -407,6 +418,32 @@
             aria-label={`Delete ${draftName(draft)}`}
             onclick={() => (confirmDeleteDraftId = draft.id)}
           >✕</button>
+          {/if}
+  {/snippet}
+
+  <!--
+    [A4] A fork is shown attached to the timeline it came from, indented
+    beneath it, rather than as its own row in the list. A free-floating copy
+    gets deleted or published by accident; attached, it reads as what it is —
+    an open task belonging to that timeline.
+
+    A fork whose original is no longer in this browser still has to appear
+    somewhere, so it falls back to the top level rather than vanishing.
+  -->
+  {#snippet draftList()}
+    <ul class="draft-list">
+      {#each rootDrafts as draft (draft.id)}
+        <li class="draft-item">
+          <div class="draft-row">{@render draftRow(draft)}</div>
+          {#if forksFor(draft).length}
+            <ul class="fork-list">
+              {#each forksFor(draft) as fork (fork.id)}
+                <li class="draft-item">
+                  <span class="fork-label">Your edits, kept aside</span>
+                  <div class="draft-row">{@render draftRow(fork)}</div>
+                </li>
+              {/each}
+            </ul>
           {/if}
         </li>
       {/each}
@@ -1318,13 +1355,39 @@
     color: #666;
   }
   .draft-list { list-style: none; margin: 0; padding: 0; }
+  .fork-list {
+    list-style: none;
+    margin: 0.35rem 0 0;
+    padding: 0 0 0 1.5rem;
+    border-left: 2px solid #e2e5e8;
+  }
+
+
+  .fork-label {
+    display: block;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #7a7f85;
+    padding-left: 0.1rem;
+  }
+
+  /*
+   * The row is the flex line; the item around it is what a fork list hangs
+   * from. Without the wrapper the nested list became a flex child and sat
+   * beside the title instead of under it.
+   */
+  .draft-item {
+    list-style: none;
+  }
+
   .draft-row {
     display: flex;
     align-items: stretch;
     gap: 0.5rem;
     border-bottom: 1px solid #e6e6e6;
   }
-  .draft-row:last-child { border-bottom: none; }
+  .draft-item:last-child > .draft-row { border-bottom: none; }
   .draft-row-open {
     flex: 1;
     display: flex;

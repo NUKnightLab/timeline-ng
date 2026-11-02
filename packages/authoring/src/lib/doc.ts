@@ -145,7 +145,15 @@ export const hasTitleSlide = (doc: Y.Doc): boolean => titleMap(doc).size > 0;
  * typed anywhere on the slide. The values here are small and JSON-shaped;
  * this is not a general deep-equal.
  */
-function sameValue(current: unknown, next: unknown): boolean {
+/**
+ * Structural equality, as the document's writes mean it.
+ *
+ * Exported because the three-way comparison needs exactly this notion of "did
+ * this field change" — the same one `writeSlide` uses to decide whether a
+ * field is worth touching at all. Two definitions of equality between the
+ * writer and the comparison would disagree sooner or later.
+ */
+export function sameValue(current: unknown, next: unknown): boolean {
   if (current === next) return true;
   if (typeof current !== 'object' || typeof next !== 'object') return false;
   if (current === null || next === null) return false;
