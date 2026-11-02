@@ -32,6 +32,8 @@
     atUri: string | null;
     pdsClean: boolean;
     publishStatus: string | null;
+    /** Whether that status is good news. A refusal in success green reads as a success. */
+    publishTone?: 'ok' | 'warn';
     canPublish: boolean;
     deletedItem: { event: TLEvent; isTitle: boolean; sortedIndex: number } | null;
     deletedItemLeaving: boolean;
@@ -61,7 +63,7 @@
 
   let {
     timelineTitle, titleEvent, entries, selectedId, selectedEvent, isEditingTitle,
-    timeline, atUri, pdsClean, publishStatus, canPublish, deletedItem, deletedItemLeaving, settings,
+    timeline, atUri, pdsClean, publishStatus, publishTone = 'ok', canPublish, deletedItem, deletedItemLeaving, settings,
     headlineFragment = null, bodyFragment = null,
     onback, onsignout, ontitlechange, onselect, onadd, onaddtitle, ondelete, onupdate, onpublish, onexport, onexportcsv, onundo,
     onsettingschange, onpeekhistory, onapplyhistory, historyVersion,
@@ -507,7 +509,7 @@
         Preview
       </button>
       {#if publishStatus}
-        <span class="publish-status">{publishStatus}</span>
+        <span class="publish-status" class:publish-status--warn={publishTone === 'warn'}>{publishStatus}</span>
       {:else if pdsClean && atUri && auth.status === 'signed-in'}
         <span class="publish-status">Published ✓</span>
       {:else}
@@ -929,6 +931,20 @@
     font-size: 0.78rem;
     color: #15803d;
     white-space: nowrap;
+  }
+
+  /*
+   * Anything that did not publish. Amber rather than the success green, and
+   * allowed to wrap: a refusal has a reason to give, and `nowrap` pushed the
+   * Publish, Share and account controls off the end of the subnav entirely —
+   * so the one message telling you something needs deciding also took away
+   * everything you could do about it.
+   */
+  .publish-status--warn {
+    color: #b45309;
+    white-space: normal;
+    max-width: 32ch;
+    line-height: 1.25;
   }
 
   /* ── Publish drawer ──────────────────────────────────────────── */

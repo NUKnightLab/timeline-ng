@@ -74,7 +74,7 @@
     /** `replaceDraftId` drops that local draft first, so "start from published" really does. */
     onopen: (
       uri: string,
-      result: { title?: string; timeline: TLTimeline },
+      result: { title?: string; cid?: string; timeline: TLTimeline },
       opts?: { replaceDraftId?: string },
     ) => void | Promise<void>;
     onsignout: () => void;
@@ -253,7 +253,7 @@
    * held until the reader says which one they meant. The fetched record is
    * kept with it so answering does not have to go back for it.
    */
-  let pendingOpen = $state<{ uri: string; draftId: string; result: { title?: string; timeline: TLTimeline } } | null>(null);
+  let pendingOpen = $state<{ uri: string; draftId: string; result: { title?: string; cid?: string; timeline: TLTimeline } } | null>(null);
 
   async function handleOpen(uri: string) {
     openError = null;

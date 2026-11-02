@@ -202,6 +202,8 @@ export class TimelineDoc {
   get title(): string { return this.#meta.title ?? ''; }
   get titleSetByUser(): boolean { return this.#meta.titleSetByUser ?? false; }
   get atUri(): string | null { return this.#meta.atUri ?? null; }
+  /** The version of the published record this document last agreed with. */
+  get baseCid(): string | null { return this.#meta.baseCid ?? null; }
 
   get isEmpty(): boolean { return this.#entries.length === 0 && !this.#titleEvent; }
 
@@ -328,11 +330,21 @@ export class TimelineDoc {
    *
    * Kept in the document rather than on this object, so that reopening a draft
    * from storage still knows whether it matches what was published.
+   *
+   * `baseCid` is the version of the record this content now agrees with, and a
+   * caller recording a *publish* must pass it: the snapshot and the CID
+   * describe the same moment or they answer their two questions about
+   * different ones. It is omitted where the agreement is not with a record —
+   * a local import, or a load whose meta already carries the CID it came with.
    */
-  markClean(): void {
+  markClean(baseCid?: string): void {
     this.flushMirrors();
     this.doc.transact(
-      () => writeMeta(this.doc, { ...this.#meta, publishedSnapshot: JSON.stringify(this.#timeline) }),
+      () => writeMeta(this.doc, {
+        ...this.#meta,
+        publishedSnapshot: JSON.stringify(this.#timeline),
+        ...(baseCid ? { baseCid } : {}),
+      }),
       BOOKKEEPING_ORIGIN,
     );
   }
@@ -394,8 +406,24 @@ export class TimelineDoc {
     else this.#user(write);
   }
 
+  /**
+   * Point the document at the record it publishes over, or at none.
+   *
+   * Clearing the URI clears the base CID with it. The CID is a claim about one
+   * record, so keeping it after the document stops pointing at that record
+   * would leave the next publish asserting a version belonging to something
+   * else — which, since a fresh rkey has no record to swap against, would be
+   * refused outright.
+   */
   setAtUri(atUri: string | null): void {
-    this.doc.transact(() => writeMeta(this.doc, { ...this.#meta, atUri: atUri ?? undefined }), BOOKKEEPING_ORIGIN);
+    this.doc.transact(
+      () => writeMeta(this.doc, {
+        ...this.#meta,
+        atUri: atUri ?? undefined,
+        ...(atUri === null ? { baseCid: undefined } : {}),
+      }),
+      BOOKKEEPING_ORIGIN,
+    );
   }
 
   /** The document as a plain timeline, read straight from Yjs rather than the snapshot. */

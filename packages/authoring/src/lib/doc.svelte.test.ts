@@ -91,6 +91,36 @@ describe('clean', () => {
     expect(t.clean).toBe(true);
   });
 
+  it('records the published version alongside the snapshot', () => {
+    const t = new TimelineDoc();
+    t.load({ events: [moon], settings: {} });
+    t.addEvent(sputnik);
+
+    t.markClean('bafyreibase');
+    expect(t.clean).toBe(true);
+    expect(t.baseCid).toBe('bafyreibase');
+  });
+
+  it('keeps the base CID when marking clean without one', () => {
+    // A load whose meta already carried the CID: the snapshot is rewritten,
+    // the agreement it describes is unchanged.
+    const t = new TimelineDoc();
+    t.load({ events: [moon], settings: {} }, { baseCid: 'bafyreibase' });
+
+    t.markClean();
+    expect(t.baseCid).toBe('bafyreibase');
+  });
+
+  it('drops the base CID when the document stops pointing at a record', () => {
+    // Publishing as new mints a fresh rkey. A CID asserting a version of the
+    // record it no longer points at would be refused by the PDS outright.
+    const t = new TimelineDoc();
+    t.load({ events: [moon], settings: {} }, { atUri: 'at://did:plc:x/c/1', baseCid: 'bafyreibase' });
+
+    t.setAtUri(null);
+    expect(t.baseCid).toBe(null);
+  });
+
   it('ignores meta when deciding cleanliness', () => {
     // atUri and the timeline title are document metadata, not content.
     const t = new TimelineDoc();

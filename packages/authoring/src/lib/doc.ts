@@ -84,6 +84,20 @@ export interface DocMeta {
    * small next to its media and is rewritten only on publish.
    */
   publishedSnapshot?: string;
+  /**
+   * The CID of the published record this document last agreed with.
+   *
+   * Written in the same place as `publishedSnapshot`, and for the same reason
+   * the two are never written apart: the snapshot says whether *this*
+   * document has changed since that agreement, the CID says whether the
+   * *record* has. Together they are the common ancestor a three-way
+   * comparison needs, and a pair describing two different versions would
+   * answer both questions about different moments.
+   *
+   * Absent on a document that has never been published or loaded from a
+   * record, and on drafts made before this was recorded.
+   */
+  baseCid?: string;
   title?: string;
   titleSetByUser?: boolean;
   atUri?: string;
@@ -357,6 +371,7 @@ export function writeMeta(doc: Y.Doc, meta: DocMeta): void {
   put(map, 'titleSetByUser', meta.titleSetByUser);
   put(map, 'atUri', meta.atUri);
   put(map, 'publishedSnapshot', meta.publishedSnapshot);
+  put(map, 'baseCid', meta.baseCid);
 }
 
 /**
@@ -445,6 +460,8 @@ export function readMeta(doc: Y.Doc): DocMeta {
   if (typeof atUri === 'string') out.atUri = atUri;
   const publishedSnapshot = map.get('publishedSnapshot');
   if (typeof publishedSnapshot === 'string') out.publishedSnapshot = publishedSnapshot;
+  const baseCid = map.get('baseCid');
+  if (typeof baseCid === 'string') out.baseCid = baseCid;
   return out;
 }
 

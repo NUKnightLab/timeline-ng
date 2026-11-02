@@ -61,6 +61,7 @@
    */
   let selectedId = $state<string | null>(null);
   let publishStatus = $state<string | null>(null);
+  let publishTone = $state<'ok' | 'warn'>('ok');
   /** Bumped after each undo or redo; the slide editor re-reads its fields when it moves. */
   let historyVersion = $state(0);
 
@@ -182,7 +183,7 @@
   /** Start a new draft holding `timeline`. */
   async function createDraft(
     timeline: TLTimeline,
-    meta: { title?: string; titleSetByUser?: boolean; atUri?: string },
+    meta: { title?: string; titleSetByUser?: boolean; atUri?: string; baseCid?: string },
     opts: { clean?: boolean } = {},
   ) {
     await closeDraft();
@@ -245,14 +246,14 @@
     return 'e' + Math.random().toString(36).slice(2, 9);
   }
 
-  async function enterEditor(opts: { title?: string; titleSetByUser?: boolean; titleEvent?: TLEvent | null; events?: TLEvent[]; atUri?: string; clean?: boolean; settings?: TLSettings } = {}) {
+  async function enterEditor(opts: { title?: string; titleSetByUser?: boolean; titleEvent?: TLEvent | null; events?: TLEvent[]; atUri?: string; baseCid?: string; clean?: boolean; settings?: TLSettings } = {}) {
     await createDraft(
       {
         ...(opts.titleEvent ? { title: opts.titleEvent } : {}),
         events: opts.events ?? [],
         settings: opts.settings ?? { ...DEFAULT_SETTINGS },
       },
-      { title: opts.title, titleSetByUser: opts.titleSetByUser ?? false, atUri: opts.atUri },
+      { title: opts.title, titleSetByUser: opts.titleSetByUser ?? false, atUri: opts.atUri, baseCid: opts.baseCid },
       { clean: opts.clean ?? true },
     );
   }
@@ -301,7 +302,7 @@
 
   async function handleOpenRecord(
     uri: string,
-    result: { title?: string; timeline: TLTimeline },
+    result: { title?: string; cid?: string; timeline: TLTimeline },
     opts: { replaceDraftId?: string } = {},
   ) {
     // Asked for the published copy in place of a local draft: that draft has
@@ -328,7 +329,9 @@
     const tl = result.timeline;
     assignSlideIds(tl);
     const te = tl.title ?? null;
-    await enterEditor({ title: result.title, titleSetByUser: !!result.title, titleEvent: te, events: tl.events, atUri: uri, clean: true, settings: tl.settings });
+    // The record's CID travels with its content: this draft agrees with that
+    // version of it, and nothing later can establish which version it was.
+    await enterEditor({ title: result.title, titleSetByUser: !!result.title, titleEvent: te, events: tl.events, atUri: uri, baseCid: result.cid, clean: true, settings: tl.settings });
   }
 
   async function handleOpenDraft(id: string) {
@@ -451,6 +454,7 @@
     }
 
     publishStatus = 'Publishing…';
+    publishTone = 'ok';
 
     // Auto-generate a share-preview poster from the current title slide.
     // Best-effort: on any failure, keep whatever ogImage already existed
@@ -466,13 +470,23 @@
     }
     const timelineToPublish: TLTimeline = { ...timeline, settings: { ...settings, ogImage } };
 
-    const result = await publishTimeline(timelineToPublish, { title: timelineTitle }, atUri ?? undefined);
+    const result = await publishTimeline(timelineToPublish, { title: timelineTitle }, atUri ?? undefined, tldoc.baseCid ?? undefined);
     if (result.ok) {
       tldoc.setAtUri(result.uri);
-      tldoc.markClean();
+      // The CID the PDS just minted, recorded with the snapshot it describes.
+      tldoc.markClean(result.cid);
       publishStatus = 'Published ✓';
+    } else if (result.conflict) {
+      // The write was refused, not failed: something published over this
+      // record since this draft last agreed with it, and the PDS declined to
+      // let that work be overwritten. Nothing here is lost — the draft is
+      // untouched and still holds everything. Left on screen rather than
+      // timed out like an ordinary error, because it needs a decision.
+      publishStatus = 'Not published: this timeline changed in your account since you last loaded it.';
+      publishTone = 'warn';
     } else {
       publishStatus = `Publish failed: ${result.error}`;
+      publishTone = 'warn';
       setTimeout(() => { publishStatus = null; }, 4000);
     }
   }
@@ -550,6 +564,7 @@
     {atUri}
     {pdsClean}
     {publishStatus}
+    {publishTone}
     {canPublish}
     {deletedItem}
     {deletedItemLeaving}

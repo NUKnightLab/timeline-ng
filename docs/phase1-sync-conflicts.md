@@ -5,10 +5,36 @@
 *and* as a published record that something else has since changed.
 
 **What has shipped since this was written.** [P4] landed in `536221b` (2026-10-22), and with it the
-second of the two bugs below. The dangerous one — publishing a stale draft over a newer record — is
-untouched: there is no `swapRecord` and no base CID anywhere in `packages/*/src`. What remains is
-[P1]–[P3] plus the conflict choice in Scripts 5 and 6. **A1–A4 were answered on 2026-10-27**, all
-four as their defaults; the body now states them rather than asking.
+second of the two bugs below. **[P1], [P2], [P3] and [P8] landed on 2026-11-02**, and with them the
+dangerous one: a draft now records the CID of the version it agreed with, and publishing passes it
+as `putRecord`'s `swapRecord`, so a write that would overwrite a newer record is refused by the PDS
+rather than detected by us. The four cases of the table in *Detecting change* are a pure function,
+`lib/syncState.ts`.
+
+**Verified against the devnet PDS on 2026-11-02**, which is the reference implementation, so [P3]'s
+"revisit if a PDS mishandles `swapRecord`" has an answer for at least this one. A correct swap is
+accepted, so ordinary republishing is unaffected; a stale swap is refused with status 400 and
+`error: 'InvalidSwap'`; the record keeps the other version, which before this change the stale draft
+silently replaced. `getRecord` and `listRecords` both return a CID, and they agree with the one
+`putRecord` minted. Confirmed end to end in the app too, including across a reload: a draft reopened
+from `y-indexeddb` still carried its base CID and was still refused.
+
+One observation worth keeping for the conflict flow: the refusal's message carries the record's
+current CID (`Record was at bafy…`), so the published version is knowable without a fetch. Not built
+on — parsing an error message is brittle, and Scripts 5 and 6 need the record's *content* to describe
+the difference anyway, which means fetching it regardless.
+
+What remains is the part a person sees: Scripts 3 and 4's quiet handling, the conflict choice in
+Scripts 5 and 6, how the difference is described ([P6], [P7]), automatic merging ([P9]), the fork
+and its pull-list ([P10]–[P12]), and [P5]'s row presentation. The mechanism is in place and
+currently surfaces as one refusal message at publish, which is correct but unhelpful — it says what
+did not happen and offers nothing to do about it. Hand-testing also showed the status span replaces
+the Publish button while it is up, so the message announcing a decision is where the control to act
+on it used to be; it is amber and wraps now, rather than green and `nowrap`, which was pushing Share
+and the account menu off the end of the subnav.
+
+**A1–A4 were answered on 2026-10-27**, all four as their defaults; the body now states them rather
+than asking.
 
 **Added 2026-10-27:** how the difference between two versions is described to a person, automatic
 merging when the two sides do not collide, and what reconciliation after *Keep both* actually looks
