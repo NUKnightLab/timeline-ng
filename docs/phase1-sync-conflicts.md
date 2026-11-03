@@ -70,6 +70,9 @@ qualified: true today, not from Phase 2 — see *Joining an existing server draf
 Writing to the PDS is called **publishing** throughout, never "saving": an atproto repo is public,
 so the record is readable by anyone the moment the write succeeds.
 
+To drive these scripts by hand against devnet, see
+[phase1-sync-conflicts-by-hand.md](phase1-sync-conflicts-by-hand.md).
+
 ## How to read this
 
 Same format as [phase1-undo.md](phase1-undo.md). Judgement calls are tagged and collected at the
