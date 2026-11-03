@@ -48,13 +48,24 @@
    * Slide-level is the floor worth shipping: added, removed or edited, matched
    * by `unique_id`. Counting is deliberately plain — this is a sentence about
    * what goes away, not a change log.
+   *
+   * `same` is for the overlap sentence, where the slides being counted are the
+   * ones *both* sides changed: "the same slide", not "1 slide". Without it the
+   * sentence reads as though each side changed a slide, which is the one thing
+   * that would not be a conflict.
    */
-  function describe(changes: SlideChange[]): { text: string; plural: boolean } {
+  function describe(
+    changes: SlideChange[],
+    { same = false }: { same?: boolean } = {},
+  ): { text: string; plural: boolean } {
     const parts: string[] = [];
     const slides = changes.filter((c) => c.id !== TITLE_ID && c.id !== SETTINGS_ID).length;
     const settings = changes.some((c) => c.id === SETTINGS_ID);
     if (changes.some((c) => c.id === TITLE_ID)) parts.push('the title slide');
-    if (slides) parts.push(`${slides} slide${slides === 1 ? '' : 's'}`);
+    if (slides) {
+      if (same) parts.push(slides === 1 ? 'the same slide' : `the same ${slides} slides`);
+      else parts.push(`${slides} slide${slides === 1 ? '' : 's'}`);
+    }
     if (settings) parts.push('the settings');
     if (parts.length === 0) return { text: 'nothing we can account for', plural: false };
     const plural = parts.length > 1 || slides > 1 || (settings && parts.length === 1);
@@ -64,7 +75,9 @@
 
   const theirs = $derived(describe(analysis.theirs));
   const mine = $derived(describe(analysis.mine));
-  const overlap = $derived(describe(analysis.collisions.map((c) => ({ id: c.id, kind: 'edited' as const }))));
+  const overlap = $derived(
+    describe(analysis.collisions.map((c) => ({ id: c.id, kind: 'edited' as const })), { same: true }),
+  );
 
   const published = $derived(publishedAt ? new Date(publishedAt) : null);
   const publishedWhen = $derived(
@@ -91,8 +104,8 @@
 
     <p class="lede">
       {occasion === 'publish'
-        ? 'It was published from another device while you were editing.'
-        : 'It was published from another device after you last edited it here.'}
+        ? 'It was published from another browser while you were editing.'
+        : 'It was published from another browser after you last edited it here.'}
       {#if publishedWhen}<span class="when">Published {publishedWhen}.</span>{/if}
     </p>
 
@@ -106,7 +119,7 @@
       <li>
         <button class="option" onclick={onkeepmine}>
           <span class="option__name">Keep mine</span>
-          <span class="option__cost">{theirs.text} published from the other device {theirs.plural ? 'go' : 'goes'} away.</span>
+          <span class="option__cost">{theirs.text} published from the other browser {theirs.plural ? 'go' : 'goes'} away.</span>
         </button>
       </li>
       <li>

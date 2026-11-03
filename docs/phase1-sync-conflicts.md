@@ -229,7 +229,7 @@ Nothing local is at risk, since the draft has no edits of its own.
 Reached only when the two sides genuinely collide; disjoint changes merge without asking ([P9]).
 
 1. The editor does **not** open silently onto either version.
-2. A choice is offered, naming what differs: *"This timeline was published from another device
+2. A choice is offered, naming what differs: *"This timeline was published from another browser
    after you last edited it here."*
 3. **[A2 · answered]** Three options, with no per-slide merge UI: **Keep mine**, **Use the
    published version**, **Keep both**. Per-slide work belongs in the pull-list after *Keep both*
@@ -273,7 +273,7 @@ Reached only when the two sides genuinely collide; disjoint changes merge withou
 needs at that moment. They do not need to compare two documents, they need to know **what each button
 costs them**. So the summary is loss-framed per option rather than neutral:
 
-- *Keep mine* → the 2 slides published from the other device go away
+- *Keep mine* → the 2 slides published from the other browser go away
 - *Use the published version* → your last 40 minutes here go away
 - *Keep both* → nothing is lost; there is a reconciliation to do later
 

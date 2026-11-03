@@ -331,7 +331,7 @@
         // over — but the content did change under them, so it is said.
         tldoc.adopt(outcome.published, outcome.published, row.cid);
         selectedId = tldoc.titleEvent ? 'title' : (tldoc.entries[0]?.key ?? null);
-        syncNote = 'Updated to the version published from another device.';
+        syncNote = 'Updated to the version published from another browser.';
         return 'clear';
       case 'merged': {
         // [P9]. The two sides touched different things, so no field has two
@@ -339,7 +339,7 @@
         tldoc.adopt(outcome.timeline, outcome.published, row.cid);
         selectedId = tldoc.titleEvent ? 'title' : (tldoc.entries[0]?.key ?? null);
         const theirs = outcome.analysis.theirs.length;
-        syncNote = `Merged ${theirs} change${theirs === 1 ? '' : 's'} published from another device. Publish again to include your own.`;
+        syncNote = `Merged ${theirs} change${theirs === 1 ? '' : 's'} published from another browser. Publish again to include your own.`;
         return 'clear';
       }
       case 'conflict':
