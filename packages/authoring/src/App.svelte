@@ -671,6 +671,12 @@
     // Best-effort: on any failure, keep whatever ogImage already existed
     // rather than losing it over a transient generation/upload error.
     let ogImage = settings.ogImage;
+    // A reference that cannot be read is let go of here rather than carried
+    // along. `publishTimeline` drops it from the record anyway, so keeping it
+    // in the document would leave the draft and its own record permanently
+    // disagreeing about the settings — which is how the broken reference
+    // announced itself: as "and the settings" in every conflict dialog.
+    if (ogImage && !extractCid(ogImage.blobRef?.ref)) ogImage = undefined;
     try {
       const poster = await generatePoster(timeline);
       if (poster) {

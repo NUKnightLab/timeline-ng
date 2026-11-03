@@ -192,10 +192,19 @@ export async function uploadBlob(file: Blob): Promise<ATProtoBlobRef> {
   const buf = await file.arrayBuffer();
   const resp = await agent.com.atproto.repo.uploadBlob(new Uint8Array(buf), { encoding: file.type });
   const blob = resp.data.blob;
-  // blob.ref is a CID class instance, not a plain { $link } object — convert explicitly
+  // blob.ref is normally a CID class instance rather than the plain { $link }
+  // a record holds, so it has to be converted explicitly — but not with
+  // `toString()`, which is how `"[object Object]"` got into records: the same
+  // response reaches us with its prototype stripped often enough to matter,
+  // and a stripped CID stringifies to exactly that.
+  const cid = extractCid(blob.ref);
+  // The blob is on the PDS either way; what is refused here is attaching a
+  // reference nothing can resolve. A failed upload is visible and retried. A
+  // record published with a broken reference is public and silently wrong.
+  if (!cid) throw new Error('The upload succeeded but the server returned a blob reference this could not read.');
   return {
     $type: 'blob',
-    ref: { $link: blob.ref.toString() },
+    ref: { $link: cid },
     mimeType: blob.mimeType,
     size: blob.size,
   };
@@ -215,12 +224,54 @@ export function localOrPdsBlobUrl(cid: string): string {
   return getCachedBlobUrl(cid) ?? blobUrl(cid);
 }
 
-// getRecord responses do IPLD JSON decoding: blobRef.ref comes back as a CID
-// class object, not the plain { $link: string } we write on upload. Handle both.
-export function extractCid(ref: { $link: string } | unknown): string {
+/**
+ * A cid that could address a blob, as opposed to any other string.
+ *
+ * Base32 CIDv1 and base58 CIDv0 are both long and alphanumeric, which is
+ * enough to tell either from the one value that must never reach a record:
+ * the string `"[object Object]"`.
+ */
+function isCidLike(value: string): boolean {
+  return /^[A-Za-z0-9]{32,}$/.test(value);
+}
+
+/**
+ * The cid out of whatever form a blob reference's `ref` has arrived in.
+ *
+ * Four forms reach this, and the difference is not cosmetic — writing the
+ * wrong one into a record publishes a reference to a blob that does not
+ * exist:
+ *
+ * - `{ $link }`, which is what a record stores and what we write;
+ * - a `CID` class instance, which is what `@atproto/api` decodes a response
+ *   into;
+ * - `{ '/': cid }`, `CID.toJSON()` — and what a CID becomes once it has been
+ *   through `structuredClone` or a JSON round trip, which is the fate of
+ *   anything held in the collaborative document;
+ * - a CID whose prototype is gone and which kept no `'/'`: unusable.
+ *
+ * That last form is why this cannot end at `String(ref)`. Such an object
+ * stringifies to `"[object Object]"`, and that string was reaching published
+ * records as `settings.ogImage.blobRef.ref.$link` — a share image addressing
+ * nothing. The result is checked rather than trusted for the same reason: a
+ * draft that already holds the broken value would otherwise keep publishing
+ * it, since `"[object Object]"` is a perfectly good string sitting in a
+ * perfectly good `$link`.
+ *
+ * An empty return means "no usable reference", which every caller already has
+ * a branch for. A plausible-looking lie is what there was no branch for.
+ */
+export function extractCid(ref: unknown): string {
   if (!ref) return '';
-  if (typeof ref === 'object' && '$link' in (ref as object)) return (ref as { $link: string }).$link ?? '';
-  return String(ref);
+  if (typeof ref === 'string') return isCidLike(ref) ? ref : '';
+  if (typeof ref !== 'object') return '';
+  const obj = ref as Record<string, unknown>;
+  for (const key of ['$link', '/'] as const) {
+    const value = obj[key];
+    if (typeof value === 'string') return isCidLike(value) ? value : '';
+  }
+  const stringified = String(ref);
+  return isCidLike(stringified) ? stringified : '';
 }
 
 /**
@@ -292,8 +343,19 @@ function hydrateOgImage(settings: TLSettings | undefined, base: string, did: str
   };
 }
 
-function stripOgImageUrl(settings: TLSettings | undefined): TLSettings | undefined {
-  if (!settings?.ogImage?.blobRef || !settings.ogImage.url) return settings;
+/** Exported for the test that pins the self-healing behaviour below. */
+export function stripOgImageUrl(settings: TLSettings | undefined): TLSettings | undefined {
+  if (!settings?.ogImage?.blobRef) return settings;
+  // A reference that cannot be read is dropped rather than published again.
+  // Drafts that already hold the broken one are the reason: the poster is
+  // regenerated on every publish, but only best-effort, so a generation that
+  // fails would otherwise carry the old garbage back out to the record.
+  if (!extractCid(settings.ogImage.blobRef.ref)) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { ogImage: _og, ...rest } = settings;
+    return rest;
+  }
+  if (!settings.ogImage.url) return settings;
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { url: _u, ...ogImage } = settings.ogImage;
   return { ...settings, ogImage };
