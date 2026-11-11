@@ -159,8 +159,8 @@ fragments from the incoming prose instead, and is the one write that does. And a
 own IndexedDB database, so the panel attaches a second provider, reads, and detaches: a provider left
 attached to a per-draft database is a leak nobody would notice until a browser held a dozen drafts.
 
-What remains: [P7]'s preview at the first contested slide, [P6]'s field-level fidelity inside
-contested slides, and [P5]'s one-row-per-timeline presentation. The status span also still replaces
+What remains: nothing specified. [P6]'s field-level fidelity and [P5]'s one row per timeline have
+since shipped, and [P7]'s preview was struck — see its entry. The status span also still replaces
 the Publish button while it is up, so a refusal sits where the control to act on it used to be; it is
 amber and wraps now, rather than green and `nowrap`, which was pushing Share and the account menu off
 the end of the subnav.
@@ -437,11 +437,26 @@ Diffing the *text* of contested rich-text fields is deliberately out of the firs
 is a different question from merging them: a display diff needs no history, so it stays available
 later if the slide-level account proves too coarse.
 
-**[P7]** Offer **Preview the published version**, opened at the first contested slide. A timeline is a
-visual artifact and a prose change list is a poor proxy for one. This is nearly free: the preview
-harness already accepts an arbitrary timeline object — `EditorView.svelte` posts
-`{ type: 'tl-preview', timeline, initialIndex }` and the embed handles it — and nothing binds it to
-the document being edited.
+**[P7] — struck, 2026-11-11.** It proposed **Preview the published version**, opened at the first
+contested slide, on the grounds that a timeline is a visual artifact and a prose change list is a
+poor proxy for one. Both halves of that turned out to be wrong by the time the rest shipped.
+
+*Not nearly free.* The embed does accept an arbitrary timeline, but `EditorView` binds that message
+to its own `timeline` and to `previewStartIndex`, which is derived from the editor's selected
+slide. Showing the published version at a chosen index needs props threaded App → EditorView, and
+the conflict dialog is a sibling modal, so previewing from it stacks two `aria-modal` dialogs with
+focus and Escape to arbitrate — mostly modal plumbing rather than feature.
+
+*And no longer the best answer.* [P7] was written when the dialog was the only place anything was
+shown. [P6] and [P12] since put **both versions side by side, field by field**, behind the option
+that carries the emphasis and cannot lose work. A preview shows one side at a time, which informs
+*Use the published version* and not *Keep mine* — the choice where comparing is the whole question.
+The dialog's job is to get someone somewhere safe, and the safe place now holds more than a preview
+could.
+
+What survives is the complaint underneath: the dialog counted ("2 slides and the settings") where it
+could name. The overlap sentence — the fact that usually settles the choice — now names the slides
+it is about.
 
 **Two honest limits.** We can report only *net* change on the published side, never an activity log:
 our own history is in Yjs, theirs is flat JSON, and "changed the title" may have been six edits by
@@ -787,7 +802,7 @@ All four answered 2026-10-27, each as its default.
 | P4 | Opening a published timeline reuses its existing local draft — **shipped, `536221b`** | |
 | P5 | One home-screen row per timeline, using `listRecords` CIDs — **shipped** | Merged rows prove harder to read than two lists |
 | P6 | Describe the conflict as a three-way, loss-framed per option, with the overlap as the key fact | |
-| P7 | Offer a preview of the published version, opened at the first contested slide | It turns out to be read past rather than used |
+| P7 | ~~Offer a preview of the published version, opened at the first contested slide~~ — **struck**: not cheap, and overtaken by the side-by-side comparison | Someone asks to see the published version as a timeline rather than as fields |
 | P8 | `listTimelines` carries each record's CID; `createdAt` is for display only, never detection | |
 | P9 | Merge automatically when the overlap is empty; ask only on a real collision | Silent merges surprise people in testing |
 | P10 | A fork is not a publish claim: no `atUri` in the index, publish-blocked by default | |

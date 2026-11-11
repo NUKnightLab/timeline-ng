@@ -68,8 +68,9 @@ node scripts/other-browser.mjs edit voyager "Voyager 1 — 45 years out"
 ```
 
 Reopen. Now the dialog: *"This timeline changed in your account"*, three options
-each carrying its own cost, and underneath *"Both versions changed 1 slide,
-which is why this cannot be merged for you."*
+each carrying its own cost, and underneath the fact that usually settles it,
+naming what is contested rather than counting it: *"Both versions changed
+“Voyager 1”, which is why this cannot be merged for you."*
 
 Press **Escape** first. Nothing happens to the draft, and reopening asks again —
 deliberate: dismissing must not quietly leave a fork behind.

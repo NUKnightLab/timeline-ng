@@ -540,6 +540,27 @@
       : 'Your edits are kept as an unmerged draft, listed on the home screen under this timeline.';
   }
 
+  /**
+   * Headlines for the contested slides, so the dialog can name them rather
+   * than count them.
+   *
+   * Read from the published version: a contested slide exists on both sides
+   * by definition, and the published one is the copy the dialog already
+   * holds. The headline may itself be what differs, in which case naming the
+   * slide by one side's version is still better than "the same 2 slides" —
+   * and the panel behind *Keep both* shows both.
+   */
+  function contestedNames(c: { analysis: ThreeWay; published: TLTimeline }): Record<string, string> {
+    const out: Record<string, string> = {};
+    const byId = new Map((c.published.events ?? []).map((ev) => [ev.unique_id, ev]));
+    for (const collision of c.analysis.collisions) {
+      const headline = byId.get(collision.id)?.text?.headline;
+      const plain = (headline ?? '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+      if (plain) out[collision.id] = plain;
+    }
+    return out;
+  }
+
   function dismissConflict() {
     conflict = null;
     syncNote = 'Left as it is. Publishing will be refused until this is settled.';
@@ -1337,6 +1358,7 @@
     analysis={conflict.analysis}
     occasion={conflict.occasion}
     publishedAt={conflict.publishedAt}
+    names={contestedNames(conflict)}
     onkeepmine={keepMine}
     onusepublished={usePublished}
     onkeepboth={keepBoth}

@@ -28,6 +28,15 @@
     occasion: 'open' | 'publish';
     /** When the record was last published, for the fact that often settles it. */
     publishedAt?: string;
+    /**
+     * Headlines for the contested slides, by id.
+     *
+     * The overlap sentence is the fact that usually settles the choice, and
+     * counting ("the same 2 slides") leaves someone to work out *which* two
+     * before they can use it. Supplied rather than derived here because the
+     * published timeline is App's, and the dialog takes the analysis alone.
+     */
+    names?: Record<string, string>;
     onkeepmine: () => void;
     onusepublished: () => void;
     /**
@@ -44,7 +53,7 @@
     ondismiss: () => void;
   }
 
-  const { analysis, occasion, publishedAt, onkeepmine, onusepublished, onkeepboth, ondismiss }: Props = $props();
+  const { analysis, occasion, publishedAt, names = {}, onkeepmine, onusepublished, onkeepboth, ondismiss }: Props = $props();
 
   /**
    * "2 slides", "the title slide and 1 slide", "the settings".
@@ -53,23 +62,17 @@
    * by `unique_id`. Counting is deliberately plain — this is a sentence about
    * what goes away, not a change log.
    *
-   * `same` is for the overlap sentence, where the slides being counted are the
-   * ones *both* sides changed: "the same slide", not "1 slide". Without it the
-   * sentence reads as though each side changed a slide, which is the one thing
-   * that would not be a conflict.
+   * The overlap sentence was built from this too, with a `same` flag so it
+   * read "the same slide" rather than "1 slide". It names its subjects now
+   * instead — see `contested`, and [P7] in the spec for why counting was the
+   * thing worth fixing there.
    */
-  function describe(
-    changes: SlideChange[],
-    { same = false }: { same?: boolean } = {},
-  ): { text: string; plural: boolean } {
+  function describe(changes: SlideChange[]): { text: string; plural: boolean } {
     const parts: string[] = [];
     const slides = changes.filter((c) => c.id !== TITLE_ID && c.id !== SETTINGS_ID).length;
     const settings = changes.some((c) => c.id === SETTINGS_ID);
     if (changes.some((c) => c.id === TITLE_ID)) parts.push('the title slide');
-    if (slides) {
-      if (same) parts.push(slides === 1 ? 'the same slide' : `the same ${slides} slides`);
-      else parts.push(`${slides} slide${slides === 1 ? '' : 's'}`);
-    }
+    if (slides) parts.push(`${slides} slide${slides === 1 ? '' : 's'}`);
     if (settings) parts.push('the settings');
     if (parts.length === 0) return { text: 'nothing we can account for', plural: false };
     const plural = parts.length > 1 || slides > 1 || (settings && parts.length === 1);
@@ -79,9 +82,26 @@
 
   const theirs = $derived(describe(analysis.theirs));
   const mine = $derived(describe(analysis.mine));
-  const overlap = $derived(
-    describe(analysis.collisions.map((c) => ({ id: c.id, kind: 'edited' as const })), { same: true }),
-  );
+  /**
+   * The contested things by name — "the title slide", "the settings", and a
+   * slide's headline in quotes — listed rather than counted.
+   *
+   * Three at most. Past that the list stops being a fact and becomes a
+   * change log, which is the thing this dialog is deliberately not.
+   */
+  const contested = $derived.by(() => {
+    const parts = analysis.collisions.map((c) => {
+      if (c.id === TITLE_ID) return 'the title slide';
+      if (c.id === SETTINGS_ID) return 'the settings';
+      const name = names[c.id];
+      return name ? `“${name}”` : 'a slide';
+    });
+    const shown = parts.slice(0, 3);
+    const rest = parts.length - shown.length;
+    if (rest) return `${shown.join(', ')}, and ${rest} more`;
+    if (shown.length === 1) return shown[0];
+    return `${shown.slice(0, -1).join(', ')} and ${shown.at(-1)}`;
+  });
 
   const published = $derived(publishedAt ? new Date(publishedAt) : null);
   const publishedWhen = $derived(
@@ -155,7 +175,7 @@
 
     {#if analysis.collisions.length}
       <p class="overlap">
-        Both versions changed {overlap.text}, which is why this cannot be merged for you.
+        Both versions changed {contested}, which is why this cannot be merged for you.
       </p>
     {/if}
   </div>
