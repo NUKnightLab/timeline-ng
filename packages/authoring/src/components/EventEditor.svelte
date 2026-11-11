@@ -17,6 +17,7 @@
   import { fetchWikipediaImagePrefill } from '../lib/wikipediaPrefill.ts';
   import { fetchFlickrPrefill } from '../lib/flickrPrefill.ts';
   import { modalDialog } from '../lib/modalDialog.ts';
+  import { focusLeftContainer } from '../lib/focusLeave.ts';
 
   interface Props {
     event: TLEvent;
@@ -720,11 +721,7 @@
     if (filePickerActive) return false;
     const current = event.currentTarget as HTMLElement | null;
     if (!current) return false;
-    const next = event.relatedTarget as Node | null;
-    // Focus landed somewhere concrete — Tab, or a click on another control.
-    if (next) return !current.contains(next);
-    // Focus went nowhere. Trust the last pointerdown instead.
-    return !pointerDownInsideOpenEditor;
+    return focusLeftContainer(current, event.relatedTarget as Node | null, pointerDownInsideOpenEditor);
   }
 
   function markPointerDownInsideOpenEditor() {
