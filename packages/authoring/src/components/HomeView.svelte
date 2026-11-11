@@ -544,10 +544,25 @@
       <button class="draft-undo" onclick={onundodeletedraft}>
         <span class="draft-undo__text">
           <span class="draft-undo__name">Deleted “{draftName(pending.entries[0])}”</span>
+        <!--
+          What the ✕ did *not* do, which depends on what the row was. The
+          instant path is taken by anything with no record in this account —
+          which is not the same as unpublished: a timeline belonging to
+          another account goes this way too, and telling its owner that
+          nothing was published would be plainly false.
+        -->
           <span class="draft-undo__meta">
-            {pending.entries.length > 1
-              ? `Its ${pending.entries.length - 1 === 1 ? 'unmerged draft went' : `${pending.entries.length - 1} unmerged drafts went`} too.`
-              : 'Nothing was published, so nothing was taken off the web.'}
+            {#if pending.entries.length > 1}
+              Its {pending.entries.length - 1 === 1
+                ? 'unmerged draft went'
+                : `${pending.entries.length - 1} unmerged drafts went`} too.
+            {:else if pending.entries[0].ownerHandle}
+              The published timeline in “{pending.entries[0].ownerHandle}” is untouched.
+            {:else if pending.entries[0].atUri}
+              Anything published stays published.
+            {:else}
+              Nothing was published, so nothing was taken off the web.
+            {/if}
           </span>
         </span>
         <span class="draft-undo__action">Undo</span>
@@ -718,13 +733,13 @@
       <section class="home-section">
         <div class="section-header-row">
           <h2 class="section-heading">Your timelines</h2>
-          <!-- Signed in this is an account chip, and signing in it is a status,
-               so both belong up here beside the heading. Signed out it is an
-               offer, and an offer belongs with the sentence making it — see
-               the empty state below. -->
-          {#if auth.status === 'signed-in' || auth.status === 'loading'}
-            <AuthButton {onsignout} restoreView="home" />
-          {/if}
+          <!-- Always here, in every state. It used to move: a chip beside the
+               heading when signed in, an offer down beside the empty state
+               when signed out. That made sense when the signed-out case was
+               about the second list, which no longer exists — now there is
+               one list, and the control that decides what is in it belongs
+               in one place above it. -->
+          <AuthButton {onsignout} restoreView="home" />
         </div>
         <!-- Both kinds of row live in this section, so one alert covers them. -->
         {#if openError}
@@ -757,10 +772,9 @@
         {#if auth.status === 'loading'}
           <p class="list-empty">Signing you in…</p>
         {:else if auth.status !== 'signed-in'}
-          <div class="signed-out-offer">
-            <p class="list-empty">Sign in to publish your timelines and pick them up again here.</p>
-            <AuthButton {onsignout} restoreView="home" />
-          </div>
+          <!-- The reason, without a second button: the one above is the only
+               one, so this says what signing in is for and points at it. -->
+          <p class="list-empty">Sign in to publish your timelines and pick them up again here.</p>
         {/if}
       </section>
 
@@ -1153,14 +1167,6 @@
   }
 
   /* ── Timeline list ───────────────────────────────────────────── */
-  /* The reason and the button, in that order and close enough to read as one
-     offer. They used to sit at opposite ends of the column. */
-  .signed-out-offer {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.75rem;
-  }
 
   .list-loading, .list-empty {
     font-size: 0.85rem;
