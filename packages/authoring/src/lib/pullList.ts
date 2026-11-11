@@ -58,6 +58,12 @@ export interface PullEntry {
   /** Which fields are contested, when the collision is field-level. */
   fields?: string[];
   /**
+   * Neither side inherited this slide — both invented it under the same id.
+   * There is no "what it was" to compare against, so the row cannot be
+   * described as an edit to something, and the whole of it is contested.
+   */
+  rival?: true;
+  /**
    * Every field the two versions disagree about, with both values ([P6]).
    *
    * Only an edited row has these: a slide that exists on one side only is a
@@ -142,20 +148,35 @@ export function pullList(base: TLTimeline, fork: TLTimeline, working: TLTimeline
     if (mine && theirs && sameValue(comparable(mine), comparable(theirs))) continue;
     if (!mine && !theirs) continue;
 
-    const diffs = fieldDiffs(theirs, mine, inBase.get(id));
+    const ancestor = inBase.get(id);
+    const diffs = fieldDiffs(theirs, mine, ancestor);
+
+    // The row's kind is what answering it would **do to the working
+    // document**, not what the draft did to its ancestor. The two part
+    // company when both sides invented the same slide independently: the
+    // draft's change is an addition, but the working document has one too, so
+    // keeping the draft's replaces rather than adds. Reported as an addition,
+    // the row said "You added this; the published timeline does not have it"
+    // directly above a comparison showing the published version of it.
+    const kind: PullEntry['kind'] = !theirs ? 'added' : !mine ? 'removed' : 'edited';
+
     // An edited row with nothing showable is a row whose every line has been
     // answered — the slide still differs from the fork, because the lines
     // went different ways, but there is nothing left to decide. Offering it
     // would be the unreadable, unclearable row `withDiffs` describes.
-    if (change.kind === 'edited' && !diffs.length) continue;
+    if (kind === 'edited' && !diffs.length) continue;
 
     const collision = contested.get(id);
     entries.push({
       id,
-      kind: change.kind,
+      kind,
       label: id === TITLE_ID ? 'Title slide' : headline(mine ?? theirs),
       ...(mine ? { event: mine } : {}),
       contested: !!collision,
+      // Both sides introduced it, so neither "you changed this" nor "you
+      // added this" is the whole story, and the panel says so in one
+      // sentence rather than two that contradict each other.
+      ...(!ancestor && mine && theirs ? { rival: true as const } : {}),
       ...(collision?.fields ? { fields: collision.fields } : {}),
       ...withDiffs(diffs),
     });

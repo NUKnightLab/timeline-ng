@@ -1166,29 +1166,57 @@
     cursor: pointer;
     text-align: left;
     min-width: 0;
+    /* `font-family: inherit` does not cover these, and Orangeline sets all
+       three on every <button> — which is why a published timeline's title was
+       rendered in bold uppercase, as a button label rather than as the name
+       its author typed. The draft rows carried these resets already; that
+       asymmetry was the whole of the difference in how the two lists read. */
+    font-weight: 400;
+    text-transform: none;
+    text-shadow: none;
+    margin: 0;
+    border-radius: 0;
   }
   .timeline-item-btn:hover { background: #f9fafb; }
   .timeline-item-btn:disabled { opacity: 0.6; cursor: default; }
 
+  /*
+   * Orangeline gives every <button> a bottom margin, a three-layer shadow and
+   * a radius, so this one rendered as a raised chip: 31px tall in a 47px row,
+   * lifted off the surface and pushed past the card's own edge. The resets are
+   * the whole fix — it is meant to be the right-hand end of the row, not an
+   * object sitting on top of it.
+   */
   .btn-delete-timeline {
     background: transparent;
     border: none;
     border-left: 1px solid #e8e8e8;
+    border-radius: 0;
+    margin: 0;
+    box-shadow: none;
+    text-shadow: none;
     color: #d1d5db;
     padding: 0 0.75rem;
     font-size: 0.75rem;
+    line-height: 1;
     cursor: pointer;
     flex-shrink: 0;
   }
   .btn-delete-timeline:hover:not(:disabled) { color: #ef4444; background: #fef2f2; }
   .btn-delete-timeline:disabled { opacity: 0.4; cursor: default; }
 
+  /* Wraps rather than pushing its buttons out of the row. A draft's
+     confirmation is a sentence or two — it names what else goes with it —
+     and on one nowrap line that drove Delete and Cancel past the card's
+     edge, where the card's own overflow clipped them. */
   .timeline-item-confirm {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 0.5rem;
     padding: 0.75rem 1rem;
     flex: 1;
+    min-width: 0;
     background: #fef2f2;
   }
 
@@ -1231,13 +1259,14 @@
 
   .confirm-label {
     font-size: 0.85rem;
+    line-height: 1.35;
     color: #b91c1c;
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    flex: 1 1 14rem;
+    min-width: 0;
   }
 
+  /* The same resets: these replace the ✕ in the row when it is clicked, so
+     they cannot be raised chips either. */
   .btn-confirm-delete {
     background: #ef4444;
     border: 1px solid #ef4444;
@@ -1247,6 +1276,10 @@
     font-family: inherit;
     cursor: pointer;
     border-radius: 2px;
+    margin: 0;
+    box-shadow: none;
+    text-shadow: none;
+    text-transform: none;
     white-space: nowrap;
     flex-shrink: 0;
   }
@@ -1262,6 +1295,10 @@
     font-family: inherit;
     cursor: pointer;
     border-radius: 2px;
+    margin: 0;
+    box-shadow: none;
+    text-shadow: none;
+    text-transform: none;
     flex-shrink: 0;
   }
   .btn-cancel-delete:hover { border-color: #9ca3af; color: #374151; }
@@ -1399,11 +1436,29 @@
     font-size: 0.75rem;
     color: #9ca3af;
   }
-  .draft-list { list-style: none; margin: 0; padding: 0; }
+  /* Same container as the published list below it. Two lists of the same kind
+     of thing, one on a bordered white card and the other loose on the page
+     background, read as one list and one stray fragment — and the loose one
+     reads as the unfinished half, which is the opposite of what a draft is. */
+  .draft-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    background: #fff;
+    border: 1px solid #e8e8e8;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .draft-item + .draft-item { border-top: 1px solid #e8e8e8; }
   .fork-list {
     list-style: none;
-    margin: 0.35rem 0 0;
+    margin: 0;
     padding: 0 0 0 1.5rem;
+  }
+  /* The nested draft keeps its own rule, which now reads as a rail inside the
+     card rather than as the only border in the neighbourhood. */
+  .fork-list > .draft-item {
+    border-top: 1px solid #eef0f1;
     border-left: 2px solid #e2e5e8;
   }
 
@@ -1414,7 +1469,9 @@
     text-transform: uppercase;
     letter-spacing: 0.04em;
     color: #7a7f85;
-    padding-left: 0.1rem;
+    /* Aligned with the title it labels, which now starts a row's padding in. */
+    padding: 0.5rem 1rem 0;
+    background: #fff;
   }
 
   /*
@@ -1429,16 +1486,17 @@
   .draft-row {
     display: flex;
     align-items: stretch;
-    gap: 0.5rem;
-    border-bottom: 1px solid #e6e6e6;
+    background: #fff;
   }
-  .draft-item:last-child > .draft-row { border-bottom: none; }
+  .draft-row:hover { background: #f9fafb; }
   .draft-row-open {
     flex: 1;
     display: flex;
     flex-direction: column;
     gap: 0.1rem;
-    padding: 0.55rem 0.2rem;
+    /* The published rows' padding, so a title in one list starts where a
+       title in the other does. */
+    padding: 0.75rem 1rem;
     background: none;
     border: none;
     text-align: left;

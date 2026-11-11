@@ -512,6 +512,56 @@ proves too blunt in practice.
 reading "Rome (my changes)", it looks like a separate project and will be deleted or published by
 mistake. Same data, very different odds of ever being resolved.
 
+### Publishing is not blocked by an unmerged draft
+
+**[P20]** Asked directly while testing: should publishing be refused while an unmerged draft is
+outstanding, on the grounds that reasoning about what is and is not public is hard? Decided **no**,
+with the reasoning kept because the instinct behind the question is a good one.
+
+A fork is already publish-blocked by design ([P10]) — it holds no `atUri` and never can. Block the
+parent as well and, the moment someone chooses *Keep both*, there are two documents and neither can
+publish: the timeline is frozen until the merge is finished. *Later* stops being an option anyone
+can take, which turns the one choice that cannot lose work into the expensive one, and teaches
+people to reach for *Keep mine* — which does lose the other browser's work. The emphasis [A3] puts
+on *Keep both* would be inverted by the mechanics.
+
+There is also no correctness to protect. A fork carries its own ancestor, so the comparison stays
+honest however far the published timeline travels in the meantime, and publishing is a `swapRecord`
+against the current base, so the record never lands in a state nobody authored. The unmerged draft
+is a separate document and cannot be swept in by accident. Nor is the timeline ever "partly"
+published: it goes out whole, and the draft is a set of edits nobody has decided about yet.
+
+What was true in the question is that nobody should have to *infer* any of this. Three things say
+it instead:
+
+- The note after *Keep both* at a refused publish opens with **"Nothing of yours was published"**
+  and then says what you are looking at instead.
+- Publishing while something in the draft is still outstanding asks once, and says what is not
+  included, before it writes.
+
+The subnav's **"Published ✓"** stays as it is. It was the trigger — the document adopts the record,
+so the tick reappears truthfully a second after a publish was *refused*, and reads as a receipt for
+it — but the badge is a state about the timeline and is right every other minute of its life.
+Rewording it to something unambiguous ("Matches published") was tried and reverted: it is wordier,
+it sounds like a diff, and it pays that cost permanently to fix a collision that lasts one screen.
+The note is the thing with room to explain, so the note explains, and it is phrased to account for
+the tick rather than to contradict it.
+
+### A row is named for its effect, not its origin
+
+**[P19]** A row's `kind` describes what answering it would do to the working document — add a
+slide, remove one, replace one — and not what the draft did to its ancestor. The two part company
+in exactly one case, and it is a case people hit: both browsers add a slide under the same id.
+
+The draft's change is then an addition, but the working document has a slide there too, so keeping
+the draft's replaces rather than adds. Taken from the ancestor diff, the row said *"You added this;
+the published timeline does not have it"* directly above a comparison showing the published version
+of it, and offered a button reading *Keep mine — add the slide* that would have replaced one.
+
+Such a row also has no shared version to be an edit *of*, so it gets its own sentence — *"You made
+this, and so did the published timeline — they are not the same"* — and drops the separate
+contested warning, which was the second half of the contradiction.
+
 ### The share image is not content
 
 **[P18]** `settings.ogImage` is left out of every comparison — the equality test, the conflict
@@ -652,3 +702,5 @@ All four answered 2026-10-27, each as its default.
 | P16 | Settings equality normalizes the ways of writing "nothing"; an edited row is offered only when it has a showable difference | A real change is ever found that no field can render |
 | P17 | Every line carries both choices; a line is offered only where the draft itself changed something | Rows grow long enough that two buttons a line is more noise than help |
 | P18 | `settings.ogImage` is outside every comparison and every pull: regenerated on each publish, so never a choice | The share image becomes author-set rather than generated |
+| P19 | A row's kind is its effect on the working document; a slide both sides invented says so in its own words | |
+| P20 | An unmerged draft never blocks publishing; it is said before the write instead | People are found publishing over work they meant to merge, despite the warning |

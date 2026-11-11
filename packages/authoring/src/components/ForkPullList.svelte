@@ -116,6 +116,10 @@
    */
   function what(entry: PullEntry): string {
     if (fork) {
+      // Both sides made one. Said as an edit it would claim a shared version
+      // that never existed; said as an addition it would deny the one on
+      // screen beside it.
+      if (entry.rival) return 'You made this, and so did the published timeline — they are not the same.';
       if (entry.kind === 'added') return 'You added this; the published timeline does not have it.';
       if (entry.kind === 'removed') return 'You deleted this; the published timeline still has it.';
       return 'You changed this.';
@@ -230,11 +234,12 @@
             <div class="row__text">
               <span class="row__label">{entry.label}</span>
               <span class="row__what">{what(entry)}</span>
-              {#if entry.contested}
+              {#if entry.contested && !entry.rival}
                 <!--
                   The only rows that need a warning: the published timeline
                   changed the same thing, so the pull replaces rather than
-                  fills a gap.
+                  fills a gap. A rival row has already said as much in its own
+                  sentence, and saying it twice was how this read as confused.
                 -->
                 <span class="row__cost">
                   The published timeline changed {subject(entry)} too — keeping yours replaces that.

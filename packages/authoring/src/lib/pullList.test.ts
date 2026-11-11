@@ -409,3 +409,48 @@ describe('answering one line at a time', () => {
     expect(pullList(next, titleFork, titleBase).entries).toEqual([]);
   });
 });
+
+describe('a slide both sides invented', () => {
+  // Found by hand: a title slide added in two browsers produced a row saying
+  // "You added this; the published timeline does not have it" directly above
+  // a comparison showing the published version of it, with a button offering
+  // to "add the slide" that would in fact have replaced one.
+  const titleOf = (headline: string) => ({ unique_id: 'title', text: { headline } });
+  const base = tl([moon]);
+  const fork = tl([moon], { title: titleOf('arc wants one too') });
+  const working = tl([moon], { title: titleOf('Zen wants a title') });
+
+  it('is an edit, because answering it replaces what is there', () => {
+    const [entry] = pullList(base, fork, working).entries;
+    expect(entry).toMatchObject({ id: TITLE_ID, kind: 'edited', rival: true });
+  });
+
+  it('shows both headlines, since neither side inherited one', () => {
+    const [entry] = pullList(base, fork, working).entries;
+    expect(entry.diffs).toMatchObject([
+      { key: 'headline', here: 'Zen wants a title', theirs: 'arc wants one too' },
+    ]);
+  });
+
+  it('replaces rather than adds when it is answered', () => {
+    const [entry] = pullList(base, fork, working).entries;
+    const doc = new TimelineDoc();
+    doc.load(working);
+    applyPull(doc, entry);
+    expect(doc.toTimeline().title?.text?.headline).toBe('arc wants one too');
+    expect(pullList(base, fork, doc.toTimeline()).entries).toEqual([]);
+  });
+
+  it('is still a plain addition when only the draft has one', () => {
+    const [entry] = pullList(base, fork, tl([moon])).entries;
+    expect(entry).toMatchObject({ kind: 'added' });
+    expect(entry.rival).toBeUndefined();
+  });
+
+  it('is a plain edit when both sides inherited it', () => {
+    const inherited = tl([moon], { title: titleOf('Space') });
+    const [entry] = pullList(inherited, fork, inherited).entries;
+    expect(entry).toMatchObject({ kind: 'edited' });
+    expect(entry.rival).toBeUndefined();
+  });
+});

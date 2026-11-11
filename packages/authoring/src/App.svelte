@@ -485,7 +485,16 @@
       await reviewFork();
       return;
     }
-    syncNote = 'Your edits are kept as an unmerged draft, listed on the home screen under this timeline.';
+    // Said outright when this came from a refused publish, and said so that
+    // it explains the tick rather than arguing with it: "Published ✓"
+    // reappears in the subnav the moment this document adopts the record,
+    // truthfully, because the document now *is* the record. Read straight
+    // after pressing Publish, that looks like a receipt for the publish that
+    // was just turned down — so the note names what the tick is about (this
+    // timeline) and what it is not (anything of yours).
+    syncNote = c.occasion === 'publish'
+      ? 'Nothing of yours was published. You are now looking at the published version; your edits are kept as an unmerged draft, listed on the home screen under this timeline.'
+      : 'Your edits are kept as an unmerged draft, listed on the home screen under this timeline.';
   }
 
   function dismissConflict() {
@@ -1007,6 +1016,18 @@
         if (!publishAsNew) return;
         tldoc.setAtUri(null);
       }
+    }
+
+    // An unmerged draft is not part of what goes out, and the moment it is
+    // easiest to believe otherwise is this one. It is said here rather than
+    // afterwards because the point of saying it is the decision, not the
+    // record of one — and only while something in that draft is still
+    // outstanding, so a draft already worked through is silent.
+    if (forksOutstanding.length) {
+      const anyway = window.confirm(
+        'This publishes the timeline as it stands. Your unmerged draft is not part of it, and stays where it is.\n\nPublish anyway?'
+      );
+      if (!anyway) return;
     }
 
     publishStatus = 'Publishing…';
