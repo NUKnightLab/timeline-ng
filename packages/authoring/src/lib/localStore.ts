@@ -49,6 +49,32 @@ export interface DraftSummary {
    */
   clean?: boolean;
   /**
+   * The CID of the record this draft was last in step with.
+   *
+   * Kept here as well as in the document so the list can say *"a newer
+   * version was published elsewhere"* without opening every draft to find
+   * out: `listRecords` returns each record's CID, and comparing the two is
+   * the whole test ([P5], [P8] in `docs/phase1-sync-conflicts.md`).
+   *
+   * Absent on a draft that has never been published, and on entries written
+   * before this was recorded — in which case the row simply says less.
+   */
+  baseCid?: string;
+  /**
+   * The handle of the account this draft publishes to, recorded when it
+   * gains a record.
+   *
+   * For display only — ownership itself is read from the `atUri`, which
+   * carries the DID. A DID is not a thing anyone recognises, and the row has
+   * to be able to say *whose* timeline it is without a network lookup for
+   * every row at every paint.
+   *
+   * Handles are reassignable, so this can go stale; a stale handle on a row
+   * that is already marked as another account's is a small enough wrong to
+   * be worth the alternative, which is resolving DIDs on the home screen.
+   */
+  ownerHandle?: string;
+  /**
    * Set on a fork — the draft *Keep both* leaves behind ([P10], [P11] in
    * `docs/phase1-sync-conflicts.md`).
    *
@@ -108,6 +134,13 @@ export function noteDraft(summary: Omit<DraftSummary, 'editedAt'> & { editedAt?:
   const entry: DraftSummary = { id: summary.id, title: summary.title, editedAt };
   if (summary.atUri) entry.atUri = summary.atUri;
   if (summary.clean !== undefined) entry.clean = summary.clean;
+  // Like provenance below: a caller that does not know about the base CID
+  // must not strip it, or the list quietly loses the one thing that lets it
+  // notice another browser got there first.
+  const baseCid = summary.baseCid ?? existing?.baseCid;
+  if (baseCid) entry.baseCid = baseCid;
+  const ownerHandle = summary.ownerHandle ?? existing?.ownerHandle;
+  if (ownerHandle) entry.ownerHandle = ownerHandle;
   // Provenance survives a caller that does not know about it. Most writers of
   // this index are routine — going home, autosaving a title — and rebuilding
   // the entry from scratch each time would quietly strip a fork's ancestor,
@@ -117,9 +150,8 @@ export function noteDraft(summary: Omit<DraftSummary, 'editedAt'> & { editedAt?:
   writeIndex([entry, ...rest]);
 }
 
-/** Drop a draft: its index entry and the database holding its document. */
-export async function forgetDraft(id: string): Promise<void> {
-  writeIndex(readIndex().filter((d) => d.id !== id));
+/** The document itself, with no opinion about the index. */
+async function dropDatabase(id: string): Promise<void> {
   await new Promise<void>((resolve) => {
     // Resolve either way. A blocked delete — another tab still has the
     // database open — must not leave the caller hanging; the entry is already
@@ -127,6 +159,106 @@ export async function forgetDraft(id: string): Promise<void> {
     const request = indexedDB.deleteDatabase(dbNameFor(id));
     request.onsuccess = request.onerror = request.onblocked = () => resolve();
   });
+}
+
+/** Drop a draft: its index entry and the database holding its document. */
+export async function forgetDraft(id: string): Promise<void> {
+  writeIndex(readIndex().filter((d) => d.id !== id));
+  await dropDatabase(id);
+}
+
+/**
+ * Documents whose index entries are gone but whose databases are not yet
+ * dropped — the window in which a deletion can still be undone.
+ *
+ * Kept in localStorage rather than in memory because the window can outlive
+ * the page: close the tab in the middle of it and the entries are already
+ * gone, so nothing would ever come back for the databases. The sweep below
+ * finishes the job at the next start, which is what makes "delete now, offer
+ * undo" safe to prefer over "defer the deletion and hope the tab stays open".
+ * Deferring has the worse failure: the author asks for something and it
+ * silently never happens.
+ */
+const PENDING_KEY = 'tl-drafts-pending-delete-v1';
+
+function readPending(): string[] {
+  try {
+    const raw = localStorage.getItem(PENDING_KEY);
+    const parsed: unknown = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+function writePending(ids: string[]): void {
+  try {
+    if (ids.length) localStorage.setItem(PENDING_KEY, JSON.stringify(ids));
+    else localStorage.removeItem(PENDING_KEY);
+  } catch { /* storage full or blocked; the sweep is best-effort by nature */ }
+}
+
+/** The unmerged drafts that cannot outlive `going` — see `forgetDraftWithForks`. */
+function forksOf(index: DraftSummary[], going: DraftSummary): DraftSummary[] {
+  // Only a draft that owns a record can have an unmerged draft of it, and an
+  // unmerged draft never owns one.
+  if (!going.atUri || going.forkedFrom) return [];
+  return index.filter((d) => d.forkedFrom?.atUri === going.atUri);
+}
+
+/**
+ * Take a draft and its unmerged drafts out of the list, leaving their
+ * documents where they are.
+ *
+ * The first half of a deletion. The row goes at once — the index *is* the
+ * list — while the documents stay recoverable until `commitDraftDeletions`
+ * runs. That gap is what an undo card is offering.
+ *
+ * Returns what was removed, which is also what puts it back.
+ */
+export function removeDraftEntries(id: string): DraftSummary[] {
+  const index = readIndex();
+  const going = index.find((d) => d.id === id);
+  if (!going) return [];
+  const removed = [going, ...forksOf(index, going)];
+  const ids = new Set(removed.map((d) => d.id));
+  writeIndex(index.filter((d) => !ids.has(d.id)));
+  writePending([...new Set([...readPending(), ...ids])]);
+  return removed;
+}
+
+/** Put back exactly what `removeDraftEntries` took. */
+export function restoreDraftEntries(entries: DraftSummary[]): void {
+  if (!entries.length) return;
+  const index = readIndex();
+  const ids = new Set(entries.map((d) => d.id));
+  writeIndex([...entries, ...index.filter((d) => !ids.has(d.id))]);
+  writePending(readPending().filter((id) => !ids.has(id)));
+}
+
+/** The second half: drop the documents, once undo is no longer on offer. */
+export async function commitDraftDeletions(entries: DraftSummary[]): Promise<void> {
+  const ids = new Set(entries.map((d) => d.id));
+  for (const entry of entries) await dropDatabase(entry.id);
+  writePending(readPending().filter((id) => !ids.has(id)));
+}
+
+/**
+ * Finish deletions the page did not outlive. Run at start.
+ *
+ * A database listed as pending with no index entry is storage held by a draft
+ * the author already deleted: nothing can reach it, and nothing will.
+ */
+export async function sweepPendingDeletions(): Promise<void> {
+  const pending = readPending();
+  if (!pending.length) return;
+  const live = new Set(readIndex().map((d) => d.id));
+  for (const id of pending) {
+    // Undo ran after all, and the entry is back in the index.
+    if (live.has(id)) continue;
+    await dropDatabase(id);
+  }
+  writePending([]);
 }
 
 /**
@@ -142,15 +274,9 @@ export async function forgetDraft(id: string): Promise<void> {
  * before the click rather than after.
  */
 export async function forgetDraftWithForks(id: string): Promise<number> {
-  const going = readIndex().find((d) => d.id === id);
-  // Only a draft that owns a record can have an unmerged draft of it, and an
-  // unmerged draft never owns one.
-  const forks = going?.atUri && !going.forkedFrom
-    ? readIndex().filter((d) => d.forkedFrom?.atUri === going.atUri)
-    : [];
-  for (const fork of forks) await forgetDraft(fork.id);
-  await forgetDraft(id);
-  return forks.length;
+  const removed = removeDraftEntries(id);
+  await commitDraftDeletions(removed);
+  return Math.max(removed.length - 1, 0);
 }
 
 export interface PersistResult {

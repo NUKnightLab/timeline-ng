@@ -296,8 +296,42 @@ rather than a component's copy of it, so the one-draft-per-record invariant hold
 does. The home screen also asks before replacing a draft that has unpublished edits, and discarding
 forgets that draft first — otherwise the reopen would find the very edits the reader chose to drop.
 
-**[P5]** The home screen shows **one row per timeline**. At the moment a published timeline with a
-local draft appears in both lists. `listRecords` already returns each record's CID, so a row can say
+**[P5]** *(shipped)* The home screen shows **one row per timeline**. It used to draw two lists —
+drafts in this browser, records in the account — so a published timeline that had been opened here
+appeared in both, as two rows for one thing, each with its own ✕ meaning something different.
+
+A row is a **timeline**; where it lives is something the row *says* rather than something its
+position implies. Six states, in `lib/timelineRows.ts` so the matching and the ordering can be
+tested without going through markup: *never published*, *published*, *unpublished changes*, *a
+newer version was published elsewhere*, *no longer in your account*, and an unmerged draft nested
+under its timeline ([A4]).
+
+*No longer in your account* is only ever said about a draft carrying an `atUri` — published from
+here, or opened from a record — and only once a signed-in fetch has actually completed. An empty
+record list is not evidence: signed out or mid-request it means nobody looked, and reading it as
+absence told people their published work had vanished every time they opened the page signed out.
+
+Every row is built the same way — a verb, a relative time, and a state where there is one more
+thing to say — because the mixed case is the normal case and will be from the first deploy. Drawn
+from different materials, a relative phrase for a local copy and an absolute date for a record,
+two rows for two timelines read as two different kinds of object when the only real difference is
+whether this browser has a copy. A record's `createdAt` is rewritten on every publish, so it means
+*last published* and compares honestly against a draft's `editedAt`. The one difference left is
+the state itself, which is the point of the row. And the fact that unpublished timelines live only
+in this browser is a footnote under the list rather than a tag repeated on each row it applies to.
+
+The fourth is what the merge buys. `listRecords` already returns each record's CID, and a draft now
+records the CID it was last in step with, so the list can say another browser got there first
+without opening anything. Previously that was only discoverable by opening the draft.
+
+Two things follow from one row. The question asked when opening a published timeline that had local
+edits — *continue editing, or discard them?* — is gone, because it existed to disambiguate a second
+way of opening something this browser already had, and there is now one way. And ✕ has one meaning,
+delete this timeline, with the consequence following from whether it is public rather than from
+which list it was in: see below.
+
+The older note, kept because the mechanism is unchanged: `listRecords` already returns each
+record's CID, so a row can say
 "changed since your draft" without fetching the record.
 
 *Partly overtaken.* The two lists remain — "In this browser" and "In your account" — but [P4] stopped
@@ -512,6 +546,69 @@ proves too blunt in practice.
 reading "Rome (my changes)", it looks like a separate project and will be deleted or published by
 mistake. Same data, very different odds of ever being resolved.
 
+### Drafts are not keyed by account, and are not hidden by one
+
+**[P22]** A browser can hold work for more than one identity — publishing personally and for an
+organisation is ordinary — and signing out of one account and into another left every draft in the
+list, unmarked.
+
+Local storage is deliberately **not** keyed by DID. That would mean needing to be signed in before
+starting a timeline, which is the opposite of what offline editing is for, and it would make a
+draft's existence depend on a session. Ownership belongs to the record: a published draft's
+`atUri` is `at://<did>/…`, so the owner is already there for exactly the drafts that have one. A
+draft that has never been published has no owner, because it is not owned by anyone until it is.
+
+Rows owned by another account are **listed and labelled**, never hidden. Hiding reads as the app
+having lost a timeline, and whoever has the browser has the drafts regardless; the label says which
+account the row publishes to, so both sets are visible at once instead of one being behind a
+session switch.
+
+The correctness half matters more than the label. This account's record list is not evidence about
+another account's record, so those rows are left out of the comparison entirely — no *gone*, no
+*behind*. Without that they read "no longer in your account", which is a confident and wrong
+statement about somebody else's timeline, and signing in as a second account made every row of the
+first say it.
+
+The handle is recorded beside the `atUri` for display only, since a DID is not something anyone
+recognises and resolving one per row per paint is not worth a network request. It can go stale —
+handles are reassignable — and a stale handle on a row already marked as another account's is a
+smaller wrong than the lookup. A draft written before this says *another account* instead.
+
+The dangerous point was already guarded: publishing a draft whose `atUri` names a different account
+asks whether to publish it as a new timeline in the current one.
+
+The editor needed the same test, and for the same reason. Opening such a draft ran Script 7 — the
+record is not in this account's list — and announced *"This timeline is no longer in your account.
+Publishing will put it back."* Both halves wrong: it never was in this account, and publishing
+would not put anything back, it would offer to make a new timeline here. `checkPublished` now
+checks the owner before it asks the account anything, and says whose it is instead.
+
+### One ✕, and what follows from it
+
+**[P21]** On a merged row the ✕ means *delete this timeline*, and that is its only meaning. The
+ambiguity people worried about — does it delete my copy or the published one? — was an artifact of
+two lists each having their own.
+
+What differs is the consequence, and it is read from the timeline rather than from the control:
+
+- **Never published.** It costs local work and nothing else. No confirmation: the row goes at once
+  and is replaced in place by an undo card for a few seconds. A question before the fact asks
+  someone to predict what they are about to lose; a card after it shows them.
+- **Published.** It takes the record with it, so every embed and share link stops working for
+  everyone, permanently. That asks first, names both halves of what goes, and the demo timeline
+  keeps its type-DELETE.
+
+The deletion is real either way — it is not deferred. The index entry goes immediately and the
+document follows when the window closes, with the ids in flight written to localStorage so
+`sweepPendingDeletions` can finish any the page did not outlive. Deferring has the worse failure:
+the author asks for something and, if the tab closes, it silently never happens.
+
+**Dropped with the second list:** deleting *only* the local copy. It was reachable only because the
+lists were separate, and its real use — abandon local edits and take the published version — was
+already better served elsewhere, by the conflict dialog's *Use the published version* when the two
+have actually diverged. The gap that remains is abandoning local edits when the record has **not**
+moved, which `docs/roadmap.md` already records as left open by [P4].
+
 ### Publishing is not blocked by an unmerged draft
 
 **[P20]** Asked directly while testing: should publishing be refused while an unmerged draft is
@@ -688,7 +785,7 @@ All four answered 2026-10-27, each as its default.
 | P2 | Store the base CID beside `publishedSnapshot`, written together | |
 | P3 | Publish with `swapRecord` so the overwrite check is atomic on the server | A PDS implementation mishandles `swapRecord` |
 | P4 | Opening a published timeline reuses its existing local draft — **shipped, `536221b`** | |
-| P5 | One home-screen row per timeline, using `listRecords` CIDs — **partly overtaken by P4**; what remains is presentation | Merged rows prove harder to read than two lists |
+| P5 | One home-screen row per timeline, using `listRecords` CIDs — **shipped** | Merged rows prove harder to read than two lists |
 | P6 | Describe the conflict as a three-way, loss-framed per option, with the overlap as the key fact | |
 | P7 | Offer a preview of the published version, opened at the first contested slide | It turns out to be read past rather than used |
 | P8 | `listTimelines` carries each record's CID; `createdAt` is for display only, never detection | |
@@ -704,3 +801,5 @@ All four answered 2026-10-27, each as its default.
 | P18 | `settings.ogImage` is outside every comparison and every pull: regenerated on each publish, so never a choice | The share image becomes author-set rather than generated |
 | P19 | A row's kind is its effect on the working document; a slide both sides invented says so in its own words | |
 | P20 | An unmerged draft never blocks publishing; it is said before the write instead | People are found publishing over work they meant to merge, despite the warning |
+| P21 | One ✕ meaning "delete this timeline"; instant with undo when private, confirmed when public | Someone deletes a published timeline they meant to keep, despite the confirmation |
+| P22 | Ownership comes from the record's DID, never from keying storage by account; other accounts' rows are labelled, not hidden, and left out of the comparison | Shared-browser privacy ever outweighs losing sight of your own work |

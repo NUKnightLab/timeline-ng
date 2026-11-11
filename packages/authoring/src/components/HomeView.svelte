@@ -2,6 +2,8 @@
   import { fromTL3, fromTL3CSV, normalizeTimelineSourceUrl, parseTimelineText } from '@knight-lab/timeline-ng-core';
   import type { TLTimeline } from '@knight-lab/timeline-ng-core';
   import type { DraftSummary } from '../lib/localStore.ts';
+  import { orphanForks, timelineRows } from '../lib/timelineRows.ts';
+  import type { TimelineRecord, TimelineRow } from '../lib/timelineRows.ts';
   import { getAuthState, listTimelines, getTimeline, deleteTimeline } from '../lib/atproto.svelte.ts';
   import AppNavbar from './AppNavbar.svelte';
   import AuthButton from './AuthButton.svelte';
@@ -68,7 +70,18 @@
     persistWarning: string | null;
     /** Opening the editor is async and can fail; the row reports it rather than going dead. */
     onopendraft: (id: string) => void | Promise<void>;
-    ondeletedraft: (id: string) => void;
+    /** The row's own position, so the undo card can take its place. */
+    ondeletedraft: (id: string, index: number) => void;
+    /**
+     * A draft just deleted, with the position its row had. Undo is on offer
+     * while this is set; `deletedDraftsLeaving` fades the card out in place
+     * rather than letting the list jump as it goes.
+     */
+    deletedDrafts?: { entries: DraftSummary[]; index: number } | null;
+    deletedDraftsLeaving?: boolean;
+    onundodeletedraft?: () => void;
+    /** Drop a local copy with no undo — used when its record has just gone with it. */
+    onforgetdraft: (id: string) => void;
     onnew: () => void;
     onimport: (tl: TLTimeline) => void;
     /** `replaceDraftId` drops that local draft first, so "start from published" really does. */
@@ -80,7 +93,8 @@
     onsignout: () => void;
   }
 
-  let { drafts, persistWarning, onopendraft, ondeletedraft, onnew, onimport, onopen, onsignout }: Props = $props();
+  let { drafts, persistWarning, onopendraft, ondeletedraft,
+    deletedDrafts = null, deletedDraftsLeaving = false, onundodeletedraft, onforgetdraft, onnew, onimport, onopen, onsignout }: Props = $props();
 
   const auth = $derived(getAuthState());
 
@@ -191,8 +205,10 @@
 
   // ── Timeline list ────────────────────────────────────────────────────────────
 
-  type ListItem = { uri: string; title: string; createdAt: string };
-  let publishedTimelines = $state<ListItem[]>([]);
+  // `listTimelines` has carried each record's CID since [P8]; the merged list
+  // is what finally reads it, to notice another browser publishing without
+  // opening anything.
+  let publishedTimelines = $state<TimelineRecord[]>([]);
   let listLoading = $state(false);
   let openingUri = $state<string | null>(null);
   let confirmDeleteUri = $state<string | null>(null);
@@ -243,27 +259,7 @@
    */
   let openError = $state<string | null>(null);
 
-  /** Which draft row is showing its delete confirmation, mirroring confirmDeleteUri. */
-  let confirmDeleteDraftId = $state<string | null>(null);
-
   const reason = (cause: unknown) => (cause instanceof Error ? cause.message : String(cause));
-
-  /**
-   * An account row whose local draft has edits the published copy does not,
-   * held until the reader says which one they meant. The fetched record is
-   * kept with it so answering does not have to go back for it.
-   */
-  let pendingOpen = $state<{ uri: string; draftId: string; result: { title?: string; cid?: string; timeline: TLTimeline } } | null>(null);
-
-  /**
-   * A fork belongs under the draft that holds the record it diverged from.
-   * One that has lost its original — the draft was deleted, or published from
-   * somewhere else entirely — is listed on its own instead.
-   */
-  function forksFor(draft: DraftSummary): DraftSummary[] {
-    if (!draft.atUri) return [];
-    return drafts.filter((d) => d.forkedFrom?.atUri === draft.atUri);
-  }
 
   /**
    * Whether the timeline an unmerged draft came from is still in this
@@ -274,13 +270,30 @@
     return !!draft.forkedFrom && drafts.some((d) => d.atUri === draft.forkedFrom?.atUri && !d.forkedFrom);
   }
 
-  const rootDrafts = $derived(
-    drafts.filter((d) => !d.forkedFrom || !drafts.some((o) => o.atUri && o.atUri === d.forkedFrom?.atUri)),
-  );
+  /**
+   * One row per timeline ([P5]). Local drafts draw immediately; records fold
+   * in by `atUri` when `listTimelines` returns, which is why this is derived
+   * rather than assembled once.
+   */
+  const rows = $derived(timelineRows(
+    drafts,
+    publishedTimelines,
+    // Only a completed fetch of a signed-in account can say a record is not
+    // there any more.
+    auth.status === 'signed-in' && !listLoading,
+    auth.status === 'signed-in' ? auth.session.sub : null,
+  ));
+  /** Unmerged drafts whose timeline is not in this browser, listed on their own. */
+  const strayForks = $derived(orphanForks(drafts));
 
+  /**
+   * Fetch a record and open it. Only reached for a row with no local copy —
+   * `openRow` sends every other row straight to the draft it already has, so
+   * the "you have unpublished edits, continue or discard?" question this
+   * used to ask is gone with the list that made it necessary.
+   */
   async function handleOpen(uri: string) {
     openError = null;
-    pendingOpen = null;
     openingUri = uri;
     try {
       const result = await getTimeline(uri);
@@ -288,24 +301,10 @@
         openError = 'Could not load that timeline from your account. It may have been deleted, or stored in a format this editor does not recognise.';
         return;
       }
-
-      // Opening an account row lands in that timeline's local draft when one
-      // exists, which is right but invisible: the reader asked for the
-      // published copy and silently got edits they may have forgotten, or may
-      // have clicked precisely to get rid of. Ask — but only when the draft
-      // actually holds something the published copy does not.
-      //
-      // The document's own clean flag, not a timestamp comparison: publishing
-      // writes the new `atUri` and marks the document clean, and both are
-      // edits, so a freshly published draft always looks newer than the record
-      // it just produced. `!== true` rather than `=== false` so an entry
-      // written before this was recorded is asked about rather than assumed
-      // safe; it gains a real value the next time it is edited.
+      // Still checked, because a row drawn before the fetch returned may have
+      // gained a draft since — and two drafts claiming one record is the bug
+      // `536221b` fixed ([P4]).
       const draft = drafts.find((d) => d.atUri === uri);
-      if (draft && draft.clean !== true) {
-        pendingOpen = { uri, draftId: draft.id, result };
-        return;
-      }
       if (draft) {
         await onopendraft(draft.id);
         return;
@@ -331,28 +330,44 @@
     }
   }
 
-  /** Answer the unpublished-edits question: keep the draft, or drop it for the published copy. */
-  async function resolvePendingOpen(keepDraft: boolean) {
-    const pending = pendingOpen;
-    if (!pending) return;
-    pendingOpen = null;
-    try {
-      if (keepDraft) await onopendraft(pending.draftId);
-      else await onopen(pending.uri, pending.result, { replaceDraftId: pending.draftId });
-    } catch (cause) {
-      openError = `Could not open that timeline: ${reason(cause)}`;
-      console.error('Opening timeline failed', pending.uri, cause);
+  /**
+   * Open the timeline this row stands for.
+   *
+   * The local copy when there is one — it is the same timeline, with whatever
+   * was typed here since, and `checkPublished` compares it against the record
+   * once the editor is up. Otherwise fetch the record and mint a draft.
+   *
+   * There is no longer a question to ask on the way in. It existed because
+   * the account list offered a second way to open something this browser
+   * already had, and one row has only one way.
+   */
+  async function openRow(row: TimelineRow) {
+    if (row.draft) {
+      await handleOpenDraft(row.draft.id);
+      return;
     }
+    if (row.record) await handleOpen(row.record.uri);
   }
 
-  async function handleDelete(uri: string) {
+  /**
+   * Delete the timeline: the record, and the local copy with it.
+   *
+   * One object, one deletion. Leaving the local copy behind would put the row
+   * straight back, now reading "no longer in your account" — which is a
+   * truthful description of a state nobody asked for.
+   */
+  async function deleteWholeTimeline(row: TimelineRow) {
+    const uri = row.record?.uri;
+    if (!uri) return;
     deletingUri = uri;
     confirmDeleteUri = null;
     const result = await deleteTimeline(uri);
     deletingUri = null;
-    if (result.ok) {
-      publishedTimelines = publishedTimelines.filter(t => t.uri !== uri);
-    }
+    if (!result.ok) return;
+    publishedTimelines = publishedTimelines.filter(t => t.uri !== uri);
+    // No undo card here: the record is gone for everyone, and offering to
+    // put back only the local half would be offering the wrong thing.
+    if (row.draft) onforgetdraft(row.draft.id);
   }
 
   function formatDate(iso: string): string {
@@ -393,91 +408,187 @@
   <!-- ── Navbar ─────────────────────────────────────────────────────────────── -->
   <AppNavbar hidetitle />
 
-  {#snippet draftRow(draft: DraftSummary)}
-          {#if confirmDeleteDraftId === draft.id}
-            <!-- Same inline confirm as a timeline in the account list, rather
-                 than a native window.confirm. -->
-            <div class="timeline-item-confirm">
-              <span class="confirm-label">
-                {#if draft.forkedFrom}
-                  <!-- An unmerged draft is the part that is nowhere else, so
-                       the generic "stays published" reassurance would be a lie
-                       by omission here. -->
-                  Delete "{draftName(draft)}"? Nothing in it was ever merged into
-                  {hasParent(draft) ? 'the timeline above' : 'the timeline it came from'}, so
-                  deleting it drops those edits for good.
-                {:else}
-                  Delete "{draftName(draft)}" from this browser?{draft.atUri ? ' Anything already published stays published.' : ''}
-                  {#if forksFor(draft).length}
-                    <!-- Said before the click, not discovered after it: an
-                         unmerged draft only means anything next to the timeline
-                         it came from, so it cannot outlive it. -->
-                    {forksFor(draft).length === 1
-                      ? 'Its unmerged draft goes too.'
-                      : `Its ${forksFor(draft).length} unmerged drafts go too.`}
-                  {/if}
-                {/if}
-              </span>
-              <button class="btn-confirm-delete" onclick={() => { confirmDeleteDraftId = null; ondeletedraft(draft.id); }}>
-                Delete
-              </button>
-              <button class="btn-cancel-delete" onclick={() => (confirmDeleteDraftId = null)}>
-                Cancel
-              </button>
-            </div>
-          {:else}
-          <button class="draft-row-open" onclick={() => handleOpenDraft(draft.id)}>
-            <span class="draft-row-title">{draftName(draft)}</span>
-            <span class="draft-row-meta">
-              edited {formatRelativeTime(draft.editedAt)} ·
-              {#if draft.forkedFrom}
-                <!-- "never published" would read as something still to do.
-                     A fork cannot be published at all; it ends by being
-                     merged into the timeline above it, or deleted. -->
-                <span class="draft-row-unpublished">
-                  {hasParent(draft) ? 'not merged yet' : 'the timeline it came from is gone'}
-                </span>
-              {:else if !draft.atUri}
-                never published
-              {:else if draft.clean === true}
-                <span class="draft-row-published">published</span>
-              {:else}
-                <span class="draft-row-unpublished">unpublished changes</span>
-              {/if}
-            </span>
-          </button>
-          <button
-            class="btn-delete-timeline"
-            aria-label={`Delete ${draftName(draft)}`}
-            onclick={() => (confirmDeleteDraftId = draft.id)}
-          >✕</button>
-          {/if}
+  <!--
+    Deleting a draft asks nothing and happens at once, with the card below
+    offering it back for a few seconds. A confirmation asks someone to
+    predict what they are about to lose; the card shows them. Only the
+    published timeline, which no undo of ours can restore for the people
+    holding its links, still asks first.
+  -->
+  <!--
+    One shape for every row: a verb, a relative time, and a state when there
+    is one more thing to say. Built from different materials — a relative
+    phrase here, an absolute date there — two rows for two timelines read as
+    two different kinds of object, when the only real difference is whether
+    this browser has a copy.
+
+    `createdAt` is rewritten on every publish, so for a record it means *last
+    published* and compares honestly with a draft's `editedAt`.
+  -->
+  {#snippet stateLine(row: TimelineRow)}
+    <span class="draft-row-meta">
+      {#if row.draft}edited{:else}published{/if}
+      {formatRelativeTime(row.editedAt)}
+      {#if row.otherAccount}
+        <!-- Listed, not hidden: a browser can hold work for more than one
+             identity, and dropping those rows would read as the app having
+             lost a timeline. What it cannot do is say anything about where
+             that record stands, because this account's list is not about it. -->
+        · <span class="draft-row-other">{row.otherAccount.handle ?? 'another account'}</span>
+      {:else if row.state === 'unpublished'}
+        · never published
+      {:else if row.state === 'gone'}
+        · <span class="draft-row-unpublished">no longer in your account</span>
+      {:else if row.state === 'behind'}
+        <!-- What the merged list buys: `listRecords` returns each record's
+             CID and every draft remembers the one it was in step with, so
+             this needs no extra request and no opening of the draft. -->
+        · <span class="draft-row-unpublished">a newer version was published elsewhere</span>
+      {:else if row.state === 'changed'}
+        · <span class="draft-row-unpublished">unpublished changes</span>
+      {:else if row.draft}
+        · <span class="draft-row-published">published</span>
+      {/if}
+    </span>
   {/snippet}
 
   <!--
-    [A4] A fork is shown attached to the timeline it came from, indented
-    beneath it, rather than as its own row in the list. A free-floating copy
+    One ✕, one meaning: delete this timeline. What follows differs because
+    the timelines differ — one that was never published costs local work and
+    nothing else, so it goes at once with an undo card; one that is public
+    takes its record with it, which no undo of ours can give back to the
+    people holding its links, so it asks first.
+  -->
+  {#snippet timelineRow(row: TimelineRow, index: number)}
+    {#if confirmDeleteUri && row.record && confirmDeleteUri === row.record.uri}
+      {#if isDemoTimeline(row.record.uri)}
+        <div class="timeline-item-confirm timeline-item-confirm-demo">
+          <span class="confirm-label confirm-label-demo">
+            ⚠️ This is the public example timeline linked from the homepage ("Clone our example
+            timeline"). Deleting it will break that link for every visitor. Type DELETE to confirm.
+          </span>
+          <input
+            class="confirm-demo-input"
+            type="text"
+            placeholder="DELETE"
+            bind:value={demoDeleteConfirmText}
+            disabled={deletingUri === row.record.uri}
+          />
+          <button class="btn-confirm-delete"
+            onclick={() => deleteWholeTimeline(row)}
+            disabled={deletingUri === row.record.uri || demoDeleteConfirmText !== 'DELETE'}>
+            {deletingUri === row.record.uri ? 'Deleting…' : 'Delete'}
+          </button>
+          <button class="btn-cancel-delete" onclick={cancelDelete} disabled={deletingUri === row.record.uri}>
+            Cancel
+          </button>
+        </div>
+      {:else}
+        <div class="timeline-item-confirm">
+          <span class="confirm-label">
+            Delete "{row.title}"? It stops being published — every embed and share link stops
+            working, for everyone, and this cannot be undone.{#if row.draft} Your copy in this
+            browser goes too{#if row.state === 'changed' || row.state === 'behind'}, including
+            changes you have not published{/if}.{/if}
+          </span>
+          <button class="btn-confirm-delete"
+            onclick={() => deleteWholeTimeline(row)}
+            disabled={deletingUri === row.record.uri}>
+            {deletingUri === row.record.uri ? 'Deleting…' : 'Delete'}
+          </button>
+          <button class="btn-cancel-delete" onclick={cancelDelete}>Cancel</button>
+        </div>
+      {/if}
+    {:else}
+      <button
+        class="draft-row-open"
+        onclick={() => openRow(row)}
+        disabled={!!openingUri || !!deletingUri}
+      >
+        <span class="draft-row-title">{row.title}</span>
+        {@render stateLine(row)}
+      </button>
+      <button
+        class="btn-delete-timeline"
+        aria-label={`Delete ${row.title}`}
+        disabled={!!openingUri || !!deletingUri}
+        onclick={() => (row.published && row.record
+          ? startDelete(row.record.uri)
+          : row.draft && ondeletedraft(row.draft.id, index))}
+      >✕</button>
+    {/if}
+  {/snippet}
+
+  {#snippet forkRow(fork: DraftSummary, index: number)}
+    <button class="draft-row-open" onclick={() => handleOpenDraft(fork.id)}>
+      <span class="draft-row-title">{draftName(fork)}</span>
+      <span class="draft-row-meta">
+        edited {formatRelativeTime(fork.editedAt)} ·
+        <!-- "never published" would read as something still to do. An
+             unmerged draft cannot be published at all; it ends by being
+             merged into the timeline above it, or deleted. -->
+        <span class="draft-row-unpublished">
+          {hasParent(fork) ? 'not merged yet' : 'the timeline it came from is gone'}
+        </span>
+      </span>
+    </button>
+    <button
+      class="btn-delete-timeline"
+      aria-label={`Delete ${draftName(fork)}`}
+      onclick={() => ondeletedraft(fork.id, index)}
+    >✕</button>
+  {/snippet}
+
+  {#snippet undoCard(pending: { entries: DraftSummary[]; index: number })}
+    <li class="draft-item draft-item--deleted" class:draft-item--leaving={deletedDraftsLeaving}>
+      <button class="draft-undo" onclick={onundodeletedraft}>
+        <span class="draft-undo__text">
+          <span class="draft-undo__name">Deleted “{draftName(pending.entries[0])}”</span>
+          <span class="draft-undo__meta">
+            {pending.entries.length > 1
+              ? `Its ${pending.entries.length - 1 === 1 ? 'unmerged draft went' : `${pending.entries.length - 1} unmerged drafts went`} too.`
+              : 'Nothing was published, so nothing was taken off the web.'}
+          </span>
+        </span>
+        <span class="draft-undo__action">Undo</span>
+      </button>
+    </li>
+  {/snippet}
+
+  <!--
+    [A4] An unmerged draft is shown attached to the timeline it came from,
+    indented beneath it, rather than as its own row. A free-floating copy
     gets deleted or published by accident; attached, it reads as what it is —
     an open task belonging to that timeline.
-
-    A fork whose original is no longer in this browser still has to appear
-    somewhere, so it falls back to the top level rather than vanishing.
   -->
-  {#snippet draftList()}
+  {#snippet rowList()}
     <ul class="draft-list">
-      {#each rootDrafts as draft (draft.id)}
+      {#each rows as row, i (row.key)}
+        {#if deletedDrafts && deletedDrafts.index === i}
+          {@render undoCard(deletedDrafts)}
+        {/if}
         <li class="draft-item">
-          <div class="draft-row">{@render draftRow(draft)}</div>
-          {#if forksFor(draft).length}
+          <div class="draft-row">{@render timelineRow(row, i)}</div>
+          {#if row.forks.length}
             <ul class="fork-list">
-              {#each forksFor(draft) as fork (fork.id)}
+              {#each row.forks as fork (fork.id)}
                 <li class="draft-item">
                   <span class="fork-label">Unmerged draft</span>
-                  <div class="draft-row">{@render draftRow(fork)}</div>
+                  <div class="draft-row">{@render forkRow(fork, i)}</div>
                 </li>
               {/each}
             </ul>
           {/if}
+        </li>
+      {/each}
+      {#if deletedDrafts && deletedDrafts.index >= rows.length}
+        <!-- The row was the last one; there is nothing left to sit above. -->
+        {@render undoCard(deletedDrafts)}
+      {/if}
+      {#each strayForks as fork, i (fork.id)}
+        <li class="draft-item">
+          <span class="fork-label">Unmerged draft</span>
+          <div class="draft-row">{@render forkRow(fork, rows.length + i)}</div>
         </li>
       {/each}
     </ul>
@@ -625,104 +736,27 @@
             gone when you close the tab. Save to your account to keep it.
           </p>
         {/if}
-        {#if drafts.length > 0}
-          <!-- "In this browser" named a place nobody thinks in. What a reader
-               wants here is the state of the thing — a draft, or published —
-               so the headings say that, and the one fact the place-name was
-               carrying is kept as a note under it. -->
-          <h3 class="draft-list-heading">Drafts</h3>
-          <p class="draft-list-note">Kept in this browser only — not on your other devices.</p>
-          {@render draftList()}
-        {/if}
-        {#if auth.status === 'signed-in'}
-          <!-- Paired with "Drafts" above: the two lists are the same kind of
-               thing in two states, so both say which. Without this the account
-               list was simply unlabelled, and the drafts' heading read as if
-               it covered everything below it. -->
-          <h3 class="draft-list-heading">Published</h3>
-          {#if listLoading}
-            <p class="list-loading">Loading…</p>
-          {:else if publishedTimelines.length === 0}
-            <p class="list-empty">Nothing published yet.</p>
-          {:else}
-            <ul class="timeline-list">
-              {#each publishedTimelines as item (item.uri)}
-                <li class="timeline-item">
-                  {#if confirmDeleteUri === item.uri}
-                    {#if isDemoTimeline(item.uri)}
-                      <div class="timeline-item-confirm timeline-item-confirm-demo">
-                        <span class="confirm-label confirm-label-demo">
-                          ⚠️ This is the public example timeline linked from the homepage ("Clone our example timeline"). Deleting it will break that link for every visitor. Type DELETE to confirm.
-                        </span>
-                        <input
-                          class="confirm-demo-input"
-                          type="text"
-                          placeholder="DELETE"
-                          bind:value={demoDeleteConfirmText}
-                          disabled={deletingUri === item.uri}
-                        />
-                        <button class="btn-confirm-delete"
-                          onclick={() => handleDelete(item.uri)}
-                          disabled={deletingUri === item.uri || demoDeleteConfirmText !== 'DELETE'}>
-                          {deletingUri === item.uri ? 'Deleting…' : 'Delete'}
-                        </button>
-                        <button class="btn-cancel-delete" onclick={cancelDelete} disabled={deletingUri === item.uri}>
-                          Cancel
-                        </button>
-                      </div>
-                    {:else}
-                      <div class="timeline-item-confirm">
-                        <span class="confirm-label">Delete "{item.title}"?</span>
-                        <button class="btn-confirm-delete"
-                          onclick={() => handleDelete(item.uri)}
-                          disabled={deletingUri === item.uri}>
-                          {deletingUri === item.uri ? 'Deleting…' : 'Delete'}
-                        </button>
-                        <button class="btn-cancel-delete" onclick={cancelDelete}>
-                          Cancel
-                        </button>
-                      </div>
-                    {/if}
-                  {:else if pendingOpen?.uri === item.uri}
-                    <div class="timeline-item-choice">
-                      <span class="choice-label">
-                        You have edits to "{item.title}" in this browser that aren’t published yet.
-                      </span>
-                      <button class="btn-choice-primary" onclick={() => resolvePendingOpen(true)}>
-                        Continue editing
-                      </button>
-                      <button class="btn-cancel-delete" onclick={() => resolvePendingOpen(false)}>
-                        Discard them
-                      </button>
-                      <button class="btn-cancel-delete" onclick={() => (pendingOpen = null)}>
-                        Cancel
-                      </button>
-                    </div>
-                  {:else}
-                    <button
-                      class="timeline-item-btn"
-                      onclick={() => handleOpen(item.uri)}
-                      disabled={!!openingUri || !!deletingUri}
-                    >
-                      <span class="item-title">{item.title}</span>
-                      {#if item.createdAt}
-                        <span class="item-date">{formatDate(item.createdAt)}</span>
-                      {/if}
-                    </button>
-                    <button
-                      class="btn-delete-timeline"
-                      onclick={() => startDelete(item.uri)}
-                      disabled={!!openingUri || !!deletingUri}
-                      aria-label="Delete {item.title}"
-                    >✕</button>
-                  {/if}
-                </li>
-              {/each}
-            </ul>
+        <!-- `deletedDrafts` keeps the section alive while the undo card is
+             up: deleting the only timeline would otherwise take the list and
+             the card itself off the screen together. -->
+        {#if rows.length || strayForks.length || deletedDrafts}
+          <!-- Once per list, qualified, rather than repeated on every row it
+               applies to: it is a fact about a category of timeline, and as a
+               per-row tag it was both noise and part of what made two rows
+               read as two different kinds of thing. -->
+          {#if rows.some((r) => !r.published)}
+            <p class="draft-list-note">Timelines you haven’t published are kept in this browser only.</p>
           {/if}
-        {:else if auth.status === 'loading'}
+          {@render rowList()}
+        {:else if listLoading}
+          <p class="list-loading">Loading…</p>
+        {:else if auth.status === 'signed-in'}
+          <p class="list-empty">Nothing yet. Make one above.</p>
+        {/if}
+
+        {#if auth.status === 'loading'}
           <p class="list-empty">Signing you in…</p>
-        {:else}
+        {:else if auth.status !== 'signed-in'}
           <div class="signed-out-offer">
             <p class="list-empty">Sign in to publish your timelines and pick them up again here.</p>
             <AuthButton {onsignout} restoreView="home" />
@@ -1134,51 +1168,9 @@
     margin: 0;
   }
 
-  .timeline-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-    border: 1px solid #e8e8e8;
-    border-radius: 4px;
-    overflow: hidden;
-  }
 
-  .timeline-item + .timeline-item { border-top: 1px solid #e8e8e8; }
 
-  .timeline-item {
-    display: flex;
-    align-items: stretch;
-  }
 
-  .timeline-item-btn {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 1rem;
-    flex: 1;
-    background: #fff;
-    border: none;
-    padding: 0.75rem 1rem;
-    font-family: inherit;
-    cursor: pointer;
-    text-align: left;
-    min-width: 0;
-    /* `font-family: inherit` does not cover these, and Orangeline sets all
-       three on every <button> — which is why a published timeline's title was
-       rendered in bold uppercase, as a button label rather than as the name
-       its author typed. The draft rows carried these resets already; that
-       asymmetry was the whole of the difference in how the two lists read. */
-    font-weight: 400;
-    text-transform: none;
-    text-shadow: none;
-    margin: 0;
-    border-radius: 0;
-  }
-  .timeline-item-btn:hover { background: #f9fafb; }
-  .timeline-item-btn:disabled { opacity: 0.6; cursor: default; }
 
   /*
    * Orangeline gives every <button> a bottom margin, a three-layer shadow and
@@ -1220,42 +1212,8 @@
     background: #fef2f2;
   }
 
-  /* A question, not a warning — same shape as the delete confirm, amber
-     rather than red, since nothing is destroyed until "Discard them". */
-  .timeline-item-choice {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1rem;
-    flex: 1;
-    flex-wrap: wrap;
-    background: #fffbeb;
-  }
 
-  .choice-label {
-    font-size: 0.85rem;
-    color: #5b4508;
-    flex: 1;
-    min-width: 12rem;
-  }
 
-  .btn-choice-primary {
-    background: #df4e13;
-    border: 1px solid #df4e13;
-    color: #fff;
-    padding: 0.2rem 0.6rem;
-    font-size: 0.78rem;
-    font-family: inherit;
-    cursor: pointer;
-    border-radius: 2px;
-    white-space: nowrap;
-    flex-shrink: 0;
-    margin: 0;
-    text-transform: none;
-    text-shadow: none;
-    box-shadow: none;
-  }
-  .btn-choice-primary:hover { background: #c44310; border-color: #c44310; }
 
   .confirm-label {
     font-size: 0.85rem;
@@ -1327,9 +1285,7 @@
     flex-shrink: 0;
   }
 
-  .item-title { font-size: 0.9rem; color: #111; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-  .item-date { font-size: 0.75rem; color: #9ca3af; white-space: nowrap; flex-shrink: 0; }
 
   .clone-hint {
     font-size: 0.8rem;
@@ -1421,25 +1377,17 @@
     }
   }
 
-  .draft-list-heading {
-    margin: 1.25rem 0 0.4rem;
-    font-size: 0.78rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: #666;
-  }
-  /* The one thing "In this browser" was good for, kept where it does not have
-     to be the name of the list. */
-  .draft-list-note {
-    margin: -0.2rem 0 0.5rem;
-    font-size: 0.75rem;
-    color: #9ca3af;
-  }
   /* Same container as the published list below it. Two lists of the same kind
      of thing, one on a bordered white card and the other loose on the page
      background, read as one list and one stray fragment — and the loose one
      reads as the unfinished half, which is the opposite of what a draft is. */
+  /* One footnote for the list, not a tag on each row it applies to. */
+  .draft-list-note {
+    margin: 0 0 0.5rem;
+    font-size: 0.75rem;
+    color: #9ca3af;
+  }
+
   .draft-list {
     list-style: none;
     margin: 0;
@@ -1489,6 +1437,67 @@
     background: #fff;
   }
   .draft-row:hover { background: #f9fafb; }
+
+  /* The deleted row's place, held for as long as undo is on offer. Same
+     shape as the row it replaces so nothing below it moves, and the same
+     in-and-out as the editor's restore row for a deleted slide. */
+  .draft-item--deleted {
+    background: #f3f4f6;
+    animation: draftUndoIn 0.18s ease forwards;
+  }
+
+  .draft-item--leaving {
+    animation: draftUndoOut 0.35s ease forwards;
+  }
+
+  @keyframes draftUndoIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes draftUndoOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .draft-item--deleted,
+    .draft-item--leaving { animation: none; }
+    .draft-item--leaving { opacity: 0; }
+  }
+
+  .draft-undo {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    width: 100%;
+    padding: 0.75rem 1rem;
+    background: none;
+    border: none;
+    border-radius: 0;
+    margin: 0;
+    box-shadow: none;
+    text-shadow: none;
+    text-transform: none;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  .draft-undo:hover { background: #e9ebee; }
+
+  .draft-undo__text { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
+  .draft-undo__name { font-weight: 600; color: #4b5563; }
+  .draft-undo__meta { font-size: 0.75rem; color: #6b7280; }
+
+  .draft-undo__action {
+    flex-shrink: 0;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #df4e13;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
   .draft-row-open {
     flex: 1;
     display: flex;
@@ -1519,6 +1528,9 @@
      unrelated things. */
   .draft-row-published { color: #15803d; }
   .draft-row-unpublished { color: #92400e; font-weight: 600; }
+  /* Neither good news nor a warning: a fact about which account this one
+     publishes to. */
+  .draft-row-other { color: #4b5563; font-weight: 600; }
   .draft-warning {
     margin: 0.75rem 0;
     padding: 0.5rem 0.7rem;

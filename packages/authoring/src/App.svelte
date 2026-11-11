@@ -5,9 +5,11 @@
   import { getAuthState, publishTimeline, signOut, uploadBlob, blobUrl, extractCid, listTimelines, getTimeline } from './lib/atproto.svelte.ts';
   import { initAuth } from './lib/atproto.svelte.ts';
   import { generatePoster } from './lib/poster.ts';
-  import { listDrafts, newDocId, noteDraft, forgetDraft, forgetDraftWithForks, persistDoc, readDraftTimeline } from './lib/localStore.ts';
+  import { listDrafts, newDocId, noteDraft, forgetDraft, forgetDraftWithForks, persistDoc, readDraftTimeline,
+    removeDraftEntries, restoreDraftEntries, commitDraftDeletions, sweepPendingDeletions } from './lib/localStore.ts';
   import type { DraftSummary } from './lib/localStore.ts';
   import { applyPull, applyPullField, declinePull, declinePullField, incomingList, outstanding, pullList } from './lib/pullList.ts';
+  import { ownerOf } from './lib/timelineRows.ts';
   import type { PullEntry } from './lib/pullList.ts';
   import { migrateLegacyDraft } from './lib/draftMigration.ts';
   import type { IndexeddbPersistence } from 'y-indexeddb';
@@ -160,12 +162,37 @@
    * happened since — see undoDelete.
    */
   let deletedItem = $state<{ event: TLEvent; isTitle: boolean; sortedIndex: number; stackItem: object | null } | null>(null);
+
+  /**
+   * A deleted draft, and where its row was, while undo is still on offer.
+   * `entries` is the draft plus any unmerged drafts that went with it; the
+   * first is the one the card names.
+   */
+  let deletedDrafts = $state<{ entries: DraftSummary[]; index: number } | null>(null);
+  let deletedDraftsLeaving = $state(false);
+  let _draftUndoTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Long enough to notice the row went and reach for the card. */
+  const UNDO_WINDOW = 8000;
   let deletedItemLeaving = $state(false);
   let _undoTimer: ReturnType<typeof setTimeout> | null = null;
 
   // ── Derived ──────────────────────────────────────────────────────────────────
 
   const auth = $derived(getAuthState());
+
+  /**
+   * The handle to record alongside a draft's `atUri`, for the row that has
+   * to say whose timeline it is.
+   *
+   * Only the signed-in account's own handle is known here without a lookup,
+   * which is also the only case that needs recording: a draft only ever
+   * gains an `atUri` from publishing or from opening a record in the account
+   * signed in at the time.
+   */
+  function handleFor(uri: string | null | undefined): string | undefined {
+    if (!uri || auth.status !== 'signed-in') return undefined;
+    return uri.split('/')[2] === auth.session.sub ? auth.handle : undefined;
+  }
 
   // The document already orders slides by date, so there is nothing left to sort.
   const sortedEvents = $derived(events);
@@ -207,7 +234,7 @@
 
     _indexTimer = setTimeout(() => {
       _indexTimer = null;
-      noteDraft({ id, title, atUri: uri ?? undefined, clean });
+      noteDraft({ id, title, atUri: uri ?? undefined, clean, baseCid: tldoc.baseCid ?? undefined, ownerHandle: handleFor(uri) });
       drafts = listDrafts();
     }, 600);
 
@@ -279,7 +306,7 @@
     docId = id;
     sessionStorage.setItem(CURRENT_DOC_KEY, id);
     await attach(id);
-    noteDraft({ id, title: tldoc.title, atUri: meta.atUri, clean: tldoc.clean });
+    noteDraft({ id, title: tldoc.title, atUri: meta.atUri, clean: tldoc.clean, baseCid: tldoc.baseCid ?? undefined, ownerHandle: handleFor(meta.atUri) });
     drafts = listDrafts();
 
     selectedId = tldoc.titleEvent ? 'title' : (tldoc.entries[0]?.key ?? null);
@@ -338,6 +365,22 @@
     // it has not checked, and must not invent a conflict either.
     if (auth.status !== 'signed-in') {
       syncNote = 'Signed out, so this could not be checked against the version in your account.';
+      return 'clear';
+    }
+
+    // Before asking this account about it at all: a draft can belong to
+    // another account, because one browser can hold work for more than one
+    // identity. Nothing in this account's repo is evidence about that record,
+    // and the Script 7 message below would be two wrong statements — that it
+    // left an account it was never in, and that publishing would put it back,
+    // when publishing offers to make a *new* timeline here instead.
+    const owner = ownerOf(uri);
+    if (owner && owner !== auth.session.sub) {
+      // The handle is on the index entry, not in the document: it is about
+      // the record this draft publishes to, not about its contents.
+      const whose = drafts.find((d) => d.id === docId)?.ownerHandle;
+      syncNote = `This timeline belongs to ${whose ? `“${whose}”` : 'another account'}, not to the account you are signed in as. `
+        + 'Sign in as that account to publish changes to it, or publish this as a new timeline here.';
       return 'clear';
     }
 
@@ -786,6 +829,10 @@
       }
       drafts = listDrafts();
 
+      // Documents whose deletion the last session did not outlive. Nothing in
+      // the list can reach them; this is the storage they were still holding.
+      void sweepPendingDeletions();
+
       // Returning from an OAuth redirect, reopen whatever was being edited.
       if (_startInEditor && _restoreDocId) await openDraft(_restoreDocId);
     })();
@@ -898,12 +945,56 @@
    * merging it needs that timeline open as the working document. Left behind,
    * it became a row nothing could ever be merged into, warning about a
    * timeline "above" that was no longer there. So the delete takes it too,
-   * and the confirmation says so.
+   * and the undo card says so.
+   *
+   * No confirmation. A question before the fact asks someone to predict what
+   * they are about to lose; an undo card after it shows them. It is the
+   * pattern a deleted slide already uses, and it suits this one for the same
+   * reason: deleting a draft of a published timeline costs unpublished edits
+   * and nothing else, which is a recoverable amount of wrong.
+   *
+   * Deliberately not deferral. The deletion really happens — the entries go
+   * now and the documents follow when the window closes — because a deferred
+   * deletion that the tab outlives is a thing the author asked for that
+   * silently never happened. Undo restores instead of cancelling, and
+   * `sweepPendingDeletions` finishes anything a closed tab interrupted.
    */
-  async function handleDeleteDraft(id: string) {
-    // The row confirms inline, the same way the account list does, so there is
-    // no window.confirm here any more.
-    await forgetDraftWithForks(id);
+  function handleDeleteDraft(id: string, index: number) {
+    // A second delete while a card is up commits the first rather than losing
+    // track of it: one card, one offer.
+    commitDeletedDrafts();
+    const entries = removeDraftEntries(id);
+    if (!entries.length) return;
+    drafts = listDrafts();
+    // The row's own position, passed by the list that drew it — the card goes
+    // where the row was, so nothing below it moves.
+    deletedDrafts = { entries, index };
+    deletedDraftsLeaving = false;
+    _draftUndoTimer = setTimeout(() => {
+      // Fades where it stands first, so the list does not jump while someone
+      // is still looking at it.
+      deletedDraftsLeaving = true;
+      _draftUndoTimer = setTimeout(commitDeletedDrafts, 350);
+    }, UNDO_WINDOW);
+  }
+
+  /** Let the deletion through: the documents go, and the card with them. */
+  function commitDeletedDrafts() {
+    if (_draftUndoTimer !== null) { clearTimeout(_draftUndoTimer); _draftUndoTimer = null; }
+    const pending = deletedDrafts;
+    deletedDrafts = null;
+    deletedDraftsLeaving = false;
+    if (pending) void commitDraftDeletions(pending.entries);
+  }
+
+  /** Put the draft back, documents untouched because they were never dropped. */
+  function undoDeleteDraft() {
+    if (_draftUndoTimer !== null) { clearTimeout(_draftUndoTimer); _draftUndoTimer = null; }
+    const pending = deletedDrafts;
+    deletedDrafts = null;
+    deletedDraftsLeaving = false;
+    if (!pending) return;
+    restoreDraftEntries(pending.entries);
     drafts = listDrafts();
   }
 
@@ -1146,6 +1237,10 @@
     {persistWarning}
     onopendraft={handleOpenDraft}
     ondeletedraft={handleDeleteDraft}
+    {deletedDrafts}
+    {deletedDraftsLeaving}
+    onundodeletedraft={undoDeleteDraft}
+    onforgetdraft={(id) => { void forgetDraftWithForks(id).then(() => { drafts = listDrafts(); }); }}
     onnew={handleNew}
     onimport={handleImport}
     onopen={handleOpenRecord}

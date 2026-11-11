@@ -142,9 +142,11 @@ without the detour.)
 
 The panel is centered and wide. Its two sides are **Published** — what you are
 editing, and what the public link shows — and **My draft**, the edits that
-never landed. Each row names both in a sentence: *"You changed this."*, *"You
-deleted this; the published timeline still has it."* A row the published
-timeline also changed warns that keeping yours replaces that.
+never landed. Each row names both in a sentence, and names what it is about
+rather than saying "this": *"You changed this slide."*, *"You deleted this
+slide; the published timeline still has it."*, *"You changed the settings."* A
+row the published timeline also changed warns that keeping yours replaces
+that.
 
 An edited row shows the comparison under it: one line per field that differs,
 both values side by side under *Published* / *My draft*. Long values —

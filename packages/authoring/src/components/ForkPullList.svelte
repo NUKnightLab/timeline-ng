@@ -115,21 +115,25 @@
    * line and settles it: what you did, and what is published.
    */
   function what(entry: PullEntry): string {
+    const it = subject(entry);
     if (fork) {
       // Both sides made one. Said as an edit it would claim a shared version
       // that never existed; said as an addition it would deny the one on
       // screen beside it.
-      if (entry.rival) return 'You made this, and so did the published timeline — they are not the same.';
-      if (entry.kind === 'added') return 'You added this; the published timeline does not have it.';
-      if (entry.kind === 'removed') return 'You deleted this; the published timeline still has it.';
-      return 'You changed this.';
+      if (entry.rival) return `You made ${it}, and so did the published timeline — they are not the same.`;
+      if (entry.kind === 'added') return `You added ${it}; the published timeline does not have it.`;
+      if (entry.kind === 'removed') return `You deleted ${it}; the published timeline still has it.`;
+      return `You changed ${it}.`;
     }
     // Inverted: the row carries the version from *before*, so a slide that
     // arrived is one this row would remove.
-    if (entry.kind === 'removed') return 'This arrived; your draft did not have it.';
-    if (entry.kind === 'added') return 'This was deleted in the other browser.';
-    return 'This changed in the other browser.';
+    if (entry.kind === 'removed') return `${opening(it)} arrived; your draft did not have it.`;
+    if (entry.kind === 'added') return `${opening(it)} was deleted in the other browser.`;
+    return `${opening(it)} changed in the other browser.`;
   }
+
+  /** The same subject at the start of a sentence. */
+  const opening = (it: string) => it.charAt(0).toUpperCase() + it.slice(1);
 
   /**
    * The whole-slide choice, in the same two words as everything else.
@@ -165,11 +169,12 @@
   }
 
   /**
-   * What the contested line is about, named rather than left to a pronoun.
+   * What the row is about, named rather than left to a pronoun.
    *
-   * A row's heading is a headline, so "changed it too" could be read as the
+   * A row's heading is a headline, so a bare "this" could be read as the
    * headline rather than the slide — and two of these rows are not slides at
-   * all.
+   * all. Every sentence in a row goes through here, so a row about the
+   * settings never calls them a slide.
    */
   function subject(entry: PullEntry): string {
     if (entry.id === SETTINGS_ID) return 'the settings';
