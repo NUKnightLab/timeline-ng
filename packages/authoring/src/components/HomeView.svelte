@@ -729,7 +729,7 @@
         </p>
       </section>
 
-      <!-- Saved timelines -->
+      <!-- The timelines, local and published, in one list -->
       <section class="home-section">
         <div class="section-header-row">
           <h2 class="section-heading">Your timelines</h2>
@@ -748,7 +748,7 @@
         {#if persistWarning}
           <p class="draft-warning" role="status">
             This browser isn’t storing drafts, so anything you write here will be
-            gone when you close the tab. Save to your account to keep it.
+            gone when you close the tab. Publish to your account to keep it.
           </p>
         {/if}
         <!-- `deletedDrafts` keeps the section alive while the undo card is

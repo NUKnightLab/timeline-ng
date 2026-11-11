@@ -547,7 +547,7 @@
         <span class="publish-status">Published ✓</span>
       {:else}
         <button class="btn-publish" onclick={onpublish} disabled={!canPublish}
-          title={canPublish ? 'Publish to your PDS' : 'Sign in to publish'}>
+          title={canPublish ? 'Publish to your account' : 'Sign in to publish'}>
           {atUri ? 'Publish changes' : 'Publish'}
         </button>
       {/if}

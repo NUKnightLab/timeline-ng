@@ -192,7 +192,7 @@
     if (mediaSourceUrl) {
       try { return new URL(mediaSourceUrl).hostname.replace(/^www\./, ''); } catch { /* fall through */ }
     }
-    if (mediaBlobRef) return `PDS · ${mediaBlobRef.mimeType.split('/')[0]}`;
+    if (mediaBlobRef) return `Uploaded · ${mediaBlobRef.mimeType.split('/')[0]}`;
     return mediaInput.sourceLabel;
   }
   let bgColor    = $state(ev.background?.color ?? '');
@@ -805,7 +805,7 @@
       return {
         title: 'Media',
         lines: [
-          'Use Upload for files you want stored on your PDS. Use URL / Embed for web-hosted media and supported embeds.',
+          'Use Upload for files you want stored with your account. Use URL / Embed for web-hosted media and supported embeds.',
           'Caption and credit display with the media. Alt text is only for accessibility, so write what a screen reader user needs.',
           'The preview card stays compact until you open it, so finished events remain easier to scan in the editor.',
         ],
@@ -947,7 +947,7 @@
                   {#if uploadStatus === 'error'}
                     <p class="media-error">{uploadError}</p>
                   {:else}
-                    <p class="media-panel-hint">Stored on your personal data server (PDS).</p>
+                    <p class="media-panel-hint">Stored with your account, not on our servers.</p>
                   {/if}
                 {:else}
                   <div class="media-signin-notice">
@@ -1409,7 +1409,7 @@
         <p class="modal-intro">This tool uses AT Protocol — the open, decentralized technology behind Bluesky — so you own your content.</p>
 
         <dl class="modal-list">
-          <dt>Save your timeline</dt>
+          <dt>Publish your timeline</dt>
           <dd>Signed-in users can publish timelines to their AT Protocol account. Each timeline gets a permanent, shareable link (an AT URI) that works in any compatible app.</dd>
 
           <dt>Upload media</dt>

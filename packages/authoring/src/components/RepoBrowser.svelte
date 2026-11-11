@@ -231,8 +231,8 @@
       type="button"
       class="rb-refresh"
       class:rb-refresh--busy={loading || refreshing}
-      aria-label="Reload from your PDS"
-      title="Reload from your PDS"
+      aria-label="Reload from your account"
+      title="Reload from your account"
       onclick={refresh}
     >↻</button>
   </div>
