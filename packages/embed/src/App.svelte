@@ -29,6 +29,30 @@
     document.head.appendChild(tag);
   }
 
+  /*
+   * The browser tab (and so the bookmark, the history entry, and the title a
+   * sharer's app falls back to) should name the timeline, not the software.
+   * index.html ships "TimelineJS" as the pre-load placeholder; once a timeline
+   * is in hand, its title slide's headline replaces it, falling back to the
+   * first event's the way the OG card does. The "<headline> — TimelineJS"
+   * shape follows the rest of the project's pages (docs.html, the examples).
+   * DOMParser decodes entities and drops markup without fetching anything,
+   * which innerHTML on a detached element would not guarantee.
+   */
+  function plainText(html: string | undefined): string {
+    if (!html) return '';
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    return (doc.body.textContent ?? '').replace(/\s+/g, ' ').trim();
+  }
+
+  $effect(() => {
+    if (!timeline) return;
+    const headline =
+      plainText(timeline.title?.text?.headline) ||
+      plainText(timeline.events[0]?.text?.headline);
+    if (headline) document.title = `${headline} — TimelineJS`;
+  });
+
   const loadErrorTimeline: TLTimeline = $derived({
     title: { text: { headline: loadErrorMessage ?? '' } },
     events: [],
