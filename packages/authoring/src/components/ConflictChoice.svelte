@@ -30,7 +30,11 @@
     publishedAt?: string;
     onkeepmine: () => void;
     onusepublished: () => void;
-    onkeepboth: () => void;
+    /**
+     * *Keep both*, with `reconcile` saying whether to go straight into the
+     * pull-list. See the two buttons below for why it is a choice.
+     */
+    onkeepboth: (reconcile: boolean) => void;
     /**
      * Escape, or a click outside. Deliberately not *Keep both*, emphasized
      * though that is: every option here has an effect, and dismissing a dialog
@@ -87,15 +91,21 @@
   );
 </script>
 
-<div class="backdrop">
-  <div
-    class="dialog"
-    use:modalDialog={{ onclose: ondismiss }}
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="conflict-title"
-    tabindex="-1"
-  >
+<!--
+  The action goes on the backdrop, not on the box. It closes on a click on
+  its own node, which only means "outside" when the node is the thing
+  surrounding the box — applied to the box itself it closed on a click on the
+  dialog's own padding instead.
+-->
+<div
+  class="backdrop"
+  use:modalDialog={{ onclose: ondismiss }}
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="conflict-title"
+  tabindex="-1"
+>
+  <div class="dialog">
     <h2 id="conflict-title">
       {occasion === 'publish'
         ? 'Publishing now would replace newer changes'
@@ -110,11 +120,24 @@
     </p>
 
     <ul class="options">
-      <li>
-        <button class="option option--safe" onclick={onkeepboth}>
-          <span class="option__name">Keep both</span>
-          <span class="option__cost">Nothing is lost. Your edits are kept as a separate copy to reconcile when you have a moment.</span>
-        </button>
+      <!--
+        *Keep both* is two decisions, not one: keep the work, and when to deal
+        with it. Offering only "later" leaves a draft behind with no route back
+        to it from the moment that created it — the merge has to be
+        rediscovered on the home screen. "Now" is the same safety with the
+        work done while both versions are still in mind, which is usually when
+        it is easiest.
+      -->
+      <li class="option option--safe option--split">
+        <span class="option__name">Keep both</span>
+        <span class="option__cost">
+          Nothing is lost. The timeline opens with the published version, and your edits are kept
+          as a draft to merge a slide at a time — now or later.
+        </span>
+        <span class="option__actions">
+          <button class="act act--go" onclick={() => onkeepboth(true)}>Sort it out now</button>
+          <button class="act" onclick={() => onkeepboth(false)}>Leave it for later</button>
+        </span>
       </li>
       <li>
         <button class="option" onclick={onkeepmine}>
@@ -223,6 +246,54 @@
   .option--safe:focus-visible {
     background: #e2f1e2;
     border-color: #6ba36b;
+  }
+
+  /*
+   * The split card is not itself clickable — its two buttons are — so it must
+   * not behave like the other options under the pointer.
+   */
+  .option--split,
+  .option--split:hover {
+    cursor: default;
+    background: #eef7ee;
+    border-color: #8bbb8b;
+  }
+
+  .option__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.65rem;
+  }
+
+  .act {
+    margin: 0;
+    padding: 0.35rem 0.7rem;
+    background: #fff;
+    border: 1px solid #8bbb8b;
+    border-radius: 4px;
+    font: inherit;
+    font-size: 0.82rem;
+    color: inherit;
+    text-transform: none;
+    text-shadow: none;
+    cursor: pointer;
+  }
+
+  .act--go {
+    background: #2f6b34;
+    border-color: #2f6b34;
+    color: #fff;
+  }
+
+  .act:hover,
+  .act:focus-visible {
+    border-color: #4a8c4f;
+  }
+
+  .act--go:hover,
+  .act--go:focus-visible {
+    background: #27582b;
   }
 
   .option__name {

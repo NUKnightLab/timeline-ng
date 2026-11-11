@@ -182,12 +182,33 @@ export function modalDialog(node: HTMLElement, options: ModalDialogOptions) {
     if (target && !node.contains(target)) node.focus();
   }
 
+  /**
+   * Whether the press that led to this click started inside the dialog box.
+   *
+   * Selecting text is a press, a drag and a release, and a release that lands
+   * on the backdrop — which is most of the screen — produced a click whose
+   * target was the backdrop. So dragging across a line of the dialog's own
+   * prose to copy it closed the dialog, which is how this was found: a panel
+   * whose text could not be selected because selecting it dismissed the panel.
+   *
+   * A dismissing click has to begin outside as well as end there.
+   */
+  let pressedInside = false;
+
+  function onPointerDown(e: PointerEvent) {
+    pressedInside = e.target !== node;
+  }
+
   function onClick(e: MouseEvent) {
-    // The backdrop itself, not anything within the dialog box.
-    if (e.target === node) opts.onclose();
+    // The backdrop itself, not anything within the dialog box. Every caller
+    // applies this action to the backdrop, which is what makes that test the
+    // whole of "outside".
+    if (e.target === node && !pressedInside) opts.onclose();
+    pressedInside = false;
   }
 
   node.addEventListener('keydown', onKeydown);
+  node.addEventListener('pointerdown', onPointerDown);
   node.addEventListener('click', onClick);
   document.addEventListener('focusin', onFocusIn);
 
@@ -200,6 +221,7 @@ export function modalDialog(node: HTMLElement, options: ModalDialogOptions) {
       // an escape and pull focus back into a dialog that is closing.
       document.removeEventListener('focusin', onFocusIn);
       node.removeEventListener('keydown', onKeydown);
+      node.removeEventListener('pointerdown', onPointerDown);
       node.removeEventListener('click', onClick);
 
       // Gone from the DOM if the view changed underneath the dialog; focus then

@@ -265,6 +265,15 @@
     return drafts.filter((d) => d.forkedFrom?.atUri === draft.atUri);
   }
 
+  /**
+   * Whether the timeline an unmerged draft came from is still in this
+   * browser. When it is not, the draft has nowhere to be merged into, so it
+   * must not be described by its position in a list it is no longer under.
+   */
+  function hasParent(draft: DraftSummary): boolean {
+    return !!draft.forkedFrom && drafts.some((d) => d.atUri === draft.forkedFrom?.atUri && !d.forkedFrom);
+  }
+
   const rootDrafts = $derived(
     drafts.filter((d) => !d.forkedFrom || !drafts.some((o) => o.atUri && o.atUri === d.forkedFrom?.atUri)),
   );
@@ -390,7 +399,24 @@
                  than a native window.confirm. -->
             <div class="timeline-item-confirm">
               <span class="confirm-label">
-                Delete "{draftName(draft)}" from this browser?{draft.atUri ? ' Anything already published stays published.' : ''}
+                {#if draft.forkedFrom}
+                  <!-- An unmerged draft is the part that is nowhere else, so
+                       the generic "stays published" reassurance would be a lie
+                       by omission here. -->
+                  Delete "{draftName(draft)}"? Nothing in it was ever merged into
+                  {hasParent(draft) ? 'the timeline above' : 'the timeline it came from'}, so
+                  deleting it drops those edits for good.
+                {:else}
+                  Delete "{draftName(draft)}" from this browser?{draft.atUri ? ' Anything already published stays published.' : ''}
+                  {#if forksFor(draft).length}
+                    <!-- Said before the click, not discovered after it: an
+                         unmerged draft only means anything next to the timeline
+                         it came from, so it cannot outlive it. -->
+                    {forksFor(draft).length === 1
+                      ? 'Its unmerged draft goes too.'
+                      : `Its ${forksFor(draft).length} unmerged drafts go too.`}
+                  {/if}
+                {/if}
               </span>
               <button class="btn-confirm-delete" onclick={() => { confirmDeleteDraftId = null; ondeletedraft(draft.id); }}>
                 Delete
@@ -404,7 +430,14 @@
             <span class="draft-row-title">{draftName(draft)}</span>
             <span class="draft-row-meta">
               edited {formatRelativeTime(draft.editedAt)} ·
-              {#if !draft.atUri}
+              {#if draft.forkedFrom}
+                <!-- "never published" would read as something still to do.
+                     A fork cannot be published at all; it ends by being
+                     merged into the timeline above it, or deleted. -->
+                <span class="draft-row-unpublished">
+                  {hasParent(draft) ? 'not merged yet' : 'the timeline it came from is gone'}
+                </span>
+              {:else if !draft.atUri}
                 never published
               {:else if draft.clean === true}
                 <span class="draft-row-published">published</span>
@@ -439,7 +472,7 @@
             <ul class="fork-list">
               {#each forksFor(draft) as fork (fork.id)}
                 <li class="draft-item">
-                  <span class="fork-label">Your edits, kept aside</span>
+                  <span class="fork-label">Unmerged draft</span>
                   <div class="draft-row">{@render draftRow(fork)}</div>
                 </li>
               {/each}
@@ -593,15 +626,20 @@
           </p>
         {/if}
         {#if drafts.length > 0}
-          <h3 class="draft-list-heading">In this browser</h3>
+          <!-- "In this browser" named a place nobody thinks in. What a reader
+               wants here is the state of the thing — a draft, or published —
+               so the headings say that, and the one fact the place-name was
+               carrying is kept as a note under it. -->
+          <h3 class="draft-list-heading">Drafts</h3>
+          <p class="draft-list-note">Kept in this browser only — not on your other devices.</p>
           {@render draftList()}
         {/if}
         {#if auth.status === 'signed-in'}
-          <!-- Paired with "In this browser" above: the two lists are the same
-               kind of thing in two places, so both say which place. Without
-               this the account list was simply unlabelled, and the drafts'
-               heading read as if it covered everything below it. -->
-          <h3 class="draft-list-heading">In your account</h3>
+          <!-- Paired with "Drafts" above: the two lists are the same kind of
+               thing in two states, so both say which. Without this the account
+               list was simply unlabelled, and the drafts' heading read as if
+               it covered everything below it. -->
+          <h3 class="draft-list-heading">Published</h3>
           {#if listLoading}
             <p class="list-loading">Loading…</p>
           {:else if publishedTimelines.length === 0}
@@ -1353,6 +1391,13 @@
     text-transform: uppercase;
     letter-spacing: 0.04em;
     color: #666;
+  }
+  /* The one thing "In this browser" was good for, kept where it does not have
+     to be the name of the list. */
+  .draft-list-note {
+    margin: -0.2rem 0 0.5rem;
+    font-size: 0.75rem;
+    color: #9ca3af;
   }
   .draft-list { list-style: none; margin: 0; padding: 0; }
   .fork-list {

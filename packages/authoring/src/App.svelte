@@ -5,8 +5,10 @@
   import { getAuthState, publishTimeline, signOut, uploadBlob, blobUrl, extractCid, listTimelines, getTimeline } from './lib/atproto.svelte.ts';
   import { initAuth } from './lib/atproto.svelte.ts';
   import { generatePoster } from './lib/poster.ts';
-  import { listDrafts, newDocId, noteDraft, forgetDraft, persistDoc } from './lib/localStore.ts';
+  import { listDrafts, newDocId, noteDraft, forgetDraft, forgetDraftWithForks, persistDoc, readDraftTimeline } from './lib/localStore.ts';
   import type { DraftSummary } from './lib/localStore.ts';
+  import { applyPull, applyPullField, declinePull, declinePullField, incomingList, outstanding, pullList } from './lib/pullList.ts';
+  import type { PullEntry } from './lib/pullList.ts';
   import { migrateLegacyDraft } from './lib/draftMigration.ts';
   import type { IndexeddbPersistence } from 'y-indexeddb';
   import { TimelineDoc, HEADLINE_FIELD, BODY_FIELD } from './lib/doc.svelte.ts';
@@ -17,6 +19,7 @@
   import HomeView from './components/HomeView.svelte';
   import EditorView from './components/EditorView.svelte';
   import ConflictChoice from './components/ConflictChoice.svelte';
+  import ForkPullList from './components/ForkPullList.svelte';
 
   // ── Synchronous OAuth restore check (must run before first render) ───────────
 
@@ -93,6 +96,51 @@
 
   /** Set while the open draft is a fork: it holds no claim on a record ([P10]). */
   let forkOf = $state<DraftSummary['forkedFrom'] | null>(null);
+
+  /**
+   * The open pull-list, while a fork of the working document is being
+   * reconciled ([P12]). `fork` is that document's content, read once and kept
+   * so each pull can recompute the list without touching IndexedDB again —
+   * the fork does not change while this is open; the working document does.
+   */
+  let pull = $state<{
+    /** Which question the panel is asking — see ForkPullList's `mode`. */
+    mode: 'fork' | 'incoming' | 'arrived';
+    /** Set for a fork; null while reviewing what arrived, which has no second document. */
+    forkId: string | null;
+    base: TLTimeline | null;
+    fork: TLTimeline | null;
+    entries: PullEntry[];
+    unmatchable: number;
+  } | null>(null);
+
+  /**
+   * What a merge or fast-forward brought in, kept so it can be reviewed.
+   *
+   * Held from the moment it lands until the draft is closed or another check
+   * replaces it: the note offers a review, and the review has to still have
+   * the before-state when it is taken up a minute later. `reading` is a
+   * fast-forward, where nothing local was at risk and the list is only worth
+   * looking at.
+   */
+  let incoming = $state<{ entries: PullEntry[]; reading: boolean } | null>(null);
+
+  /**
+   * What each fork of the open timeline still has to offer.
+   *
+   * The draft index cannot answer this. It records that a fork exists, not
+   * whether anything in it is still outstanding — and a fork that has been
+   * worked through survives until someone deletes it. Counting drafts made
+   * the editor insist there were edits to bring across when the pull-list,
+   * once opened, had nothing in it. So each fork is read and compared, and
+   * `outstanding` is what the banner speaks from.
+   */
+  let forkOffers = $state<{
+    id: string;
+    base: TLTimeline | null;
+    fork: TLTimeline | null;
+    outstanding: number;
+  }[]>([]);
   /** Bumped after each undo or redo; the slide editor re-reads its fields when it moves. */
   let historyVersion = $state(0);
 
@@ -198,6 +246,9 @@
     // Whatever the last reconciliation said was about the draft being closed.
     syncNote = null;
     conflict = null;
+    pull = null;
+    incoming = null;
+    forkOffers = [];
     if (provider) {
       await provider.destroy();
       provider = null;
@@ -254,17 +305,15 @@
     forkOf = listDrafts().find((d) => d.id === id)?.forkedFrom ?? null;
     view = 'editor';
 
-    // A disabled control with no explanation is worse than no control. The
-    // choice it is waiting for — over the original, or as a new timeline —
-    // does not exist yet ([P10]), so for now it says what it is instead.
-    if (forkOf) {
-      syncNote = 'This is a copy kept aside from a timeline in your account. It publishes nowhere until you bring its changes back into that one.';
-      return;
-    }
+    // A fork says what it is in a line that stays, not a dismissible note:
+    // publishing is disabled here and will never be enabled, so the
+    // explanation has to outlast a glance ([P10]). EditorView draws it.
+    if (forkOf) return;
 
     // After the editor is up, not before: the comparison is two requests and
     // nothing about it should hold up opening a draft the author already has.
     void checkPublished('open');
+    void assessForks();
   }
 
   // ── Reconciling with the published record ─────────────────────────────────────
@@ -326,20 +375,29 @@
     });
 
     switch (outcome.kind) {
-      case 'fast-forward':
+      case 'fast-forward': {
         // Script 3. Nothing local is at risk, so there is no decision to hand
-        // over — but the content did change under them, so it is said.
+        // over — but the content did change under them, so it is said, and
+        // now it can be looked at.
+        const before = tldoc.toTimeline();
         tldoc.adopt(outcome.published, outcome.published, row.cid);
         selectedId = tldoc.titleEvent ? 'title' : (tldoc.entries[0]?.key ?? null);
-        syncNote = 'Updated to the version published from another browser.';
+        const list = incomingList(before, tldoc.toTimeline());
+        incoming = { entries: list.entries, reading: true };
+        syncNote = `Updated to the version published from another browser. ${named(list.entries)}`;
         return 'clear';
+      }
       case 'merged': {
         // [P9]. The two sides touched different things, so no field has two
-        // values and there is nothing to choose between.
+        // values and there is nothing to choose between — but a change
+        // arriving unseen and unundoable is its own surprise, so what landed
+        // is named and can be put back a row at a time.
+        const before = tldoc.toTimeline();
         tldoc.adopt(outcome.timeline, outcome.published, row.cid);
         selectedId = tldoc.titleEvent ? 'title' : (tldoc.entries[0]?.key ?? null);
-        const theirs = outcome.analysis.theirs.length;
-        syncNote = `Merged ${theirs} change${theirs === 1 ? '' : 's'} published from another browser. Publish again to include your own.`;
+        const list = incomingList(before, tldoc.toTimeline());
+        incoming = { entries: list.entries, reading: false };
+        syncNote = `${named(list.entries)} ${list.entries.length === 1 ? 'It is' : 'They are'} in this timeline now, alongside your own unpublished changes.`;
         return 'clear';
       }
       case 'conflict':
@@ -386,7 +444,7 @@
    * would mean building a second document by hand and hoping it reached storage
    * before being closed.
    */
-  async function keepBoth() {
+  async function keepBoth(reconcile: boolean) {
     const c = conflict;
     if (!c) return;
     conflict = null;
@@ -419,12 +477,290 @@
       clean: true,
       settings: tl.settings,
     });
-    syncNote = 'Your edits are kept as a separate copy, listed on the home screen under this timeline.';
+    // Straight into the pull-list when that is what was asked for. The fork is
+    // already in `drafts` by now — `createDraft` relists them — so the same
+    // lookup the editor's note uses finds it.
+    await assessForks();
+    if (reconcile) {
+      await reviewFork();
+      return;
+    }
+    syncNote = 'Your edits are kept as an unmerged draft, listed on the home screen under this timeline.';
   }
 
   function dismissConflict() {
     conflict = null;
     syncNote = 'Left as it is. Publishing will be refused until this is settled.';
+  }
+
+  // ── What arrived ─────────────────────────────────────────────────────────────
+
+  /**
+   * The changes by name, for the note.
+   *
+   * "Merged 3 changes" tells someone that something happened to their
+   * document and nothing about what — and the analysis that could have said
+   * was computed and thrown away. Three names is the most a subnav line can
+   * carry; past that it says how many more.
+   */
+  function named(entries: PullEntry[]): string {
+    if (!entries.length) return 'Nothing changed that this timeline did not already have.';
+    const names = entries.slice(0, 3).map((e) => e.label);
+    const rest = entries.length - names.length;
+    const list = names.length === 1
+      ? names[0]
+      : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`;
+    const tail = rest ? `${list}, and ${rest} more` : list;
+    return `${entries.length === 1 ? 'One change' : `${entries.length} changes`} published from another browser: ${tail}.`;
+  }
+
+  function reviewIncoming() {
+    const list = incoming;
+    if (!list) return;
+    pull = {
+      mode: list.reading ? 'arrived' : 'incoming',
+      forkId: null,
+      base: null,
+      fork: null,
+      entries: list.entries,
+      unmatchable: 0,
+    };
+  }
+
+  /** Put one incoming change back the way it was — an ordinary, undoable edit. */
+  function putBack(entry: PullEntry) {
+    applyPull(tldoc, entry);
+    recomputeIncoming();
+  }
+
+  function putBackField(entry: PullEntry, key: string) {
+    applyPullField(tldoc, entry, key);
+    recomputeIncoming();
+  }
+
+  /**
+   * Drop the rows that now match what they are offering.
+   *
+   * The same rule as the fork list — a row is gone once the document holds
+   * its version — so putting a change back removes its row, and undoing that
+   * brings the row back.
+   */
+  function recomputeIncoming() {
+    if (!incoming) return;
+    const working = tldoc.toTimeline();
+    const entries = incoming.entries.filter((e) => outstanding(e, working));
+    incoming = { ...incoming, entries };
+    if (pull && pull.mode !== 'fork') pull = { ...pull, entries };
+  }
+
+  // ── Reconciling a fork ───────────────────────────────────────────────────────
+
+  /**
+   * Forks of the timeline that is open, which is what gives the editor
+   * something to offer.
+   *
+   * A fork names the record it came from and holds no `atUri` of its own, so
+   * this is the reverse of the lookup the home screen does to nest them.
+   */
+  const forksOfOpen = $derived(
+    atUri && !forkOf ? drafts.filter((d) => d.forkedFrom?.atUri === atUri) : [],
+  );
+
+  /**
+   * Read every fork of the open timeline and work out what it still has.
+   *
+   * Runs when a timeline is opened and after anything that could change the
+   * answer, not continuously: the comparison is against the working document,
+   * which moves on every keystroke, and a banner that flickered as you typed
+   * would be worse than one that is a moment stale. A fork that cannot be
+   * read, or was kept without its ancestor, counts as outstanding — the panel
+   * is where that gets explained, and silence would hide the copy entirely.
+   */
+  async function assessForks() {
+    const summaries = forksOfOpen;
+    const working = tldoc.toTimeline();
+    const offers = await Promise.all(
+      summaries.map(async (summary) => {
+        const base = summary.forkedFrom
+          ? (JSON.parse(summary.forkedFrom.baseSnapshot) as TLTimeline | null)
+          : null;
+        const fork = await readDraftTimeline(summary.id);
+        return {
+          id: summary.id,
+          base,
+          fork,
+          outstanding: base && fork ? pullList(base, fork, working).entries.length : 1,
+        };
+      }),
+    );
+    // Opening another draft while these reads were in flight would otherwise
+    // leave the new timeline wearing the old one's forks.
+    if (summaries !== forksOfOpen) return;
+    forkOffers = offers;
+  }
+
+  /**
+   * The timeline a fork came from, when this browser still has it.
+   *
+   * Without it there is nowhere to reconcile into: the record may exist in
+   * the account, but the pull-list works against an open working document.
+   */
+  const forkParent = $derived.by(() => {
+    const uri = forkOf?.atUri;
+    if (!uri) return null;
+    return drafts.find((d) => d.atUri === uri && !d.forkedFrom) ?? null;
+  });
+
+  /**
+   * From inside a fork, go to the timeline it belongs to and open the
+   * pull-list there.
+   *
+   * A fork could previously be opened and read but offered no way onward,
+   * which left the reconciliation to be found by going back to the home
+   * screen and guessing which row started it.
+   */
+  async function resolveFork() {
+    const parent = forkParent;
+    if (!parent) {
+      syncNote = 'The timeline these edits came from is not in this browser, so there is nothing to sort them into. Open it from your account first.';
+      return;
+    }
+    await openDraft(parent.id);
+    await assessForks();
+    await reviewFork();
+  }
+
+  /** Forks with something left to give, which is what the editor's line speaks for. */
+  const forksOutstanding = $derived(forkOffers.filter((o) => o.outstanding > 0));
+  /** Forks already worked through: nothing to bring across, only to delete. */
+  const forksSettled = $derived(forkOffers.filter((o) => o.outstanding === 0));
+
+  /**
+   * Open the pull-list for a fork.
+   *
+   * More than one fork of a timeline is possible — *Keep both* twice — and
+   * rare. They are reconciled one at a time, oldest first, because each pull
+   * changes the working document and so changes what the next fork still has
+   * to offer.
+   */
+  async function reviewFork() {
+    const offer = forksOutstanding[0] ?? forkOffers[0];
+    if (!offer) return;
+    // Without the ancestor there is nothing to attribute changes to, and the
+    // panel would be a two-way diff that cannot tell the author's own work
+    // from the record's. Forks have carried it since they existed ([P11]).
+    if (!offer.base) {
+      syncNote = 'That draft was kept without the version it came from, so its edits cannot be told apart from this timeline\'s own. Open it and copy what you need across.';
+      return;
+    }
+    if (!offer.fork) {
+      syncNote = 'That draft could not be read from this browser\'s storage.';
+      return;
+    }
+    pull = {
+      mode: 'fork',
+      forkId: offer.id,
+      base: offer.base,
+      fork: offer.fork,
+      ...pullList(offer.base, offer.fork, tldoc.toTimeline()),
+    };
+  }
+
+  /** Recompute from the fork already in hand — the working document moved, not it. */
+  function recomputePull() {
+    if (!pull?.fork || !pull.base) return;
+    pull = { ...pull, ...pullList(pull.base, pull.fork, tldoc.toTimeline()) };
+  }
+
+  function bringOver(entry: PullEntry) {
+    applyPull(tldoc, entry);
+    recomputePull();
+    void assessForks();
+  }
+
+  /**
+   * Settle a row by keeping what this timeline has.
+   *
+   * The decision lives in the fork's recorded ancestor, which is why it has
+   * to be written back to the draft index: it must survive a reload, and the
+   * list itself remembers nothing. See `declinePull`.
+   */
+  function keepHere(entry: PullEntry) {
+    const current = pull;
+    if (!current?.fork || !current.base || !current.forkId) return;
+    const base = declinePull(current.base, current.fork, entry);
+    const summary = drafts.find((d) => d.id === current.forkId);
+    if (!summary?.forkedFrom) return;
+    noteDraft({
+      ...summary,
+      forkedFrom: { ...summary.forkedFrom, baseSnapshot: JSON.stringify(base) },
+    });
+    drafts = listDrafts();
+    pull = { ...current, base, ...pullList(base, current.fork, tldoc.toTimeline()) };
+    void assessForks();
+  }
+
+  /** One field of a row ([P6]) — the same transaction, assembled from both sides. */
+  function bringField(entry: PullEntry, key: string) {
+    applyPullField(tldoc, entry, key);
+    recomputePull();
+    void assessForks();
+  }
+
+  /**
+   * The other half of that line: settle it the published way.
+   *
+   * `keepHere` for one field. Recorded in the ancestor the same way, so it
+   * stays settled, and like `keepHere` it is not a document edit — Cmd-Z does
+   * not bring the line back.
+   */
+  function keepPublishedField(entry: PullEntry, key: string) {
+    const current = pull;
+    if (!current?.fork || !current.base || !current.forkId) return;
+    const base = declinePullField(current.base, current.fork, entry, key);
+    const summary = drafts.find((d) => d.id === current.forkId);
+    if (!summary?.forkedFrom) return;
+    noteDraft({
+      ...summary,
+      forkedFrom: { ...summary.forkedFrom, baseSnapshot: JSON.stringify(base) },
+    });
+    drafts = listDrafts();
+    pull = { ...current, base, ...pullList(base, current.fork, tldoc.toTimeline()) };
+    void assessForks();
+  }
+
+  async function forgetFork() {
+    const id = pull?.forkId;
+    pull = null;
+    if (!id) return;
+    await forgetDraft(id);
+    drafts = listDrafts();
+    await assessForks();
+    syncNote = 'The draft is deleted. Everything outstanding in it was settled first.';
+  }
+
+  /**
+   * Delete the copies that have nothing left to give, from the editor's line.
+   *
+   * The pull-list offers this too, but reaching it means opening a panel that
+   * would be empty — the one case where the panel has nothing to say that the
+   * line has not said already.
+   */
+  async function forgetSettledForks() {
+    const ids = forksSettled.map((o) => o.id);
+    if (!ids.length) return;
+    for (const id of ids) await forgetDraft(id);
+    drafts = listDrafts();
+    await assessForks();
+    syncNote = ids.length === 1
+      ? 'The draft is deleted. Nothing in it was outstanding.'
+      : 'Those drafts are deleted. Nothing in them was outstanding.';
+  }
+
+  async function openFork() {
+    const id = pull?.forkId;
+    pull = null;
+    if (id) await openDraft(id);
   }
 
   // ── Init ─────────────────────────────────────────────────────────────────────
@@ -546,10 +882,19 @@
     await openDraft(id);
   }
 
+  /**
+   * Delete a draft, and with it any unmerged draft of it.
+   *
+   * An unmerged draft only means something next to the timeline it came from:
+   * merging it needs that timeline open as the working document. Left behind,
+   * it became a row nothing could ever be merged into, warning about a
+   * timeline "above" that was no longer there. So the delete takes it too,
+   * and the confirmation says so.
+   */
   async function handleDeleteDraft(id: string) {
     // The row confirms inline, the same way the account list does, so there is
     // no window.confirm here any more.
-    await forgetDraft(id);
+    await forgetDraftWithForks(id);
     drafts = listDrafts();
   }
 
@@ -798,6 +1143,14 @@
     {pdsClean}
     {publishStatus}
     {publishTone}
+    onreviewincoming={incoming?.entries.length ? reviewIncoming : null}
+    forkCount={forksOutstanding.length}
+    settledForkCount={forksSettled.length}
+    onreviewfork={reviewFork}
+    onforgetsettledforks={forgetSettledForks}
+    forkParentTitle={forkOf ? (forkParent?.title ?? null) : null}
+    isFork={!!forkOf}
+    onresolvefork={resolveFork}
     canPublish={canPublishHere}
     {syncNote}
     ondismissnote={() => (syncNote = null)}
@@ -825,12 +1178,41 @@
       const changed = direction === 'undo' ? tldoc.undo() : tldoc.redo();
       if (!changed) return false;
       historyVersion += 1;
+      // A pull is an ordinary undoable edit, so undoing one puts the row back
+      // on offer. Neither the open panel nor the subnav line watches the
+      // document, so both are told here — without this, undo left the list
+      // claiming a row had been dealt with.
+      recomputePull();
+      void assessForks();
       // Undo has just brought the slide back itself, so the restore row is
       // offering to do it again — and clicking it would leave a second copy.
       if (pendingDeletion && !tldoc.hasUndoItem(pendingDeletion)) dismissDeletedItem();
       return true;
     }}
     {historyVersion}
+  />
+{/if}
+
+{#if pull}
+  <!--
+    `loading` is about reading a fork out of its own database, which is the
+    only mode that does it — an incoming list is computed from the document
+    already open. Tested as `fork === null` alone, every incoming panel
+    reported itself as still loading, because a null fork is that mode's
+    normal state, and so showed nothing at all.
+  -->
+  <ForkPullList
+    mode={pull.mode}
+    entries={pull.entries}
+    unmatchable={pull.unmatchable}
+    loading={pull.mode === 'fork' && pull.fork === null}
+    onbring={pull.mode === 'fork' ? bringOver : putBack}
+    onbringfield={pull.mode === 'fork' ? bringField : putBackField}
+    onkeephere={keepHere}
+    onkeeppublishedfield={keepPublishedField}
+    onforget={forgetFork}
+    onopenfork={openFork}
+    onclose={() => (pull = null)}
   />
 {/if}
 

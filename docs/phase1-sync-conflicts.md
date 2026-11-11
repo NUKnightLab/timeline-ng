@@ -51,9 +51,115 @@ Three things the design did not anticipate, all found by hand-testing:
   blob-backed image from the CID and the PDS origin. They are left out of the comparison: they are
   recomputed on every read and would change if the account moved hosts.
 
-What remains: [P12]'s pull-list, which is what makes *Keep both* a deferral rather than a trap — a
-fork today can be opened and read but not reconciled, and says so instead of offering a Reconcile it
-cannot honour. Then [P7]'s preview at the first contested slide, [P6]'s field-level fidelity inside
+**[P12]'s pull-list shipped on 2026-11-03**, which is what makes *Keep both* a deferral rather than
+a trap: until it existed a fork could be opened and read but not reconciled, and the only way to get
+an edit back was to retype it. A timeline with a fork now carries a line offering to review it, and
+the panel lists what the fork has that this version does not — one row per slide, each a single
+`USER_ORIGIN` transaction, so Cmd-Z undoes a pull and the row comes back. The list is recomputed
+after every pull rather than tracking what was clicked, which is what makes it empty out; when it is
+empty the panel offers to delete the copy, so reconciliation has an end state.
+
+With somewhere to go, *Keep both* now asks **when** rather than only keeping the work: *Go through
+them now* opens the pull-list at the moment of the conflict, *Leave them for later* returns to the
+editor. Only offering "later" made the reconciliation something to rediscover on the home screen,
+and the moment the two versions are clearest in mind is the one the dialog interrupts.
+
+**[P6]'s field-level comparison shipped on 2026-11-10.** A row that said only "Changed in your
+copy" could be counted but not evaluated — the two documents are both the author's and usually
+differ in one word, so the real question is not "do I want this slide?" but "do I want *this*
+headline?". Each edited row now opens into one line per differing field, both values side by side,
+with a take of its own. Three things fell out of building it:
+
+- **The data model's keys are the wrong granularity.** `text` holds the headline and the body, and
+  `media` holds the image with its caption, credit and alt text. Comparing at that level would make
+  a one-word headline fix carry a rewritten paragraph with it, so the fields are listed explicitly
+  in `pullFields.ts` — with a getter, a renderer and a non-mutating take each — rather than walked
+  off the object.
+- **A per-field take needs no new write path.** `replaceEvent` writes a whole slide including its
+  prose, so one field is `{...working, [field]: fork[field]}` through that same call: one
+  `USER_ORIGIN` transaction, one Cmd-Z, identical to taking the whole row.
+- **Derived values must not become rows.** A media URL is recomputed from the CID and the PDS
+  origin on every read, so two sides holding the same upload disagree about it while meaning the
+  same thing. The comparison reads through `comparable()`, the same strip the three-way merge uses.
+
+The panel moved from a right-hand drawer to a centered one at the same time: two values side by
+side need the width, and at 26rem only one of them could ever be on screen.
+
+**An automatic merge is now visible and reversible — [P9] revisited, 2026-11-10.** Auto-merging was
+worse than it looked: `adopt` applies the result under `LOAD_ORIGIN` and then clears the undo
+stack, so slides could arrive from another browser with no way to see what they were and no way to
+take them back. The merge still happens without asking — most are trivial, and a dialog for every
+trivial one is how people learn to dismiss the dialog that matters, which is the conflict. What
+changed is everything after it:
+
+- **The note names what arrived** ("3 changes published from another browser: Apollo 11, Voyager 1
+  and Settings") instead of counting them. The analysis was already computed and thrown away.
+- **"See what changed" opens the same panel**, in `incoming` mode: the rows are what landed, each
+  with the before-and-after comparison and *Put it back* per row and per field.
+- **A fast-forward gets the same list, read-only** (`arrived` mode). Nothing local was at risk, so
+  there is nothing to put back, but "what changed in my account while I was away" is worth seeing.
+- **Putting something back is an ordinary edit**, so Cmd-Z reaches it. The merge as a whole stays
+  non-undoable: undoing the content without the `baseCid` would leave the document claiming
+  agreement with a record it no longer matches.
+
+The comparison is a plain two-way diff — `before` and `after` are two states of the same document,
+so there is no third version to attribute anything to. The rows are `PullEntry` and nothing else,
+so `applyPull`, `applyPullField` and the panel work unchanged; `kind` keeps its meaning (what
+applying this row would do), which inverts against the arrival: a slide the merge *added* is a row
+that *removes* it, because the version on offer is the one from before. One expectation that did
+not survive contact: `pullList(base, preMergeLocal, merged)` looked like it would give the incoming
+set for free, and it gives nothing — in a clean merge both sides' changes land, so the local
+document has nothing the merged one lacks.
+
+**Set-aside edits cannot outlive their timeline.** Deleting a timeline used to leave them behind,
+where they became a row warning about a timeline "above" that no longer existed and could never be
+sorted into anything — the one operation needs the other open as the working document. Deleting a
+timeline now takes them with it (`forgetDraftWithForks`, a storage-level invariant rather than a
+screen's behaviour), and the confirmation says so before the click. The cascade runs one way only:
+deleting the set-aside edits is still just deleting them. A batch whose timeline is gone from this
+browser but still exists in the account is not orphaned for good — reopening the record from the
+account restores the pairing, since forks are matched by `atUri` — so the existing ones are left
+where they are rather than swept up.
+
+**The two sides are "the timeline" and "set aside".** Naming them took four tries, and every
+earlier pair failed the same way: both documents are the author's and both are the same timeline,
+so "yours" / "this one" and "your copy" / "the published timeline" read as the same thing. The
+second of those was wrong on its own terms, too — the author is editing *the* timeline and
+responding to changes that happened to be published, not editing a published one. What actually
+separates the two is that one is the timeline as it stands and the other is a change that never
+landed, so that is what the panel says: **In the timeline** against **Set aside**, with each row
+naming both in a sentence ("You changed this."). The panel is titled *Sort out the differences* —
+the task, in the words someone would use for it, rather than a label for the thing.
+
+**A row needs both ways out.** With only a take, a row you did not want was a dead end: the list is
+recomputed from the documents every time and remembers nothing, so the row returned on every open,
+the fork could never empty, and the editor went on saying there were edits to deal with. *Keep
+what's here* settles it, and the decision is recorded by **moving that slide's recorded ancestor up
+to the fork's own version of it** — the ordinary way a merge records a resolution. The fork then has
+no change to report for that slide, so the row stops being offered however far the working document
+travels afterwards. Two consequences, both accepted: the fork's content is untouched (opening it
+still shows what it held), and because this is not a document edit, Cmd-Z does not bring the row
+back. The panel says so rather than leaving it to be discovered.
+
+Two further corrections from hand-testing on 2026-11-03:
+
+- **A fork is a dead end no longer.** Opening one said what it was and stopped there; it now
+  carries a line naming the timeline it came from, saying the copy can never be published on its
+  own, and offering to go there with the pull-list open.
+- **The editor's line is computed, not counted.** It used to come from the draft index, which knows
+  a fork exists but not whether anything in it is outstanding — so a fork already worked through
+  still announced edits to bring across, and the panel then said there were none. Each fork is now
+  read and compared when a timeline is opened and after every pull. A fork with nothing left is
+  said to have nothing left, and the line offers to delete it instead.
+
+Two things that fell out of building it. `writeSlide` deliberately ignores rich text when a fragment
+owns the field — an editor re-emits stale prose on every keystroke — so a pull through the ordinary
+slide write would have reported success and left the headline alone; `overwriteSlide` rebuilds the
+fragments from the incoming prose instead, and is the one write that does. And a fork lives in its
+own IndexedDB database, so the panel attaches a second provider, reads, and detaches: a provider left
+attached to a per-draft database is a leak nobody would notice until a browser held a dozen drafts.
+
+What remains: [P7]'s preview at the first contested slide, [P6]'s field-level fidelity inside
 contested slides, and [P5]'s one-row-per-timeline presentation. The status span also still replaces
 the Publish button while it is up, so a refusal sits where the control to act on it used to be; it is
 amber and wraps now, rather than green and `nowrap`, which was pushing Share and the account menu off
@@ -406,6 +512,98 @@ proves too blunt in practice.
 reading "Rome (my changes)", it looks like a separate project and will be deleted or published by
 mistake. Same data, very different odds of ever being resolved.
 
+### The share image is not content
+
+**[P18]** `settings.ogImage` is left out of every comparison — the equality test, the conflict
+analysis and the panel's lines alike.
+
+Publishing regenerates the poster from the title slide and uploads it afresh on every publish, so
+whatever either side holds is replaced the next time anyone publishes. Two browsers rendering the
+same title slide do not produce byte-identical PNGs either, so their blobs carry different CIDs for
+something nobody authored. Treated as content it produced conflicts and rows that could not be
+caused, could not be evaluated, and would not have mattered whichever way they were answered —
+which is also how a broken blob reference once announced itself, as *"and the settings"* in every
+conflict dialog.
+
+It follows that the share image is not something a pull can carry either: taking a settings row
+leaves the working document's poster alone, rather than swapping in a draft's for the hours before
+the next publish throws it away.
+
+### Both choices live on the line
+
+**[P17]** A line used to carry *Keep mine* alone, with the published half of the choice available
+only as a whole-row button. That left a question with no answer on screen: does the row's *Keep
+published* also undo the lines I already kept? (It did not — a line drops off as soon as the
+document holds its value — but nothing said so.)
+
+Each line now carries the pair, and the row's buttons say *Keep all of mine* / *Keep all
+published*, which can only mean the lines still showing. Declining a line is recorded exactly as
+declining a row is: the ancestor's value for that one field moves up to the draft's, so the draft
+has no change left to report for it.
+
+That only works if a line is derived from the ancestor, which turned up a second bug worth having
+found. A row listed every field where the draft and the published version differed — including
+fields **only the published side changed**. Those sat there with a *Keep mine* button that would
+have reverted someone else's published work under the name of keeping your own. A line is now
+offered only where the draft itself changed something.
+
+### A row has to be readable, or it is not a row
+
+**[P16]** Found by hand, 2026-11-11: a merge announced *"One change published from another
+browser: Settings"* when no setting had been touched, and the panel showed the row with nothing
+under it.
+
+Two tests decide a row, and they had drifted apart. Inclusion is structural — are the two sides
+equal? — while the row's contents are rendered field by field. One side spelled "no settings" as an
+absent value and the other as an empty object: structurally different, different in no field, so
+the row could be counted and not read. Worse, a row like that cannot always be cleared, since
+answering it writes a value the structural test still reads as different.
+
+Both halves are fixed. `comparableSettings` now normalizes the several ways of writing nothing — an
+absent value, `null`, `''`, and an object left holding only those collapse to *no settings* — so
+the question is asked properly. And an edited row is offered only when it has something showable,
+so if the two tests ever drift again the result is a missing row rather than an unanswerable one.
+A silent row is the safer failure: the merge still happened, and the timeline is still the merged
+one.
+
+### The words: published, and mine
+
+**[P14]** Settled 2026-11-11, after driving the whole flow by hand. Three vocabularies had been
+tried and all three failed in testing, so this one is written down rather than left to each
+component.
+
+| Don't say | Say | Why |
+|---|---|---|
+| "In your account" | **Published** | An account is where the record happens to live; *published* is what the reader cares about |
+| "In this browser" | **Drafts**, with "kept in this browser only" as a note under it | The place is a caveat, not the name of the thing |
+| "Set aside" / "your copy" / "the timeline" | **An unmerged draft**, against **the published timeline**; short forms **Published** and **My draft** | "Set aside" named where the edits were kept, not what they were, so no button built on it could be read |
+| "Take this" / "Bring this over" | **Keep mine** / **Keep published** | *Take* points in whichever direction the reader imagines standing — and here the thing being "taken from" is the one with priority, which inverts it again |
+
+The same two words run through the column heads, the stacked-value tags, the per-field buttons and
+the whole-row buttons, so a row never asks anyone to re-derive which side they are looking at.
+Where keeping yours means adding or deleting a whole slide the label says so outright (*Keep mine —
+delete the slide*): that is the one case worth a second of warning.
+
+*Judgement call, strike it if you disagree:* the left column says **Published** when strictly it is
+the working document — the published version plus anything typed since opening it. Saying that
+exactly costs a clause on every row and buys nothing in the usual case, where nothing has been
+typed since.
+
+### An unmerged draft is a task, not an archive
+
+**[P15]** The panel used to reassure: *"keeping what the timeline has leaves your set-aside edits
+untouched."* True, and the wrong thing to say — it implied there was lasting value in holding on to
+the draft, when the whole design wants it answered and gone. The text now points one way: each
+answer takes a row off the list, an empty list means the draft has done its job, and the panel and
+the editor's line both offer to delete it.
+
+Keeping a draft to read later was considered and rejected, short of flagging contested fields
+inside it. An unmerged draft carries no marks saying which parts disagreed with the published
+version, so reading one later tells you nothing you could act on; and flagging the fields would
+mean re-running the three-way analysis inside the editor and painting it onto the UI, which is a
+large amount of machinery for a case nobody has asked for. *Open my draft instead* stays, because
+unmatchable slides can only be reached that way.
+
 ## Deliberately not decided here
 
 - **Phase 2 wording, and more than wording.** Once a server holds drafts, "published from another
@@ -449,3 +647,8 @@ All four answered 2026-10-27, each as its default.
 | P11 | A fork carries `forkedFrom` — atUri, base CID, base snapshot — not just content | |
 | P12 | Reconciliation is an asymmetric pull-list against the working document, not a merge screen | The overlap turns out to be large often enough that symmetric merging earns its keep |
 | P13 | A browser joining a server draft connects empty; an existing local draft is reconciled, never attached | |
+| P14 | One vocabulary everywhere: **published** vs **mine**; "set aside" and "take" are gone | A test reader reads the left column as literally the published record when they have edited since |
+| P15 | An unmerged draft is a task to finish, never an archive to keep; nothing in the UI suggests keeping one | Someone actually wants to read an old draft, which would mean flagging contested fields inside it |
+| P16 | Settings equality normalizes the ways of writing "nothing"; an edited row is offered only when it has a showable difference | A real change is ever found that no field can render |
+| P17 | Every line carries both choices; a line is offered only where the draft itself changed something | Rows grow long enough that two buttons a line is more noise than help |
+| P18 | `settings.ogImage` is outside every comparison and every pull: regenerated on each publish, so never a choice | The share image becomes author-set rather than generated |

@@ -350,6 +350,29 @@ export function writeSlide(slide: Y.Map<unknown>, event: TLEvent): void {
   }
 }
 
+/**
+ * Write a whole slide including its prose, rebuilding the rich-text fragments.
+ *
+ * `writeSlide` leaves fragment-owned fields alone on purpose: an editor
+ * re-emits the whole event on every keystroke, and honouring its stale HTML
+ * would overwrite what a collaborator just typed. Bringing a slide over from a
+ * fork is the opposite case — the fork's prose *is* the content being brought
+ * over, and a pull that silently left the headline as it was would be a pull
+ * that lied.
+ *
+ * Dropping the fragments first is what makes it work: with none of the fields
+ * fragment-owned, `writeSlide` writes the whole `text` group through, and
+ * `ensureFragments` seeds new fragments from it. The fragments are rebuilt
+ * rather than edited, so a reader's cursor in that slide is lost — acceptable
+ * for a deliberate, undoable replacement of the slide, and not acceptable for
+ * ordinary typing, which is why this is a separate function.
+ */
+export function overwriteSlide(slide: Y.Map<unknown>, event: TLEvent): void {
+  for (const { fragmentKey } of RICH_TEXT_FIELDS) slide.delete(fragmentKey);
+  writeSlide(slide, event);
+  ensureFragments(slide);
+}
+
 /** Add a slide and return the internal key it was stored under. */
 export function addSlide(doc: Y.Doc, event: TLEvent, key = newSlideKey()): string {
   const slide = new Y.Map<unknown>();

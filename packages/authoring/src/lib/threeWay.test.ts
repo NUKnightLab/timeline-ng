@@ -175,6 +175,20 @@ describe('URLs derived from blob references', () => {
     expect(r.collisions).toEqual([]);
   });
 
+  it('are not a change in settings even when the two posters differ', () => {
+    // Every publish regenerates the poster and uploads it again, so two
+    // browsers hold different CIDs for a picture of the same title slide.
+    // Treated as content, that made "and the settings" a line in conflict
+    // dialogs nobody had caused.
+    const other = { ...blobRef, ref: { $link: 'bafkreiother' } };
+    const base = tl([moon], { settings: { theme: 'light' as const, ogImage: { blobRef } } });
+    const mine = tl([moon], { settings: { theme: 'light' as const, ogImage: { blobRef: other } } });
+
+    const r = threeWay(base, mine, tl([moon], { settings: { theme: 'light' as const, ogImage: { blobRef } } }));
+    expect(r.mine).toEqual([]);
+    expect(r.collisions).toEqual([]);
+  });
+
   it('still notices a different image', () => {
     const other = { ...blobRef, ref: { $link: 'bafkreiother' } };
     const r = threeWay(

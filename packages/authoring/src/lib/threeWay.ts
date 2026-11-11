@@ -76,7 +76,7 @@ export interface ThreeWay {
  * having changed anything. The merge still copies whole fields from the real
  * objects, so nothing is stripped from what the author ends up with.
  */
-function comparable(ev: TLEvent): TLEvent {
+export function comparable(ev: TLEvent): TLEvent {
   const strip = (m: Record<string, unknown> | undefined) =>
     m && m.blobRef ? (({ url: _url, ...rest }) => rest)(m) : m;
   return {
@@ -86,15 +86,50 @@ function comparable(ev: TLEvent): TLEvent {
   };
 }
 
-/** The same, for the one derived URL in settings. */
-function comparableSettings(s: TLSettings | undefined): TLSettings | undefined {
-  if (!s?.ogImage?.blobRef) return s;
-  const { url: _url, ...ogImage } = s.ogImage;
-  return { ...s, ogImage };
+/**
+ * The same, for the one derived URL in settings — and for the several ways of
+ * writing "no settings".
+ *
+ * A key set to `undefined`, to `null` or to the empty string is a key that was
+ * cleared, and the editor clears settings by writing those as often as by
+ * deleting them. An object left holding nothing but those is not settings at
+ * all, so it collapses to `undefined` — which is what a document that has
+ * never had settings reports.
+ *
+ * Without this, `{}` and `undefined` compared as different, and a merge could
+ * report a "Settings" change nobody made. It was unevaluable as well as
+ * wrong: the panel renders a row from the keys that differ, and two ways of
+ * spelling "nothing" differ in no key, so the row had nothing under it.
+ */
+export function comparableSettings(s: TLSettings | undefined): TLSettings | undefined {
+  if (!s) return undefined;
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(s)) {
+    if (value === undefined || value === null || value === '') continue;
+    // The share image is left out of the comparison altogether. Publishing
+    // regenerates the poster from the title slide and uploads it afresh every
+    // time, so whatever either side holds is replaced by the next publish —
+    // and two browsers rendering the same title slide do not produce
+    // byte-identical PNGs, so their blobs have different CIDs for no reason
+    // anyone authored. It was never a difference someone could act on:
+    // offering a choice between two posters that are both about to be thrown
+    // away is a question with no consequences.
+    //
+    // Stripping only the derived `url` was the earlier, narrower version of
+    // this, and it left the CID disagreeing.
+    if (key === 'ogImage') continue;
+    out[key] = value;
+  }
+  return Object.keys(out).length ? (out as TLSettings) : undefined;
 }
 
-/** Index a timeline's slides by `unique_id`, which a published record guarantees is unique. */
-function byId(tl: TLTimeline): Map<string, TLEvent> {
+/**
+ * Index a timeline's slides by `unique_id`, which a published record
+ * guarantees is unique. Exported because the pull-list has to match slides
+ * across versions the same way this does, and two definitions of "the same
+ * slide" would be one too many.
+ */
+export function byId(tl: TLTimeline): Map<string, TLEvent> {
   const out = new Map<string, TLEvent>();
   for (const ev of tl.events ?? []) {
     const id = ev.unique_id;

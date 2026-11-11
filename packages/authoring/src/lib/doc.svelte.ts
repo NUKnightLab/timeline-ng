@@ -17,7 +17,7 @@ import type { TLEvent, TLSettings, TLTimeline } from '@knight-lab/timeline-ng-co
 import {
   addSlide, createDoc, docToTimeline, enclosingFragment, hasTitleSlide, listSlides,
   loadTimeline, locateFragment, readMeta, readSettings, readSlide, removeSlide,
-  setMirror, settingsMap, slidesMap, titleMap, writeMeta, writeSlide,
+  overwriteSlide, setMirror, settingsMap, slidesMap, titleMap, writeMeta, writeSlide,
 } from './doc.ts';
 import { sameValue } from './doc.ts';
 import type { DocMeta, SlideEntry } from './doc.ts';
@@ -448,6 +448,19 @@ export class TimelineDoc {
     const slide = slidesMap(this.doc).get(key);
     if (!slide) return;
     this.#user(() => writeSlide(slide, updated));
+  }
+
+  /**
+   * Replace a slide wholesale, prose included.
+   *
+   * `updateEvent` cannot change rich text — by design, see `overwriteSlide`.
+   * Bringing a slide over from a fork has to, so this is the write the
+   * pull-list uses and ordinary editing does not.
+   */
+  replaceEvent(key: string, event: TLEvent): void {
+    const slide = key === 'title' ? titleMap(this.doc) : slidesMap(this.doc).get(key);
+    if (!slide) return;
+    this.#user(() => overwriteSlide(slide, event));
   }
 
   removeEvent(key: string): void {

@@ -106,6 +106,14 @@ if (cmd === 'seed') {
     console.log(`edited ${id} → ${JSON.stringify(ev.text.headline)}`);
   } else if (cmd === 'add') {
     const [id, year, ...rest] = args;
+    // Two slides sharing an id is not a state a second browser could produce:
+    // the authoring app renames the duplicate on load (`assignSlideIds`), so
+    // the id asked for here would quietly turn into a slug of the headline,
+    // and the three-way match would have nothing stable to key on.
+    if (events.some((e) => e.unique_id === id)) {
+      console.log(`there is already a slide ${id} — use edit, or pick another id`);
+      process.exit(1);
+    }
     events.push(slide(id, Number(year), rest.join(' ')));
     console.log(`added ${id}`);
   } else if (cmd === 'remove') {

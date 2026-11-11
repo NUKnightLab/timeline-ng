@@ -21,7 +21,7 @@ Run from the repo root. Subcommands: `show`, `seed`, `edit <slide> <headline>`,
 `add <id> <year> <headline>`, `remove <slide>`, `theme <name>`, `reset`.
 
 **Start:** sign in as `alice.devnet.test` / `alice-devnet-pass`. Under *Your
-timelines* → *In your account*, open **Space race**. That mints a local draft
+timelines* → *Published*, open **Space race**. That mints a local draft
 carrying the record's URI and its base CID. Go back Home — the comparison runs
 on open, so returning Home and reopening is the gesture that triggers it.
 
@@ -39,7 +39,7 @@ Make no local edits. Then:
 node scripts/other-browser.mjs edit voyager "Voyager 1 — interstellar"
 ```
 
-Open the draft from *In this browser*.
+Open the draft from *Drafts*.
 
 Expect slide 2 to read the new headline, and a banner under the subnav:
 *"Updated to the version published from another device."* No dialog, no choice.
@@ -92,21 +92,93 @@ overwrite path in the whole design. `show` afterwards: your headline won, and th
 other device's is gone. That is the bug this stage closed, now only reachable on
 purpose.
 
-## 5 · Keep both, and where it stops
+## 4a · Seeing what a merge brought in
 
-Set up a collision as in §3, and this time choose **Keep both**.
+Set up a merge with no collision: edit one slide in the app, then move a
+*different* one from the other browser.
 
-The editor holds the published version; the banner says *"Your edits are kept as
-a separate copy, listed on the home screen under this timeline."* On Home the
-fork sits indented under the timeline, labelled *"Your edits, kept aside"*.
+```bash
+node scripts/other-browser.mjs edit hubble "Hubble launched — 1990"
+```
 
-Open the fork: *"This is a copy kept aside from a timeline in your account. It
-publishes nowhere until you bring its changes back into that one."* Publish is
-disabled — a fork holds no claim on a record.
+Reopen the draft. It merges without asking, as before, but the note now names
+what landed: *"2 changes published from another browser: Hubble launched and
+Voyager 1. They are in this timeline now, alongside your own unpublished
+changes."* **See what changed** opens the panel in its incoming mode — the
+same comparison as §5a, with *Published* and *Mine, before* as its two sides,
+and **Keep mine** on each row and each field.
 
-**This is the edge of what shipped.** The fork can be opened and read; it cannot
-yet be reconciled. The pull-list is what turns that from a deferral into a
-resolution.
+- Keep one of yours, then **Cmd-Z**. The merge itself is not undoable —
+  `adopt` clears the undo stack — but keeping yours is an ordinary edit, so
+  undo reaches it and the row returns.
+- A fast-forward (no local edits, §3) shows the same list with no buttons:
+  nothing of yours was at risk, so there is nothing to keep.
+
+## 5 · Keep both
+
+Set up a collision as in §3, and this time choose **Keep both**. It asks when,
+not whether: **Sort it out now** opens the pull-list of §5a straight away,
+**Leave it for later** returns to the editor.
+
+Take *later* here. The editor holds the published version; the banner says
+*"Your edits are kept as an unmerged draft, listed on the home screen under
+this timeline."*
+
+On Home it sits indented under the timeline, labelled *"Unmerged draft"* and
+*"not merged yet"*. Deleting it there warns that nothing in it was ever merged
+into the timeline above, so those edits go for good.
+
+Open it: a line that cannot be dismissed names the timeline it came from and
+says it can never be published from there. **Go sort it out** opens that
+timeline with the panel already up. Publish is disabled — an unmerged draft
+holds no claim on a record.
+
+## 5a · Sorting out the differences
+
+Still in the published-backed timeline, with the draft from §5 unmerged: a
+line under the subnav says you have an unmerged draft of this timeline.
+**Sort it out**. (*Sort it out now* at the conflict lands in the same panel
+without the detour.)
+
+The panel is centered and wide. Its two sides are **Published** — what you are
+editing, and what the public link shows — and **My draft**, the edits that
+never landed. Each row names both in a sentence: *"You changed this."*, *"You
+deleted this; the published timeline still has it."* A row the published
+timeline also changed warns that keeping yours replaces that.
+
+An edited row shows the comparison under it: one line per field that differs,
+both values side by side under *Published* / *My draft*. Long values —
+a body paragraph — stack instead of sitting in columns, and carry those two
+labels with them, since a stacked pair has left the columns that explained
+it. The settings row names
+the settings it is offering (Theme, Fonts, Share image) rather than being a
+row with no content at all.
+
+Every row has both ways out:
+
+- **Keep mine** or **Keep published** on one line, and the row stays but
+  shrinks — that line drops off and the rest is still on offer. When the last
+  line goes, so does the row. Answer two lines different ways to see that
+  neither reaches the other.
+- **Keep all of mine** / **Keep all published** (or **Keep mine — add the
+  slide** / **— delete the slide**) answer every line still showing, which is
+  all they can ever reach.
+- **Cmd-Z** undoes keeping yours. The row comes back: the list is recomputed
+  rather than ticked off, so there is nothing to get out of step.
+- Keeping published does not come back, the draft itself is untouched, and —
+  unlike keeping yours — Cmd-Z does not undo it. Reload to confirm it stays
+  settled: the decision is written into the recorded ancestor, not held in the
+  page.
+- Only fields **your draft** changed are lines. Edit a slide in the other
+  browser that your draft never touched, and it does not appear as something
+  to keep — there is nothing of yours to keep there.
+- **Open my draft instead** goes there to read it, for anything the panel
+  could not offer.
+
+Settle every row and the panel says so, offering to delete the draft. Close it
+first and the subnav line says it too, in grey, with **Delete it** — the editor
+reads the draft to decide this, so a draft that has been sorted out never
+claims to be outstanding.
 
 ## 6 · The record deleted elsewhere (cheap, if you're curious)
 

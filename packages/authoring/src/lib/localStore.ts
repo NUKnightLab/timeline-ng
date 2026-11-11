@@ -15,6 +15,8 @@
  */
 import type * as Y from 'yjs';
 import type { IndexeddbPersistence } from 'y-indexeddb';
+import type { TLTimeline } from '@knight-lab/timeline-ng-core';
+import { docToTimeline } from './doc.ts';
 
 /** localStorage key holding the index of stored drafts. */
 const INDEX_KEY = 'tl-drafts-v1';
@@ -127,6 +129,30 @@ export async function forgetDraft(id: string): Promise<void> {
   });
 }
 
+/**
+ * Delete a draft and any unmerged draft of it.
+ *
+ * A storage-level invariant rather than a screen's behaviour: an unmerged
+ * draft is only meaningful next to the timeline it came from — sorting it out
+ * needs that timeline open as the working document — so it cannot outlive it.
+ * Left behind, it became a row that warned about a timeline "above" which no
+ * longer existed and could never be merged into anything.
+ *
+ * Returns how many unmerged drafts went with it, so the caller can say so
+ * before the click rather than after.
+ */
+export async function forgetDraftWithForks(id: string): Promise<number> {
+  const going = readIndex().find((d) => d.id === id);
+  // Only a draft that owns a record can have an unmerged draft of it, and an
+  // unmerged draft never owns one.
+  const forks = going?.atUri && !going.forkedFrom
+    ? readIndex().filter((d) => d.forkedFrom?.atUri === going.atUri)
+    : [];
+  for (const fork of forks) await forgetDraft(fork.id);
+  await forgetDraft(id);
+  return forks.length;
+}
+
 export interface PersistResult {
   /** `null` when local persistence is unavailable — see below. */
   provider: IndexeddbPersistence | null;
@@ -159,5 +185,42 @@ export async function persistDoc(id: string, doc: Y.Doc): Promise<PersistResult>
     return { provider, error: null };
   } catch (cause) {
     return { provider: null, error: cause instanceof Error ? cause.message : String(cause) };
+  }
+}
+
+/**
+ * The content of a stored draft, read without opening it.
+ *
+ * The pull-list needs a fork's timeline while the *working* document is the
+ * one that is open, and the two live in separate IndexedDB databases. So this
+ * attaches a second provider, reads, and detaches again.
+ *
+ * Detaching is the part that matters. A provider left attached to a per-draft
+ * database is a leak that nobody would notice until a browser had a dozen
+ * drafts in it, and the document is never handed out — only the plain timeline
+ * read off it — so there is nothing left pointing at either one afterwards.
+ *
+ * The document is a bare `Y.Doc` rather than `createDoc()` on purpose:
+ * `createDoc` stamps a schema version, and stamping one onto a document we
+ * only mean to read would write to the draft being inspected.
+ *
+ * Returns null when there is no store, or when the draft holds nothing.
+ */
+export async function readDraftTimeline(id: string): Promise<TLTimeline | null> {
+  if (typeof indexedDB === 'undefined') return null;
+  let provider: IndexeddbPersistence | null = null;
+  let doc: Y.Doc | null = null;
+  try {
+    const [{ Doc }, { IndexeddbPersistence }] = await Promise.all([import('yjs'), import('y-indexeddb')]);
+    doc = new Doc();
+    provider = new IndexeddbPersistence(dbNameFor(id), doc);
+    await provider.whenSynced;
+    const timeline = docToTimeline(doc);
+    return timeline.events.length || timeline.title ? timeline : null;
+  } catch {
+    return null;
+  } finally {
+    await provider?.destroy();
+    doc?.destroy();
   }
 }
