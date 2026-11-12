@@ -329,19 +329,26 @@ Related, and removed by the same fix: there is now no way to pull a fresh copy f
 the published version and abandon local edits, which the duplicate drafts used to
 provide by accident.
 
-### Authoring vocabulary pass — Needs focused attention, Small complexity
+### Authoring vocabulary pass — done
 
-"PDS" appears in eight user-facing strings: a `PDS · image` badge, "Stored on your
-personal data server (PDS).", "Publish to your PDS", "Reload from your PDS", an
-upload/URL help line, and two glossary entries in the media-types modal. The audience
-is people who reached for Google Sheets, so the term is wrong in a label — but the two
-glossary entries deliberately *define* it, so this is not a find-and-replace.
+"PDS" appeared in eight user-facing strings. The audience is people who reached for
+Google Sheets, so the term is wrong in a label — but two of the eight deliberately
+*define* it, which is why this was not a find-and-replace.
 
-Tangled with it: the save/publish split. A PDS write is "publish", never "save", and
-the home screen mostly holds that line ("Nothing published yet", "never published",
-and the lists now read "In this browser" / "In your account") — but the persistence
-warning still says "Save to your account to keep it", which crosses it. Worth settling
-the whole vocabulary in one pass rather than per-string.
+The six labels now say what the author did or where the thing is, not what the
+infrastructure is called: the `PDS · image` badge is `Uploaded · image`, "Stored on
+your personal data server (PDS)." is "Stored with your account, not on our servers.",
+"Publish to your PDS" and "Reload from your PDS" say "your account", and the upload
+help line says "stored with your account". The two glossary entries in the sign-in
+modal keep the term, since explaining it is their whole job — one introduces it with
+its expansion, the other uses it once in the sentence about migrating providers.
+
+The save/publish split went with it. A write to the account is "publish", never
+"save": the persistence warning said "Save to your account to keep it" and now says
+"Publish"; the glossary's "Save your timeline" is "Publish your timeline". The home
+screen's own headings were settled separately — see [P14] in
+[phase1-sync-conflicts.md](phase1-sync-conflicts.md), which replaced "In this browser"
+and "In your account" with one list whose rows say where each timeline stands.
 
 ### Renaming a timeline may read as "Save as" — Low priority, unconfirmed
 

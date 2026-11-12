@@ -3,7 +3,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { flushSync } from 'svelte';
-import type { TLEvent } from '@knight-lab/timeline-ng-core';
+import type { TLEvent, TLTimeline } from '@knight-lab/timeline-ng-core';
 import { TimelineDoc } from './doc.svelte.ts';
 
 const moon: TLEvent = {
@@ -89,6 +89,78 @@ describe('clean', () => {
 
     t.markClean();
     expect(t.clean).toBe(true);
+  });
+
+  it('records the published version alongside the snapshot', () => {
+    const t = new TimelineDoc();
+    t.load({ events: [moon], settings: {} });
+    t.addEvent(sputnik);
+
+    t.markClean('bafyreibase');
+    expect(t.clean).toBe(true);
+    expect(t.baseCid).toBe('bafyreibase');
+  });
+
+  it('keeps the base CID when marking clean without one', () => {
+    // A load whose meta already carried the CID: the snapshot is rewritten,
+    // the agreement it describes is unchanged.
+    const t = new TimelineDoc();
+    t.load({ events: [moon], settings: {} }, { baseCid: 'bafyreibase' });
+
+    t.markClean();
+    expect(t.baseCid).toBe('bafyreibase');
+  });
+
+  it('drops the base CID when the document stops pointing at a record', () => {
+    // Publishing as new mints a fresh rkey. A CID asserting a version of the
+    // record it no longer points at would be refused by the PDS outright.
+    const t = new TimelineDoc();
+    t.load({ events: [moon], settings: {} }, { atUri: 'at://did:plc:x/c/1', baseCid: 'bafyreibase' });
+
+    t.setAtUri(null);
+    expect(t.baseCid).toBe(null);
+  });
+
+  it('is clean after adopting the published version as its own content', () => {
+    const t = new TimelineDoc();
+    t.load({ events: [moon], settings: {} });
+    t.addEvent(sputnik);
+
+    const published: TLTimeline = { events: [moon, { ...sputnik, group: 'Space race' }], settings: {} };
+    t.adopt(published, published, 'bafyreinew');
+    expect(t.clean).toBe(true);
+    expect(t.baseCid).toBe('bafyreinew');
+  });
+
+  it('is dirty after adopting a merge, because the merge is not what is published', () => {
+    // [P9]: the content holds both sides, the record holds only theirs, so
+    // there is something left to publish and the editor must say so.
+    const t = new TimelineDoc();
+    t.load({ events: [moon], settings: {} });
+
+    const published: TLTimeline = { events: [moon, sputnik], settings: {} };
+    const merged: TLTimeline = { events: [moon, sputnik, { ...moon, unique_id: 'vostok' }], settings: {} };
+    t.adopt(merged, published, 'bafyreinew');
+
+    expect(t.clean).toBe(false);
+    expect(t.baseCid).toBe('bafyreinew');
+    // Sorted, because the snapshot is the document's own ordering — by date,
+    // as the player renders it — not the order the record happened to list.
+    expect(t.publishedSnapshot?.events.map((e) => e.unique_id).sort()).toEqual(['sputnik', 'the-moon-landing']);
+  });
+
+  it('moves the base without touching the content, for Keep mine', () => {
+    const t = new TimelineDoc();
+    t.load({ events: [moon], settings: {} }, { baseCid: 'bafyreibase' });
+    t.addEvent(sputnik);
+
+    t.rebase({ events: [{ ...moon, group: 'Apollo' }], settings: {} }, 'bafyreinew');
+
+    expect(t.baseCid).toBe('bafyreinew');
+    expect(t.entries.length).toBe(2);
+    // Still dirty: that is what makes the next publish overwrite knowingly
+    // rather than being refused again.
+    expect(t.clean).toBe(false);
   });
 
   it('ignores meta when deciding cleanliness', () => {
@@ -187,5 +259,24 @@ describe('identity is the internal key, not unique_id', () => {
       expect(t.entries.map((e) => e.key)).toEqual([key]);
     }
     expect(t.eventForKey(key)?.unique_id).toBe('moon-landing');
+  });
+});
+
+describe('cleanliness is about content, not its spelling', () => {
+  it('ignores the order a settings map happens to hold its keys in', () => {
+    // A record lists settings in one order and the document acquired them in
+    // another. Comparing serialized text called that an unpublished change,
+    // so a draft that had just adopted the published version offered to
+    // publish it straight back.
+    const t = new TimelineDoc();
+    t.load({ events: [moon], settings: { theme: 'auto', language: 'en' } });
+
+    const sameSettingsOtherOrder: TLTimeline = {
+      events: [moon],
+      settings: { language: 'en', theme: 'auto' },
+    };
+    t.adopt(sameSettingsOtherOrder, sameSettingsOtherOrder, 'bafyreinew');
+
+    expect(t.clean).toBe(true);
   });
 });

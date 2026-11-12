@@ -177,8 +177,14 @@ function rkeyFromUri(uri: string): string {
  * is public, so the record is readable by anyone the moment this succeeds.
  */
 export type PublishResult =
-  | { ok: true; uri: string }
-  | { ok: false; error: string };
+  | { ok: true; uri: string; cid: string }
+  /**
+   * The record changed under us. Distinguished from an ordinary failure
+   * because it is the only one where nothing is wrong with what we sent: the
+   * write was refused to protect someone else's version.
+   */
+  | { ok: false; conflict: true; error: string }
+  | { ok: false; conflict?: false; error: string };
 
 export async function uploadBlob(file: Blob): Promise<ATProtoBlobRef> {
   if (_state.status !== 'signed-in') throw new Error('Not signed in.');
@@ -355,7 +361,41 @@ export function stripOgImageUrl(settings: TLSettings | undefined): TLSettings | 
   return { ...settings, ogImage };
 }
 
-export async function publishTimeline(timeline: TLTimeline, meta: { title?: string }, existingUri?: string): Promise<PublishResult> {
+/**
+ * Whether a thrown error is the PDS refusing a compare-and-swap.
+ *
+ * The XRPC client throws an error carrying the lexicon's error name rather
+ * than a status code we could match on, and the shape is not in its public
+ * types, so this reads the named field. Verified against the reference
+ * implementation on 2026-11-02: an `InvalidSwapError`, status 400, `error`
+ * exactly `'InvalidSwap'`, and a message of the form `Record was at
+ * bafy…` — which notably does *not* contain the error name, so the
+ * message test below never fires there and is only a fallback for an
+ * implementation that reports it differently. An `InvalidRequest` from a
+ * malformed write does not match either, which is the point: a bug in what we
+ * sent must not be mistaken for someone else's work being protected.
+ */
+function isSwapFailure(err: unknown): boolean {
+  const named = (err as { error?: unknown })?.error;
+  if (typeof named === 'string' && named === 'InvalidSwap') return true;
+  return /InvalidSwap/i.test(String(err));
+}
+
+/**
+ * @param baseCid The version of the record this draft last agreed with, passed
+ * to the PDS as `swapRecord` so the write is refused if anything has published
+ * over it since. Omitted for a first publish — the rkey is freshly generated,
+ * so there is nothing to swap against — and omitted for drafts made before the
+ * base CID was recorded, which have no version to assert and are left with the
+ * old last-write-wins behaviour until their next successful publish gives them
+ * one.
+ */
+export async function publishTimeline(
+  timeline: TLTimeline,
+  meta: { title?: string },
+  existingUri?: string,
+  baseCid?: string,
+): Promise<PublishResult> {
   if (_state.status !== 'signed-in') {
     return { ok: false, error: 'Not signed in.' };
   }
@@ -379,9 +419,13 @@ export async function publishTimeline(timeline: TLTimeline, meta: { title?: stri
         timeline: cleanTimeline,
         createdAt: new Date().toISOString(),
       },
+      ...(baseCid ? { swapRecord: baseCid } : {}),
     });
-    return { ok: true, uri: resp.data.uri };
+    return { ok: true, uri: resp.data.uri, cid: resp.data.cid };
   } catch (err) {
+    if (isSwapFailure(err)) {
+      return { ok: false, conflict: true, error: 'The published version changed since this draft last agreed with it.' };
+    }
     return { ok: false, error: String(err) };
   }
 }
@@ -584,6 +628,15 @@ export async function fetchAllCollectionMedia(
 
 export type TimelineListItem = {
   uri: string;
+  /**
+   * The record's content hash, which changes exactly when its content does.
+   * A row can compare this against the base CID of the local draft carrying
+   * the same `atUri` and say whether the published copy has moved on, without
+   * fetching the record. `createdAt` cannot answer that: it is rewritten on
+   * every publish, so it is an update time wearing the wrong name, and clocks
+   * skew besides. It is for display only.
+   */
+  cid: string;
   title: string;
   createdAt: string;
 };
@@ -602,7 +655,7 @@ export async function listTimelines(): Promise<TimelineListItem[]> {
       const title = val.title
         || stripHtml(val.timeline?.title?.text?.headline ?? '')
         || 'Untitled';
-      return { uri: r.uri, title, createdAt: val.createdAt ?? '' };
+      return { uri: r.uri, cid: r.cid, title, createdAt: val.createdAt ?? '' };
     });
   } catch {
     return [];
@@ -623,7 +676,7 @@ export async function deleteTimeline(uri: string): Promise<{ ok: true } | { ok: 
   }
 }
 
-export async function getTimeline(uri: string): Promise<{ title?: string; timeline: TLTimeline } | null> {
+export async function getTimeline(uri: string): Promise<{ title?: string; cid?: string; timeline: TLTimeline } | null> {
   if (_state.status !== 'signed-in') return null;
   const { agent } = _state;
   const m = uri.match(/^at:\/\/([^/]+)\/([^/]+)\/([^/]+)$/);
@@ -638,6 +691,12 @@ export async function getTimeline(uri: string): Promise<{ title?: string; timeli
     const did = _state.session.sub;
     return {
       ...(val.title ? { title: val.title } : {}),
+      // Carried out so the draft this seeds can record which version it agreed
+      // with; without it the draft has nothing to compare against later.
+      // Optional in the lexicon, so a PDS that omits it leaves the draft with
+      // no base — the same position as a draft made before this was recorded,
+      // and the same consequence: no compare-and-swap on its next publish.
+      ...(resp.data.cid ? { cid: resp.data.cid } : {}),
       timeline: {
         ...tl,
         events: hydrateBlobRefs(tl.events, base, did),

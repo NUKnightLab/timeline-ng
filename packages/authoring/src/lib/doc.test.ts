@@ -185,6 +185,12 @@ describe('settings and meta', () => {
     expect(readMeta(doc)).toEqual({ title: 'Spaceflight', titleSetByUser: true });
   });
 
+  it('round-trips the base CID', () => {
+    const doc = createDoc();
+    writeMeta(doc, { publishedSnapshot: '{}', baseCid: 'bafyreibase' });
+    expect(readMeta(doc)).toEqual({ publishedSnapshot: '{}', baseCid: 'bafyreibase' });
+  });
+
   it('keeps meta out of the timeline it produces', () => {
     const doc = createDoc();
     loadTimeline(doc, timeline(), { title: 'Spaceflight', atUri: 'at://did:plc:x/c/1' });

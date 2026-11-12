@@ -84,6 +84,20 @@ export interface DocMeta {
    * small next to its media and is rewritten only on publish.
    */
   publishedSnapshot?: string;
+  /**
+   * The CID of the published record this document last agreed with.
+   *
+   * Written in the same place as `publishedSnapshot`, and for the same reason
+   * the two are never written apart: the snapshot says whether *this*
+   * document has changed since that agreement, the CID says whether the
+   * *record* has. Together they are the common ancestor a three-way
+   * comparison needs, and a pair describing two different versions would
+   * answer both questions about different moments.
+   *
+   * Absent on a document that has never been published or loaded from a
+   * record, and on drafts made before this was recorded.
+   */
+  baseCid?: string;
   title?: string;
   titleSetByUser?: boolean;
   atUri?: string;
@@ -131,7 +145,15 @@ export const hasTitleSlide = (doc: Y.Doc): boolean => titleMap(doc).size > 0;
  * typed anywhere on the slide. The values here are small and JSON-shaped;
  * this is not a general deep-equal.
  */
-function sameValue(current: unknown, next: unknown): boolean {
+/**
+ * Structural equality, as the document's writes mean it.
+ *
+ * Exported because the three-way comparison needs exactly this notion of "did
+ * this field change" — the same one `writeSlide` uses to decide whether a
+ * field is worth touching at all. Two definitions of equality between the
+ * writer and the comparison would disagree sooner or later.
+ */
+export function sameValue(current: unknown, next: unknown): boolean {
   if (current === next) return true;
   if (typeof current !== 'object' || typeof next !== 'object') return false;
   if (current === null || next === null) return false;
@@ -328,6 +350,29 @@ export function writeSlide(slide: Y.Map<unknown>, event: TLEvent): void {
   }
 }
 
+/**
+ * Write a whole slide including its prose, rebuilding the rich-text fragments.
+ *
+ * `writeSlide` leaves fragment-owned fields alone on purpose: an editor
+ * re-emits the whole event on every keystroke, and honouring its stale HTML
+ * would overwrite what a collaborator just typed. Bringing a slide over from a
+ * fork is the opposite case — the fork's prose *is* the content being brought
+ * over, and a pull that silently left the headline as it was would be a pull
+ * that lied.
+ *
+ * Dropping the fragments first is what makes it work: with none of the fields
+ * fragment-owned, `writeSlide` writes the whole `text` group through, and
+ * `ensureFragments` seeds new fragments from it. The fragments are rebuilt
+ * rather than edited, so a reader's cursor in that slide is lost — acceptable
+ * for a deliberate, undoable replacement of the slide, and not acceptable for
+ * ordinary typing, which is why this is a separate function.
+ */
+export function overwriteSlide(slide: Y.Map<unknown>, event: TLEvent): void {
+  for (const { fragmentKey } of RICH_TEXT_FIELDS) slide.delete(fragmentKey);
+  writeSlide(slide, event);
+  ensureFragments(slide);
+}
+
 /** Add a slide and return the internal key it was stored under. */
 export function addSlide(doc: Y.Doc, event: TLEvent, key = newSlideKey()): string {
   const slide = new Y.Map<unknown>();
@@ -357,6 +402,7 @@ export function writeMeta(doc: Y.Doc, meta: DocMeta): void {
   put(map, 'titleSetByUser', meta.titleSetByUser);
   put(map, 'atUri', meta.atUri);
   put(map, 'publishedSnapshot', meta.publishedSnapshot);
+  put(map, 'baseCid', meta.baseCid);
 }
 
 /**
@@ -445,6 +491,8 @@ export function readMeta(doc: Y.Doc): DocMeta {
   if (typeof atUri === 'string') out.atUri = atUri;
   const publishedSnapshot = map.get('publishedSnapshot');
   if (typeof publishedSnapshot === 'string') out.publishedSnapshot = publishedSnapshot;
+  const baseCid = map.get('baseCid');
+  if (typeof baseCid === 'string') out.baseCid = baseCid;
   return out;
 }
 

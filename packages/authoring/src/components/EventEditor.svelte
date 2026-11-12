@@ -193,7 +193,7 @@
     if (mediaSourceUrl) {
       try { return new URL(mediaSourceUrl).hostname.replace(/^www\./, ''); } catch { /* fall through */ }
     }
-    if (mediaBlobRef) return `PDS · ${mediaBlobRef.mimeType.split('/')[0]}`;
+    if (mediaBlobRef) return `Uploaded · ${mediaBlobRef.mimeType.split('/')[0]}`;
     return mediaInput.sourceLabel;
   }
   let bgColor    = $state(ev.background?.color ?? '');
@@ -802,7 +802,7 @@
       return {
         title: 'Media',
         lines: [
-          'Use Upload for files you want stored on your PDS. Use URL / Embed for web-hosted media and supported embeds.',
+          'Use Upload for files you want stored with your account. Use URL / Embed for web-hosted media and supported embeds.',
           'Caption and credit display with the media. Alt text is only for accessibility, so write what a screen reader user needs.',
           'The preview card stays compact until you open it, so finished events remain easier to scan in the editor.',
         ],
@@ -859,6 +859,21 @@
   });
 </script>
 
+<!--
+  Drawn rather than typed. These were U+1F5D1 WASTEBASKET, which needs an
+  emoji font to be a picture of anything: where the stack has none, the
+  browser falls back to the box that spells out the codepoint — which is what
+  it was rendering as. A path costs a few lines and depends on nothing.
+-->
+{#snippet trashIcon()}
+  <svg class="icon-glyph" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+    <path
+      d="M6.5 2h3a.5.5 0 0 1 .5.5V3h3a.5.5 0 0 1 0 1h-.55l-.63 8.2A1.5 1.5 0 0 1 10.33 14H5.67a1.5 1.5 0 0 1-1.49-1.38L3.55 4H3a.5.5 0 0 1 0-1h3v-.5a.5.5 0 0 1 .5-.5Zm-1.94 2 .62 8.12a.5.5 0 0 0 .49.38h4.66a.5.5 0 0 0 .5-.38L11.44 4ZM6.5 5.5a.5.5 0 0 1 .5.5v5a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5Zm3 0a.5.5 0 0 1 .5.5v5a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5Z"
+      fill="currentColor"
+    />
+  </svg>
+{/snippet}
+
 <div class="editor">
 <div class="editor-body">
   <div class="editor-layout">
@@ -889,7 +904,7 @@
                   <button type="button" class="icon-btn"
                     aria-label="Cancel" title="Cancel" onclick={cancelEdit}>✕</button>
                   <button type="button" class="icon-btn icon-btn--remove"
-                    aria-label="Remove media" title="Remove media" onclick={clearMedia}>🗑</button>
+                    aria-label="Remove media" title="Remove media" onclick={clearMedia}>{@render trashIcon()}</button>
                 {/if}
               </div>
             </div>
@@ -929,7 +944,7 @@
                   {#if uploadStatus === 'error'}
                     <p class="media-error">{uploadError}</p>
                   {:else}
-                    <p class="media-panel-hint">Stored on your personal data server (PDS).</p>
+                    <p class="media-panel-hint">Stored with your account, not on our servers.</p>
                   {/if}
                 {:else}
                   <div class="media-signin-notice">
@@ -1056,7 +1071,7 @@
               <button type="button" class="icon-btn"
                 aria-label="Cancel" title="Cancel" onclick={cancelDateEdit}>✕</button>
               <button type="button" class="icon-btn icon-btn--remove"
-                aria-label="Delete date" title="Delete date" onclick={clearDate}>🗑</button>
+                aria-label="Delete date" title="Delete date" onclick={clearDate}>{@render trashIcon()}</button>
             </div>
             <div class="field-panel-body field-panel-body--date">
               <div class="slide-date-row">
@@ -1140,7 +1155,7 @@
             <button type="button" class="icon-btn"
               aria-label="Cancel" title="Cancel" onclick={cancelHeadlineEdit}>✕</button>
             <button type="button" class="icon-btn icon-btn--remove"
-              aria-label="Delete headline" title="Delete headline" onclick={clearHeadline}>🗑</button>
+              aria-label="Delete headline" title="Delete headline" onclick={clearHeadline}>{@render trashIcon()}</button>
           </div>
           <div class="field-panel-body field-panel-body--headline">
             <RichTextEditor
@@ -1183,7 +1198,7 @@
             <button type="button" class="icon-btn"
               aria-label="Cancel" title="Cancel" onclick={cancelBodyEdit}>✕</button>
             <button type="button" class="icon-btn icon-btn--remove"
-              aria-label="Delete body text" title="Delete body text" onclick={clearBody}>🗑</button>
+              aria-label="Delete body text" title="Delete body text" onclick={clearBody}>{@render trashIcon()}</button>
           </div>
           <div class="field-panel-body field-panel-body--richtext">
             <RichTextEditor
@@ -1391,7 +1406,7 @@
         <p class="modal-intro">This tool uses AT Protocol — the open, decentralized technology behind Bluesky — so you own your content.</p>
 
         <dl class="modal-list">
-          <dt>Save your timeline</dt>
+          <dt>Publish your timeline</dt>
           <dd>Signed-in users can publish timelines to their AT Protocol account. Each timeline gets a permanent, shareable link (an AT URI) that works in any compatible app.</dd>
 
           <dt>Upload media</dt>
@@ -2127,6 +2142,13 @@
   .upload-btn-compact.uploading { color: #999; cursor: wait; }
 
   /* ── Misc ──────────────────────────────────────────────────── */
+  /* Sized in `em` so it tracks the ✓ and ✕ beside it, which are still text. */
+  .icon-glyph {
+    width: 1em;
+    height: 1em;
+    display: block;
+  }
+
   .clear-btn {
     background: none; border: none; color: #aaa;
     cursor: pointer; font-size: 0.85rem; padding: 0.2rem; line-height: 1;

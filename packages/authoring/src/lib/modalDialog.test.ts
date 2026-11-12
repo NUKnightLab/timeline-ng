@@ -250,3 +250,56 @@ describe('a dialog with an inner layer of its own', () => {
     expect(onclose).toHaveBeenCalledOnce();
   });
 });
+
+describe('dismissing by clicking outside', () => {
+  /** The shape every caller has: a backdrop carrying the action, a box inside it. */
+  function opened() {
+    const root = document.createElement('div');
+    root.innerHTML = '<div id="box"><p id="prose">Some text to select</p></div>';
+    document.body.replaceChildren(root);
+    const onclose = vi.fn();
+    const trap = modalDialog(root, { onclose });
+    const box = root.querySelector('#box') as HTMLElement;
+    const prose = root.querySelector('#prose') as HTMLElement;
+    return { root, box, prose, onclose, trap };
+  }
+
+  const press = (el: HTMLElement) =>
+    el.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }));
+  const click = (el: HTMLElement) => el.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+  it('closes on a press and click on the backdrop', () => {
+    const { root, onclose } = opened();
+    press(root);
+    click(root);
+    expect(onclose).toHaveBeenCalledOnce();
+  });
+
+  it('ignores a click inside the box', () => {
+    const { box, onclose } = opened();
+    press(box);
+    click(box);
+    expect(onclose).not.toHaveBeenCalled();
+  });
+
+  it('does not close when a drag that started inside ends on the backdrop', () => {
+    // Selecting a line of the dialog's own prose: the press lands on the
+    // text, the release lands wherever the pointer got to, and the click
+    // that follows is reported against their common ancestor — the backdrop.
+    // Read as an outside click, that made the panel's text uncopyable,
+    // because trying to select it dismissed the panel.
+    const { root, prose, onclose } = opened();
+    press(prose);
+    click(root);
+    expect(onclose).not.toHaveBeenCalled();
+  });
+
+  it('still closes on the next clean outside click', () => {
+    const { root, prose, onclose } = opened();
+    press(prose);
+    click(root);
+    press(root);
+    click(root);
+    expect(onclose).toHaveBeenCalledOnce();
+  });
+});

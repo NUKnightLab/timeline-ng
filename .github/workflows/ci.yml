@@ -30,6 +30,14 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # `workers/og-preview` is the one package that consumes core as a built
+      # package rather than aliasing its source (see CLAUDE.md), so its
+      # typecheck resolves `@knight-lab/timeline-ng-core` through
+      # `packages/core/dist`. In a clean checkout there is no dist yet, and
+      # every run since the worker landed has failed here with TS2307 — a
+      # local checkout passes only because an earlier build left one behind.
+      - run: pnpm --filter @knight-lab/timeline-ng-core build
+
       - run: pnpm typecheck
 
       - run: pnpm test:run

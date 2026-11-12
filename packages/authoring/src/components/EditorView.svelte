@@ -32,6 +32,37 @@
     atUri: string | null;
     pdsClean: boolean;
     publishStatus: string | null;
+    /** Whether that status is good news. A refusal in success green reads as a success. */
+    publishTone?: 'ok' | 'warn';
+    /**
+     * What reconciling with the published record did, or could not do
+     * (Scripts 3, 7 and 8, and an automatic merge). A statement, not a prompt.
+     */
+    syncNote?: string | null;
+    ondismissnote?: () => void;
+    /**
+     * Offered beside the note when a merge or fast-forward brought something
+     * in: the note names what arrived, this opens it row by row.
+     */
+    onreviewincoming?: (() => void) | null;
+    /**
+     * How many copies kept aside by *Keep both* still hold something this
+     * timeline does not ([P12]). Nearly always 0 or 1.
+     */
+    forkCount?: number;
+    /**
+     * Copies that have been worked through and hold nothing outstanding.
+     * They are not a task any more, only something to delete, so they get a
+     * different sentence rather than being counted with the rest.
+     */
+    settledForkCount?: number;
+    onreviewfork?: () => void;
+    onforgetsettledforks?: () => void;
+    /** Set when the open draft is itself a copy kept aside from a timeline. */
+    isFork?: boolean;
+    /** That timeline's name, when this browser still has it. */
+    forkParentTitle?: string | null;
+    onresolvefork?: () => void;
     canPublish: boolean;
     deletedItem: { event: TLEvent; isTitle: boolean; sortedIndex: number } | null;
     deletedItemLeaving: boolean;
@@ -61,7 +92,11 @@
 
   let {
     timelineTitle, titleEvent, entries, selectedId, selectedEvent, isEditingTitle,
-    timeline, atUri, pdsClean, publishStatus, canPublish, deletedItem, deletedItemLeaving, settings,
+    timeline, atUri, pdsClean, publishStatus, publishTone = 'ok', syncNote = null, ondismissnote,
+    onreviewincoming = null,
+    forkCount = 0, settledForkCount = 0, onreviewfork, onforgetsettledforks,
+    isFork = false, forkParentTitle = null, onresolvefork,
+    canPublish, deletedItem, deletedItemLeaving, settings,
     headlineFragment = null, bodyFragment = null,
     onback, onsignout, ontitlechange, onselect, onadd, onaddtitle, ondelete, onupdate, onpublish, onexport, onexportcsv, onundo,
     onsettingschange, onpeekhistory, onapplyhistory, historyVersion,
@@ -507,12 +542,12 @@
         Preview
       </button>
       {#if publishStatus}
-        <span class="publish-status">{publishStatus}</span>
+        <span class="publish-status" class:publish-status--warn={publishTone === 'warn'}>{publishStatus}</span>
       {:else if pdsClean && atUri && auth.status === 'signed-in'}
         <span class="publish-status">Published ✓</span>
       {:else}
         <button class="btn-publish" onclick={onpublish} disabled={!canPublish}
-          title={canPublish ? 'Publish to your PDS' : 'Sign in to publish'}>
+          title={canPublish ? 'Publish to your account' : 'Sign in to publish'}>
           {atUri ? 'Publish changes' : 'Publish'}
         </button>
       {/if}
@@ -526,6 +561,80 @@
       <AuthButton {onsignout} />
     </div>
   </nav>
+
+  <!--
+    A line under the subnav rather than a modal: each of these is something
+    that already happened, so there is nothing to confirm. Full width because
+    the subnav is where the short status belongs and this one is a sentence.
+  -->
+  {#if syncNote}
+    <div class="sync-note" role="status">
+      <span>{syncNote}</span>
+      {#if onreviewincoming}
+        <button class="sync-note__action" onclick={onreviewincoming}>See what changed</button>
+      {/if}
+      {#if ondismissnote}
+        <button class="sync-note__close" onclick={ondismissnote} aria-label="Dismiss">×</button>
+      {/if}
+    </div>
+  {/if}
+
+  <!--
+    A fork is work this timeline does not have yet, so it stays on screen
+    rather than being a note that can be dismissed: the only ways out are
+    bringing it over or deleting the copy.
+  -->
+  <!--
+    Three states, because the one line used to cover all of them and was
+    wrong in two: a copy with work in it, a copy already worked through, and
+    being inside a copy looking out.
+  -->
+  {#if isFork}
+    <div class="fork-note">
+      <span>
+        This is an unmerged draft of
+        {forkParentTitle ? `"${forkParentTitle}"` : 'a timeline you have published'}. It can never
+        be published from here — what is in it counts once it is merged into the published
+        timeline.
+      </span>
+      {#if onresolvefork}
+        <button class="fork-note__action" onclick={onresolvefork}>Go sort it out</button>
+      {/if}
+    </div>
+  {:else if forkCount && onreviewfork}
+    <div class="fork-note">
+      <!--
+        Says what is outstanding and what ends it. Where the draft is kept is
+        not the part that needs acting on — what does is that it is not in
+        this timeline and will not be until each edit in it is settled.
+      -->
+      <span>
+        {forkCount === 1
+          ? 'You have an unmerged draft of this timeline'
+          : `You have ${forkCount} unmerged drafts of this timeline`}
+        — sort {forkCount === 1 ? 'it' : 'them'} out, or throw {forkCount === 1 ? 'it' : 'them'} away.
+      </span>
+      <button class="fork-note__action" onclick={onreviewfork}>
+        Sort {forkCount === 1 ? 'it' : 'them'} out
+      </button>
+    </div>
+  {:else if settledForkCount && onforgetsettledforks}
+    <!--
+      Nothing outstanding, so this is not a task — only a copy nobody needs.
+      Opening the pull-list to be told that would be a detour, so the delete
+      is offered here.
+    -->
+    <div class="fork-note fork-note--settled">
+      <span>
+        {settledForkCount === 1
+          ? 'Your unmerged draft is settled — every edit in it has been answered.'
+          : `${settledForkCount} unmerged drafts are settled — every edit in them has been answered.`}
+      </span>
+      <button class="fork-note__action" onclick={onforgetsettledforks}>
+        {settledForkCount === 1 ? 'Delete it' : 'Delete them all'}
+      </button>
+    </div>
+  {/if}
 
   <!-- ── Publish drawer ──────────────────────────────────────────────────────── -->
   {#if showShare}
@@ -929,6 +1038,111 @@
     font-size: 0.78rem;
     color: #15803d;
     white-space: nowrap;
+  }
+
+  /*
+   * Anything that did not publish. Amber rather than the success green, and
+   * allowed to wrap: a refusal has a reason to give, and `nowrap` pushed the
+   * Publish, Share and account controls off the end of the subnav entirely —
+   * so the one message telling you something needs deciding also took away
+   * everything you could do about it.
+   */
+  .publish-status--warn {
+    color: #b45309;
+    white-space: normal;
+    max-width: 32ch;
+    line-height: 1.25;
+  }
+
+  .sync-note {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    padding: 0.5rem 1.25rem;
+    background: #eef3f8;
+    border-bottom: 1px solid #d3dde6;
+    font-size: 0.82rem;
+    color: #2d4356;
+  }
+
+  /*
+   * Distinct from .sync-note on purpose: that reports something that already
+   * happened, this one is work still waiting. Warmer, and with no dismiss.
+   */
+  .fork-note {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    padding: 0.5rem 1.25rem;
+    background: #fdf6e3;
+    border-bottom: 1px solid #e8dcb8;
+    font-size: 0.82rem;
+    color: #6b5420;
+  }
+
+  /* Nothing outstanding: a loose end to tidy, not a warning. */
+  .fork-note--settled {
+    background: #f3f5f7;
+    border-bottom-color: #dde3e8;
+    color: #4a5560;
+  }
+
+  .fork-note__action {
+    margin: 0 0 0 auto;
+    padding: 0.2rem 0.6rem;
+    background: #fff;
+    border: 1px solid #d9c893;
+    border-radius: 4px;
+    font: inherit;
+    font-size: 0.78rem;
+    color: #6b5420;
+    text-transform: none;
+    text-shadow: none;
+    cursor: pointer;
+  }
+
+  .fork-note__action:hover,
+  .fork-note__action:focus-visible {
+    background: #fbf0d4;
+    border-color: #c0ab6d;
+  }
+
+  .sync-note__action {
+    margin: 0 0 0 auto;
+    padding: 0.2rem 0.6rem;
+    flex: none;
+    background: #fff;
+    border: 1px solid #b7c6d4;
+    border-radius: 4px;
+    font: inherit;
+    font-size: 0.78rem;
+    color: #2d4356;
+    text-transform: none;
+    text-shadow: none;
+    cursor: pointer;
+  }
+
+  .sync-note__action:hover,
+  .sync-note__action:focus-visible {
+    background: #e3ecf4;
+    border-color: #8ea4b8;
+  }
+
+  .sync-note__action ~ .sync-note__close {
+    margin-left: 0;
+  }
+
+  .sync-note__close {
+    /* `auto` only when it is alone; the action takes it otherwise. */
+    margin: 0 0 0 auto;
+    padding: 0 0.25rem;
+    background: none;
+    border: 0;
+    color: inherit;
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+    text-shadow: none;
   }
 
   /* ── Publish drawer ──────────────────────────────────────────── */

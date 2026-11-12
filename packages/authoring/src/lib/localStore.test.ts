@@ -8,7 +8,8 @@
 import 'fake-indexeddb/auto';
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
-  LEGACY_DRAFT_KEY, dbNameFor, forgetDraft, listDrafts, newDocId, noteDraft, persistDoc,
+  LEGACY_DRAFT_KEY, commitDraftDeletions, dbNameFor, forgetDraft, listDrafts, newDocId, noteDraft,
+  persistDoc, removeDraftEntries, restoreDraftEntries, sweepPendingDeletions,
 } from './localStore.ts';
 import { migrateLegacyDraft } from './draftMigration.ts';
 import { TimelineDoc } from './doc.svelte.ts';
@@ -199,5 +200,103 @@ describe('whether a draft matches what was published', () => {
     b.addEvent({ unique_id: 'sputnik' });
     expect(b.clean).toBe(false);
     await pb.destroy();
+  });
+});
+
+describe('fork provenance', () => {
+  const forkedFrom = { atUri: 'at://did:plc:x/c/1', baseCid: 'bafyreibase', baseSnapshot: '{"events":[]}' };
+
+  it('survives a routine write that knows nothing about it', () => {
+    // Going home, or autosaving a title, rebuilds the entry. Losing the
+    // ancestor there would turn the fork's reconciliation back into a two-way
+    // diff that cannot tell the author's own work from anyone else's.
+    const id = newDocId();
+    noteDraft({ id, title: 'Spaceflight', clean: false, forkedFrom });
+    noteDraft({ id, title: 'Spaceflight, revised', clean: false });
+
+    expect(listDrafts().find((d) => d.id === id)?.forkedFrom).toEqual(forkedFrom);
+  });
+
+  it('holds no atUri, so one record still has exactly one draft', () => {
+    const original = newDocId();
+    const fork = newDocId();
+    noteDraft({ id: original, title: 'Spaceflight', atUri: forkedFrom.atUri, clean: true });
+    noteDraft({ id: fork, title: 'Spaceflight', clean: false, forkedFrom });
+
+    const claims = listDrafts().filter((d) => d.atUri === forkedFrom.atUri);
+    expect(claims.map((d) => d.id)).toEqual([original]);
+  });
+});
+
+describe('deleting with an undo window', () => {
+  /** Whether a draft's document is still on disk, index or no index. */
+  async function hasDatabase(id: string): Promise<boolean> {
+    const names = await indexedDB.databases();
+    return names.some((d) => d.name === dbNameFor(id));
+  }
+
+  /** A draft with a real document behind it, so deletion has something to drop. */
+  async function seed(id: string, extra: Record<string, unknown> = {}) {
+    const doc = new TimelineDoc();
+    const { provider } = await persistDoc(id, doc.doc);
+    doc.load({ events: [{ unique_id: 'a', start_date: { year: 1969 }, text: { headline: 'A' } }] });
+    await provider?.whenSynced;
+    await provider?.destroy();
+    doc.destroy();
+    noteDraft({ id, title: id, ...extra } as never);
+  }
+
+  it('takes the row out at once and leaves the document alone', async () => {
+    await seed('one');
+    const removed = removeDraftEntries('one');
+
+    expect(listDrafts()).toEqual([]);
+    expect(removed.map((d) => d.id)).toEqual(['one']);
+    // The half that makes undo possible: the row is gone, the document is not.
+    expect(await hasDatabase('one')).toBe(true);
+  });
+
+  it('puts the entry back exactly as it was', async () => {
+    await seed('one', { atUri: 'at://did:plc:x/c/one', clean: true });
+    const before = listDrafts();
+    restoreDraftEntries(removeDraftEntries('one'));
+    expect(listDrafts()).toEqual(before);
+  });
+
+  it('drops the document only when the deletion is committed', async () => {
+    await seed('one');
+    await commitDraftDeletions(removeDraftEntries('one'));
+    expect(await hasDatabase('one')).toBe(false);
+  });
+
+  it('takes the unmerged drafts with it, and brings them back together', async () => {
+    const uri = 'at://did:plc:x/c/parent';
+    await seed('parent', { atUri: uri });
+    await seed('fork', { forkedFrom: { atUri: uri, baseCid: 'cid', baseSnapshot: '{}' } });
+
+    const removed = removeDraftEntries('parent');
+    expect(removed.map((d) => d.id).sort()).toEqual(['fork', 'parent']);
+    expect(listDrafts()).toEqual([]);
+
+    restoreDraftEntries(removed);
+    expect(listDrafts().map((d) => d.id).sort()).toEqual(['fork', 'parent']);
+  });
+
+  it('finishes a deletion the page did not outlive', async () => {
+    // The failure deferral would have instead: close the tab mid-window and
+    // the row is already gone, so nothing would ever come back for the
+    // document. The sweep is what makes deleting now the safe choice.
+    await seed('one');
+    removeDraftEntries('one');
+    await sweepPendingDeletions();
+    expect(await hasDatabase('one')).toBe(false);
+  });
+
+  it('leaves a document alone when undo got there first', async () => {
+    await seed('one');
+    restoreDraftEntries(removeDraftEntries('one'));
+    await sweepPendingDeletions();
+    expect(await hasDatabase('one')).toBe(true);
+    expect(listDrafts().map((d) => d.id)).toEqual(['one']);
   });
 });
