@@ -28,6 +28,32 @@ Before writing any of it, re-read [coauthoring.md](coauthoring.md) §4 (the publ
 and §5 (consent and accountability). They shape the server's API even though most of what they
 describe does not ship until Phase 3.
 
+### What has to be settled first, and what does not
+
+**Nothing blocks Stage 0.** It needs a Cloudflare account that can deploy a Worker with a
+SQLite-backed Durable Object, which the free plan does, and no decision in this document.
+
+**Two things must land before Stage 1 ships a scope**, both for the same reason: they appear in
+client metadata that users approve on a consent screen, and changing either costs another round of
+re-consent ([P20]).
+
+1. **The service hostname**, which fixes `aud` ([P4]) and the `rpc:` permission string ([P19]).
+2. **The NSID** the token is minted for — `com.knightlab.timeline.connect` is a placeholder ([A2]).
+
+**Everything else is already decided, answered by building, or needed later than the code.** [R1]
+(hibernation) and [R4] (whether the editor accepts a remote change at all) are findings Stage 0
+produces rather than questions to answer beforehand — which is most of why Stage 0 is first.
+[P24]'s retention rule blocks nothing before Stage 3. The one item with a clock of its own is
+whether the retention policy needs Northwestern's sign-off before a pilot, because that runs on
+other people's calendars; see [A4].
+
+**[P25] The service has no dependency on `packages/core`.** `workers/collab` sits beside
+`workers/og-preview`, which does depend on core and reads its `dist` — the build-ordering wrinkle
+CLAUDE.md warns about. The collaboration server should not need it at all: §10.6 says to keep
+timeline semantics out of the sync, auth and publish layers, and a `package.json` with no core
+dependency is that seam made checkable rather than aspirational. If an import of core appears, the
+seam has already leaked.
+
 ---
 
 ## What ships
@@ -36,7 +62,7 @@ describe does not ship until Phase 3.
 - A network provider in place of — strictly, **alongside** — `y-indexeddb`.
 - **Promotion**: a timeline acquires a server draft. In Phase 2 the only trigger is inviting someone
   ([coauthoring.md](coauthoring.md) §3.3, Q12).
-- Invites, a member list, and access control checked on every connection.
+- Invites, a collaborator list, and access control checked on every connection.
 - Collaborator media in R2, content-addressed by CID.
 - The three publication states of §4.2, shown to owner and collaborator.
 - Live cursors.
@@ -162,9 +188,23 @@ want a token, it is a Phase 3 story.
 instance variables, which is a restructure rather than a flag. Hocuspocus-on-Workers needs checking
 against this specifically — see [A1].
 
-**[P3] The DO is keyed by the promoted timeline's own id, not by the record's `at://` URI.** A
-timeline can be promoted before it has ever been published, and a published record's URI is a fact
-about one account's repo. A server-minted id survives both.
+**[P3] The DO is keyed by a server-minted id, assigned at promotion.** A timeline can be promoted
+before it has ever been published, and a published record's URI is a fact about one account's repo,
+so neither the `at://` URI nor anything the browser already holds will do. Note what the browser
+holds: `newDocId()` is a `crypto.randomUUID()` naming an IndexedDB database, so two browsers that
+each opened the same published record have different ones — the same mismatch [P13] describes a
+level down at `newSlideKey`. The id therefore comes into existence at promotion, which is also when
+the DO does, and the client records it in the draft index (`DraftSummary` gains a field beside
+`atUri`, `baseCid` and `forkedFrom`).
+
+**[P21] The `at://` URI is promotion's idempotency index, not the DO's key.** Minting the id at
+promotion raises "is this already promoted?", and for a published timeline the record URI answers it:
+a second browser promoting the same timeline must *join* the existing id rather than mint a second.
+A never-published timeline has no such key, and nothing can recognise two browsers' local drafts of
+it as the same thing — correctly, since no shared identifier has ever existed. Treat that as a limit
+of promotion-before-publication rather than a gap to close. The server records the owner's DID
+explicitly at promotion for the same reason: with no `at://` URI there is nothing to derive it from,
+and `DraftSummary.ownerHandle` is already documented as display-only for exactly this reason.
 
 ### Stage 1 — who is this
 
@@ -246,9 +286,10 @@ laptop.
 
 ### Stage 2 — promotion, invites, access control
 
-**[P6] A Durable Object exists because a timeline was promoted, never because it has members.**
+**[P6] A Durable Object exists because a timeline was promoted, never because it has
+collaborators.**
 §3.3's invariant, stated here as the thing to test: it should be possible to construct a promoted
-timeline with an empty member list and have every code path behave. The "sync across my devices"
+timeline with no collaborators and have every code path behave. The "sync across my devices"
 trigger is then a second button rather than a refactor. Write the retention rules (Stage 3) in terms
 of promotion for the same reason.
 
@@ -262,7 +303,16 @@ timeline that has since been promoted does **not** attach it. It connects empty,
 and the local draft becomes a fork in the existing sense — `forkedFrom` with its `baseSnapshot`,
 surfaced by the pull-list that shipped on 2026-11-03. No new reconciliation UI.
 
-**[P9] Two permission levels, read/write and read-only** (Longform's model, §2). Not three, not
+**[P22] The owner is not a collaborator.** Ownership is a property of the timeline — the DID
+recorded at promotion ([P21]) — and not an entry in the collaborator list with a special role. The
+list holds the people who were invited, so "a promoted timeline with no collaborators" is a
+statement that can be made at all, which is what [P6] needs. It also keeps the owner's rights from
+depending on list membership, where "remove the last collaborator" and "can the owner remove
+themselves" become questions. Presence and cursors do want everyone rendered uniformly, owner
+included, but that is derived from who is connected rather than from who is invited.
+
+**[P9] Two permission levels, read/write and read-only** (Longform's model, §2), both of them levels
+*for collaborators*; the owner is not a third ([P22]). Not three, not
 per-slide. The public draft link is **not** in Phase 2 — it is a separate consent decision and it is
 the feature most likely to produce an accidental disclosure.
 
@@ -334,30 +384,46 @@ additive, and the first thing to cut if Stages 0–5 run long.
 ## Gates
 
 - Stage 0 does not merge until a second browser sees a change made in the first.
-- Stage 2 does not merge until a promoted timeline with zero members works end to end ([P6]).
+- Stage 2 does not merge until a promoted timeline with no collaborators works end to end ([P6]).
 - Stage 4 does not merge until a collaborator-added image survives a publish and loads from the
   owner's PDS.
-- Nothing ships to real users on Workers Free (§10.8).
+- `workers/collab/package.json` never gains a `@knight-lab/timeline-ng-core` dependency ([P25]).
+- Nothing ships to real users on Workers Free (§10.8) — which is a pilot gate, not a build gate
+  ([A1]).
 
 ## Asks
 
-- **[A1] Is the Cloudflare account ready** — Workers Paid, R2 enabled, a hostname for the service
-  DID? §10.8 flags that R2 may want a card on file regardless of plan. Worth settling before Stage 0
-  rather than discovering it at Stage 4.
+- **[A1] — the money half is answered: not yet, and not a concern.** Build and pilot on Workers
+  Free; §10.8's argument for the $5 plan is about overage instead of cutoff, which only bites with
+  real users, and there is a long way to go before anyone meets a wall. **What survives is not about
+  payment: the service hostname**, because [P4]'s `aud` and [P19]'s scope string both bake it in and
+  changing it later costs another round of re-consent ([P20]). That one has to be settled before
+  Stage 1 ships a scope, though not before Stage 0 is written.
 - **[A2] — answered. What remains is your call on the NSID.** `com.knightlab.timeline.connect` is a
   placeholder; it goes in client metadata that users see on a consent screen and is awkward to
   change afterwards ([P20]). Worth naming deliberately, and worth deciding at the same time whether
   the `aud` is a plain `did:web:<host>` or a `did:web:<host>#collab` service reference.
-- **[A3] Does Phase 2 need the public read-only draft link?** [P9] says no. Longform has it and it
-  is genuinely useful for showing work in progress to someone without an account.
-- **[A4] What is draft retention in Phase 2, given there is no revert to trade against?** The
-  §10.5 analysis assumes version history exists. A defensible Phase 2 answer is "drafts live as long
-  as the timeline is promoted, abandoned ones warn at 12 months and purge at 18" — which is §10.5's
-  abandonment rule without the 90-day history rule. Confirm, and confirm whether anything needs to
-  go past Northwestern before a pilot.
-- **[A5] Is invite-by-handle enough**, or does an invite need to work for someone who has not signed
-  in yet? The second is a notification problem (§6.3 disposes of DMs) and probably means "copy a
-  link and send it yourself."
+- **[A3] — answered: out of Phase 2, and it is easy to add later provided one thing.** The risk was
+  never the feature, it was baking "every connection has an identity" into the DO's invariants — the
+  same shape of mistake as [P6]'s "has collaborators". So: **[P23] the DO authorizes a connection by
+  what it may do, not by who it is.** An anonymous reader is then a connection carrying a
+  capability and no DID, which Stage 2's access control has to be able to express even though
+  nothing mints one in Phase 2. Get that right and the link is later UI work; assume a DID
+  everywhere and it is a refactor of the authorization path.
+- **[A4] — provisionally adopted, so it blocks nothing: [P24]** drafts live as long as the timeline
+  is promoted; abandoned ones warn at 12 months and purge at 18. That is §10.5's abandonment rule
+  without the 90-day history rule, which has nothing to trade against while [P11] holds. Strike it
+  whenever; no code before Stage 3 depends on it.
+
+  **One part of this is not deferrable on the same clock**, which an earlier draft of this ask buried
+  by bundling it with the number: whether the policy has to go past Northwestern before a pilot.
+  That has lead time measured in other people's calendars, so it wants starting well before a pilot
+  is otherwise ready — and it is the one §10.5 item with no institutional precedent to inherit (§1).
+  Not a blocker for writing code; a blocker for showing it to anyone.
+- **[A5] — answered: invite by handle, and the invitee must already have an account.** No holding
+  pattern for someone who has not signed up, since everything downstream depends on their identity.
+  An invite to a handle that does not resolve fails at the point of invitation, which is the right
+  place for it to fail.
 - **[A6] — answered, nothing left to ask.** A PDS refuses the write with `BlobNotFound`; see *Media
   is uploaded eagerly* above. Kept here only so the numbering does not move.
 
@@ -371,6 +437,11 @@ additive, and the first thing to cut if Stages 0–5 run long.
 - [P11] No version history in Phase 2, which defers most of §10.5.
 - [P14] Owners keep uploading to their own PDS; only collaborators go through R2.
 - [P17] No lock during publish.
+- [P21] The `at://` URI indexes promotion; it does not key the DO.
+- [P22] The owner is not a collaborator.
+- [P23] Connections are authorized by capability, not by identity — what keeps [A3] cheap.
+- [P24] Phase 2 retention: promoted drafts live, abandoned ones warn at 12 months, purge at 18.
+- [P25] No core dependency in the service, as §10.6's seam made checkable.
 - [P19] A new `rpc:` permission in client metadata, as a Stage 1 prerequisite rather than a
   production-hygiene item — the app declares none today, so [P4] does not work without it.
 - [P20] Re-consent is a rollout step, not an accident.
