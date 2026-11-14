@@ -170,11 +170,33 @@ solved problem here; see Stage 2.
 
 Each stage should be independently mergeable and leave the app working.
 
-### Stage 0 — the service skeleton
+### Stage 0 — the service skeleton ✅ built 2026-11-14, not merged
 
-A Worker, one Durable Object class, Hocuspocus 4 over `crossws`. A hard-coded document name, no
-auth, no persistence beyond the DO's memory. The authoring app gets a dev-only flag that attaches
-the network provider to the open draft.
+A Worker, one Durable Object class, a document name from the URL, no auth. The authoring app gets a
+dev-only flag — `?collab=<room>` with `VITE_COLLAB_URL` set — that attaches a network provider.
+`workers/collab`, and `lib/collabSession.ts` on the client. The gate is met: a slide added in one
+browser appears in another, and opening it there shows the same Slide ID, so the internal key
+synced rather than being re-derived — which is what [P13] needs to be true.
+
+**[P30] Not Hocuspocus. The sync protocol is implemented directly against `y-protocols`.** §10 chose
+Hocuspocus to get "the standard, well-supported Yjs backend rather than porting to a bespoke
+implementation", and that argument does not survive contact with [P2]. Hocuspocus 4 *does* run on
+Workers — v4 moved off the Node `ws` package to `crossws` precisely for this, and on non-Node
+runtimes you drive the `Hocuspocus` class directly rather than its `Server`. But its model is a
+long-lived in-memory server, and hibernation re-runs the constructor with every class field reset,
+so the document has to be reloaded on wake either way. Once that is true, Hocuspocus is carrying a
+framework to avoid about 150 lines, on a code path its own maintainers describe as new and want
+feedback on, with one public report of Workers being a poor fit. The reference implementation for
+this exact shape, `TimoWilhelm/yjs-cf-ws-provider`, is bespoke for the same reason.
+
+What it costs: Hocuspocus's `onAuthenticate` / `onStoreDocument` hooks would have given Stage 1 and
+Stage 3 a shape to fill in. Those are now ours to write — which Stage 1 wanted anyway, since the
+identity check is [P4]'s service auth rather than anything Hocuspocus knows about.
+
+**What Stage 0 did not prove: hibernation itself.** `wrangler dev` offers no way to force eviction,
+so the wake path is correct by construction — `ctx.acceptWebSocket`, the in-memory `Y.Doc` treated
+strictly as a cache reloaded from storage — rather than verified. Re-check it on the first real
+deploy, before Stage 3 builds on the assumption.
 
 **[P1] Phase 2 holds no PDS credentials at all.** §10.2 says credential escalation happens "when an
 owner first invites someone," which reads as a Phase 2 obligation. It is not, because Phase 2
@@ -190,8 +212,8 @@ the novel-risk project §1 describes. **Hold this line.** The first time a Phase
 want a token, it is a Phase 3 story.
 
 **[P2] Hibernation from day one** (§10.1, §10.8). Retrofitting it means moving socket state out of
-instance variables, which is a restructure rather than a flag. Hocuspocus-on-Workers needs checking
-against this specifically — see [A1].
+instance variables, which is a restructure rather than a flag. This is what decided [P30]: once
+hibernation is non-negotiable, the reload-on-wake work exists whatever is running on top.
 
 **[P3] The DO is keyed by a server-minted id, assigned at promotion.** A timeline can be promoted
 before it has ever been published, and a published record's URI is a fact about one account's repo,
@@ -358,6 +380,34 @@ depending on list membership, where "remove the last collaborator" and "can the 
 themselves" become questions. Presence and cursors do want everyone rendered uniformly, owner
 included, but that is derived from who is connected rather than from who is invited.
 
+**[P31] Making the editor render incoming changes is Stage 2's largest piece, and Stage 0 measured
+it.** Two browsers in one room behave differently depending on what changed:
+
+| Change | What the other browser does |
+| --- | --- |
+| A slide added or removed | Appears immediately. The slide list rebuilds from the snapshot. |
+| A rich-text field edited | **Nothing**, until a reload — after which it is all there. |
+
+So this is a rendering gap, not a sync gap: the document is correct in both browsers the whole time.
+The cause is the one [phase1-plan.md](phase1-plan.md) already named — `EditorView` wraps the editor
+in `{#key selectedId}` and its `$state` fields initialise from the `event` prop once at mount, so
+data changing underneath does nothing on screen. That document calls it *"real Phase 1 work, not a
+Phase 2 concern, and the hardest single piece"*, and it did not get done. It is Phase 2's now, and
+its approach still looks right: derive the fields from the snapshot, with a local override while a
+field has focus so an incoming change never fights the user's cursor.
+
+**One claim in that note is wrong, and only running it showed it.** It says rich-text fields
+*"sidestep it entirely, since Tiptap binds to the fragment directly"*. That holds only while a
+Tiptap editor is mounted on the field — and in this UI a field is a placeholder until someone clicks
+into it. The resting state renders the derived HTML mirror through the snapshot, so it is on the
+broken path, not the exempt one. Phase 1's estimate of this work was therefore too small: it is not
+just the non-rich-text fields.
+
+**[P32] The empty state is keyed on selection, not on the document.** A browser holding slides it
+has received but not selected shows *"Get started by adding slides to your timeline."* Harmless with
+one writer, and exactly wrong for a collaborator opening a timeline someone else has filled. Small,
+but it is the first thing an invited collaborator would see.
+
 **[P28] `meta` is owner-only, and that is an access rule rather than a convention.** The Yjs `meta`
 map holds `atUri`, `publishedSnapshot`, `baseCid` and now `createdAt` — four facts about the owner's
 published record, none of them a collaborator's to write. Phase 1 never had to say so, having one
@@ -439,19 +489,18 @@ additive, and the first thing to cut if Stages 0–5 run long.
 
 ## Risks
 
-- **[R1] Hocuspocus 4 on Workers with hibernation is the schedule risk.** §10 asserts it runs via
-  `crossws`; that it runs *hibernating* is a further claim. If it does not, the options are a bespoke
-  provider on the DO WebSocket API (real work, well-trodden) or paying duration for idle editors
-  (§10.8 says that is the entire bill). Find out in Stage 0, not Stage 3.
+- **[R1] — retired. Answered by taking the stated fallback.** The bespoke provider was the cheaper
+  branch once [P2] held; see [P30]. The residual is not Hocuspocus but hibernation itself, which
+  Stage 0 could not exercise locally.
 - **[R2] Service auth fits — retired as a risk.** The fallback it guarded against (a server-minted
   session cookie after an OAuth round trip, dragging the confidential client into Phase 2 and undoing
   [P1]) is not needed. What is left is not a risk but a task: [P19]'s scope change and [P20]'s
   re-consent.
 - **[R3] Two upload paths** ([P14]) is the fiddliest part of Stage 4 and the easiest to get subtly
   wrong, because it is invisible until publish.
-- **[R4] The editor accepting incoming changes.** [A1] in phase1-plan.md was the Phase 1 schedule
-  risk and it was about this. Phase 1 shipped the snapshot bridge, but nothing has ever actually
-  *received* a remote change in this editor. Stage 0 is where that gets found out.
+- **[R4] — confirmed, and it is the biggest thing in Phase 2.** Stage 0 found out: structural
+  changes arrive and render, rich-text edits arrive and do **not**. See [P31]. No longer a risk in
+  the sense of an unknown; it is now known work, and it is Stage 2's largest piece.
 
 ## Gates
 
@@ -514,6 +563,9 @@ additive, and the first thing to cut if Stages 0–5 run long.
 - [P27] `com.knightlab.drafts.connect`, one method, no service fragment.
 - [P28] `meta` is owner-only — [P22] one level down, and already tagged by `BOOKKEEPING_ORIGIN`.
 - [P29] The record version travels with the draft, keeping [P25]'s seam intact at Phase 3.
+- [P30] The sync protocol is written directly against y-protocols, not Hocuspocus — [P2] decided it.
+- [P31] The editor must render incoming changes; Stage 0 measured which changes it drops today.
+- [P32] The empty state is keyed on selection rather than on the document.
 - [P19] A new `rpc:` permission in client metadata, as a Stage 1 prerequisite rather than a
   production-hygiene item — the app declares none today, so [P4] does not work without it.
 - [P20] Re-consent is a rollout step, not an accident.

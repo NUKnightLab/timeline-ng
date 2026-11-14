@@ -91,6 +91,13 @@ approach: make the editor's fields derive from the document snapshot, with a loc
 field has focus so that incoming changes never fight the user's cursor. Rich-text fields sidestep it
 entirely, since Tiptap binds to the fragment directly.
 
+*(Corrected 2026-11-14, after Stage 0 of Phase 2 ran two browsers against a real server. That last
+sentence is wrong, and it made this work look smaller than it is: a Tiptap editor binds to the
+fragment only while it is **mounted**, and in this UI a field is a placeholder until someone clicks
+into it. At rest a rich-text field renders the derived HTML mirror through the snapshot, which is
+the path that initialises once — so rich-text fields are on the broken side, not the exempt one.
+This item was left undone in Phase 1 and is now docs/phase2-plan.md [P31].)*
+
 **[A1 — answered: raise it]** In user terms the two outcomes are: undoing an edit to the slide you
 are looking at either updates that field in place with your cursor undisturbed, or re-renders the
 whole slide-editor panel and loses your cursor position and scroll. The first is the plan; the second
