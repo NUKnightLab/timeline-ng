@@ -22,6 +22,7 @@ import * as Y from 'yjs';
 import * as decoding from 'lib0/decoding';
 import * as encoding from 'lib0/encoding';
 import * as syncProtocol from 'y-protocols/sync';
+import { AUTH_PROTOCOL, DID_HEADER, EXPIRY_HEADER } from './authProtocol.ts';
 
 /** y-websocket's two message kinds. Awareness is relayed, never interpreted. */
 const MESSAGE_SYNC = 0;
@@ -118,17 +119,37 @@ export class DraftRoom implements DurableObject {
     if (request.headers.get('Upgrade') !== 'websocket') {
       return new Response('Expected a WebSocket upgrade.', { status: 426 });
     }
+    // Set by the entry point, which does not forward a request it has not
+    // authenticated. A room is never reachable from outside it.
+    const did = request.headers.get(DID_HEADER);
+    const expiry = Number(request.headers.get(EXPIRY_HEADER));
+    if (!did || !Number.isFinite(expiry)) {
+      return new Response('Unauthenticated.', { status: 401 });
+    }
+
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
 
     // Not `server.accept()`. That keeps the object pinned in memory for as
     // long as the socket is open, which is the entire bill for this workload.
-    this.ctx.acceptWebSocket(server);
+    //
+    // The DID is a tag so it survives hibernation and `getWebSockets(did)`
+    // can find a person's sockets — which is what Stage 2's access control
+    // will revoke against. The expiry rides in the attachment beside it.
+    this.ctx.acceptWebSocket(server, [did]);
+    server.serializeAttachment({ did, expiry });
 
-    return new Response(null, { status: 101, webSocket: client });
+    // Echoing the subprotocol is not optional: a browser that offered one and
+    // is answered without it fails the connection.
+    return new Response(null, {
+      status: 101,
+      webSocket: client,
+      headers: { 'Sec-WebSocket-Protocol': AUTH_PROTOCOL },
+    });
   }
 
   async webSocketMessage(ws: WebSocket, raw: ArrayBuffer | string): Promise<void> {
+    if (this.#expired(ws)) return;
     if (typeof raw === 'string') return; // y-websocket speaks binary only.
     const message = new Uint8Array(raw);
     const decoder = decoding.createDecoder(message);
@@ -170,6 +191,24 @@ export class DraftRoom implements DurableObject {
       // rows-written is the tightest limit on the free plan (§10.8).
       await this.#persist(changes.length === 1 ? changes[0] : Y.mergeUpdates(changes));
     }
+  }
+
+  /**
+   * Close a socket whose token has run out, and say so distinctly.
+   *
+   * Checked on activity rather than by a timer, which is [P5] satisfied by the
+   * shape of the thing: service auth tokens last an hour at most, so a client
+   * has to re-mint anyway, and re-presenting one on reconnect *is* the
+   * re-check. A timer would also not survive hibernation, which is the lesson
+   * `#persist` already learned.
+   */
+  #expired(ws: WebSocket): boolean {
+    const attachment = ws.deserializeAttachment() as { expiry?: number } | null;
+    if (!attachment?.expiry || Date.now() / 1000 <= attachment.expiry) return false;
+    // 4401: application-defined, and deliberately not 1008 — the client needs
+    // to tell "get a new token and come back" from "you are not allowed here".
+    ws.close(4401, 'service auth token expired');
+    return true;
   }
 
   async webSocketClose(ws: WebSocket, code: number, reason: string): Promise<void> {
