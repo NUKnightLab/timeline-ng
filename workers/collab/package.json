@@ -1,0 +1,21 @@
+{
+  "name": "@timeline-ng/collab",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "echo 'workers/collab is not deployable yet: it has no authentication, so any draft id opens a room to anyone who can reach the URL. Stage 1 of docs/phase2-plan.md adds the identity check ([P4]); restore this script then.' >&2 && exit 1",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "lib0": "^0.2.99",
+    "y-protocols": "^1.0.7",
+    "yjs": "^13.6.33"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260719.1",
+    "typescript": "^5.7.0",
+    "wrangler": "^4.112.0"
+  }
+}
