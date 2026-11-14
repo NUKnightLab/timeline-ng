@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy --env production",
+    "deploy": "echo 'workers/collab is not deployable yet: it has no authentication, so any draft id opens a room to anyone who can reach the URL. Stage 1 of docs/phase2-plan.md adds the identity check ([P4]); restore this script then.' >&2 && exit 1",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

@@ -1,4 +1,13 @@
 {
+  // No `env` block, and that is deliberate rather than unfinished.
+  //
+  // This worker has no authentication: the route accepts any draft id and
+  // opens a room on it, so deploying it anywhere reachable would publish an
+  // open collaboration relay. Stage 1 of docs/phase2-plan.md adds the
+  // identity check ([P4] — atproto service auth); add an environment then,
+  // and restore `deploy` in package.json with it.
+  //
+  // `wrangler dev` is unaffected and is how this is meant to be run today.
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "timeline-collab",
   "main": "src/index.ts",
