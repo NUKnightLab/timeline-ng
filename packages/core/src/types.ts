@@ -105,6 +105,20 @@ export interface TLSettings {
   ogImage?: TLOgImage;
 }
 
+/**
+ * Version of the published `com.knightlab.timeline` record shape.
+ *
+ * Not the same number as the authoring app's draft `SCHEMA_VERSION`, which
+ * versions the Yjs document layout: the two artifacts change for different
+ * reasons and at different times.
+ *
+ * Absent on a record means "published before this was stamped", which is the
+ * only distinction worth having at version 1 — and the reason to start
+ * stamping while few records exist, since a record written without it can
+ * only ever be identified by guessing at its shape.
+ */
+export const TIMELINE_RECORD_VERSION = 1;
+
 export interface TLTimeline {
   /** Optional title slide. Shown first; not linked to a date. */
   title?: TLEvent;

@@ -295,7 +295,7 @@
   /** Start a new draft holding `timeline`. */
   async function createDraft(
     timeline: TLTimeline,
-    meta: { title?: string; titleSetByUser?: boolean; atUri?: string; baseCid?: string },
+    meta: { title?: string; titleSetByUser?: boolean; atUri?: string; baseCid?: string; createdAt?: string },
     opts: { clean?: boolean } = {},
   ) {
     await closeDraft();
@@ -407,6 +407,12 @@
     // deterministic from the headline, so a slide both copies already hold
     // keeps one id across both.
     assignSlideIds(fetched.timeline);
+    // Learned once, here, rather than in each branch below: whichever way this
+    // resolves, the draft points at this record, and republishing it should
+    // keep the moment it was created rather than restamp it. The branches that
+    // re-enter the editor carry it through `enterEditor` instead, because they
+    // replace the document this would write to.
+    if (fetched.createdAt) tldoc.setCreatedAt(fetched.createdAt);
 
     const outcome = reconcile({
       localClean: tldoc.clean,
@@ -517,6 +523,7 @@
       events: tl.events,
       atUri: uri ?? undefined,
       baseCid: c.publishedCid,
+      createdAt: c.publishedAt,
       clean: true,
       settings: tl.settings,
     });
@@ -867,14 +874,14 @@
     return 'e' + Math.random().toString(36).slice(2, 9);
   }
 
-  async function enterEditor(opts: { title?: string; titleSetByUser?: boolean; titleEvent?: TLEvent | null; events?: TLEvent[]; atUri?: string; baseCid?: string; clean?: boolean; settings?: TLSettings } = {}) {
+  async function enterEditor(opts: { title?: string; titleSetByUser?: boolean; titleEvent?: TLEvent | null; events?: TLEvent[]; atUri?: string; baseCid?: string; createdAt?: string; clean?: boolean; settings?: TLSettings } = {}) {
     await createDraft(
       {
         ...(opts.titleEvent ? { title: opts.titleEvent } : {}),
         events: opts.events ?? [],
         settings: opts.settings ?? { ...DEFAULT_SETTINGS },
       },
-      { title: opts.title, titleSetByUser: opts.titleSetByUser ?? false, atUri: opts.atUri, baseCid: opts.baseCid },
+      { title: opts.title, titleSetByUser: opts.titleSetByUser ?? false, atUri: opts.atUri, baseCid: opts.baseCid, createdAt: opts.createdAt },
       { clean: opts.clean ?? true },
     );
   }
@@ -923,7 +930,7 @@
 
   async function handleOpenRecord(
     uri: string,
-    result: { title?: string; cid?: string; timeline: TLTimeline },
+    result: { title?: string; cid?: string; createdAt?: string; timeline: TLTimeline },
     opts: { replaceDraftId?: string } = {},
   ) {
     // Asked for the published copy in place of a local draft: that draft has
@@ -952,7 +959,7 @@
     const te = tl.title ?? null;
     // The record's CID travels with its content: this draft agrees with that
     // version of it, and nothing later can establish which version it was.
-    await enterEditor({ title: result.title, titleSetByUser: !!result.title, titleEvent: te, events: tl.events, atUri: uri, baseCid: result.cid, clean: true, settings: tl.settings });
+    await enterEditor({ title: result.title, titleSetByUser: !!result.title, titleEvent: te, events: tl.events, atUri: uri, baseCid: result.cid, createdAt: result.createdAt, clean: true, settings: tl.settings });
   }
 
   async function handleOpenDraft(id: string) {
@@ -1165,9 +1172,19 @@
     }
     const timelineToPublish: TLTimeline = { ...timeline, settings: { ...settings, ogImage } };
 
-    const result = await publishTimeline(timelineToPublish, { title: timelineTitle }, atUri ?? undefined, tldoc.baseCid ?? undefined);
+    const result = await publishTimeline(
+      timelineToPublish,
+      { title: timelineTitle, createdAt: tldoc.createdAt ?? undefined },
+      atUri ?? undefined,
+      tldoc.baseCid ?? undefined,
+    );
     if (result.ok) {
       tldoc.setAtUri(result.uri);
+      // Before anything else that writes meta: setAtUri clears createdAt when
+      // the URI is cleared, and the first publish is where the record's own
+      // value comes into existence. Without recording it here, the next
+      // publish in this session would mint a different one.
+      tldoc.setCreatedAt(result.createdAt);
       // What went out, before recording that it did: the poster is generated
       // here and uploaded, so without this the document never learns which
       // share image its own record holds.

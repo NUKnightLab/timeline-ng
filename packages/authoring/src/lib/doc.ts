@@ -101,6 +101,19 @@ export interface DocMeta {
   title?: string;
   titleSetByUser?: boolean;
   atUri?: string;
+  /**
+   * The `createdAt` of the published record, as first written.
+   *
+   * Carried so republishing can preserve it. Without it every publish restamped
+   * the field with the current time, so a value named for when the timeline was
+   * created in fact said when it was last written — a small lie, but one told
+   * in public data that anything reading the repo would believe.
+   *
+   * Absent on a document that has never been published, and on drafts made
+   * before this was recorded; both fall back to stamping the current time,
+   * which is what they would have done anyway.
+   */
+  createdAt?: string;
 }
 
 /** A slide together with the internal key it is stored under. */
@@ -403,6 +416,7 @@ export function writeMeta(doc: Y.Doc, meta: DocMeta): void {
   put(map, 'atUri', meta.atUri);
   put(map, 'publishedSnapshot', meta.publishedSnapshot);
   put(map, 'baseCid', meta.baseCid);
+  put(map, 'createdAt', meta.createdAt);
 }
 
 /**
@@ -493,6 +507,8 @@ export function readMeta(doc: Y.Doc): DocMeta {
   if (typeof publishedSnapshot === 'string') out.publishedSnapshot = publishedSnapshot;
   const baseCid = map.get('baseCid');
   if (typeof baseCid === 'string') out.baseCid = baseCid;
+  const createdAt = map.get('createdAt');
+  if (typeof createdAt === 'string') out.createdAt = createdAt;
   return out;
 }
 

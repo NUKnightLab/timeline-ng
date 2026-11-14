@@ -2,6 +2,7 @@ import { BrowserOAuthClient } from '@atproto/oauth-client-browser';
 import type { OAuthSession } from '@atproto/oauth-client-browser';
 import { Agent } from '@atproto/api';
 import type { ATProtoBlobRef, TLEvent, TLMedia, TLSettings, TLTimeline } from '@knight-lab/timeline-ng-core';
+import { TIMELINE_RECORD_VERSION } from '@knight-lab/timeline-ng-core';
 import { collections, harvestSearchText, mergeSearchText } from './collections.ts';
 import type { CollectionDef, ContextIndex, RecordRow } from './collections.ts';
 import { clearMediaCache } from './mediaCache.ts';
@@ -177,7 +178,7 @@ function rkeyFromUri(uri: string): string {
  * is public, so the record is readable by anyone the moment this succeeds.
  */
 export type PublishResult =
-  | { ok: true; uri: string; cid: string }
+  | { ok: true; uri: string; cid: string; createdAt: string }
   /**
    * The record changed under us. Distinguished from an ordinary failure
    * because it is the only one where nothing is wrong with what we sent: the
@@ -392,7 +393,7 @@ function isSwapFailure(err: unknown): boolean {
  */
 export async function publishTimeline(
   timeline: TLTimeline,
-  meta: { title?: string },
+  meta: { title?: string; createdAt?: string },
   existingUri?: string,
   baseCid?: string,
 ): Promise<PublishResult> {
@@ -409,6 +410,11 @@ export async function publishTimeline(
       ...(timeline.title ? { title: stripBlobUrls([timeline.title])[0] } : {}),
       ...(timeline.settings ? { settings: stripOgImageUrl(timeline.settings) } : {}),
     };
+    // Preserved across republishes where the document knows it, so the field
+    // means what it says. A document that has never published, or one made
+    // before this was recorded, stamps now — the behaviour every publish had
+    // before this change.
+    const createdAt = meta.createdAt ?? new Date().toISOString();
     const resp = await agent.com.atproto.repo.putRecord({
       repo: agent.assertDid,
       collection: TIMELINE_COLLECTION,
@@ -416,12 +422,13 @@ export async function publishTimeline(
       record: {
         $type: TIMELINE_COLLECTION,
         ...(meta.title ? { title: meta.title } : {}),
+        schemaVersion: TIMELINE_RECORD_VERSION,
         timeline: cleanTimeline,
-        createdAt: new Date().toISOString(),
+        createdAt,
       },
       ...(baseCid ? { swapRecord: baseCid } : {}),
     });
-    return { ok: true, uri: resp.data.uri, cid: resp.data.cid };
+    return { ok: true, uri: resp.data.uri, cid: resp.data.cid, createdAt };
   } catch (err) {
     if (isSwapFailure(err)) {
       return { ok: false, conflict: true, error: 'The published version changed since this draft last agreed with it.' };
@@ -676,7 +683,7 @@ export async function deleteTimeline(uri: string): Promise<{ ok: true } | { ok: 
   }
 }
 
-export async function getTimeline(uri: string): Promise<{ title?: string; cid?: string; timeline: TLTimeline } | null> {
+export async function getTimeline(uri: string): Promise<{ title?: string; cid?: string; createdAt?: string; timeline: TLTimeline } | null> {
   if (_state.status !== 'signed-in') return null;
   const { agent } = _state;
   const m = uri.match(/^at:\/\/([^/]+)\/([^/]+)\/([^/]+)$/);
@@ -684,7 +691,7 @@ export async function getTimeline(uri: string): Promise<{ title?: string; cid?: 
   const [, repo, collection, rkey] = m;
   try {
     const resp = await agent.com.atproto.repo.getRecord({ repo, collection, rkey });
-    const val = resp.data.value as { title?: string; timeline?: TLTimeline };
+    const val = resp.data.value as { title?: string; timeline?: TLTimeline; createdAt?: string };
     const tl = val.timeline;
     if (!tl) return null;
     const base = _state.session.server.issuer.replace(/\/$/, '');
@@ -697,6 +704,9 @@ export async function getTimeline(uri: string): Promise<{ title?: string; cid?: 
       // no base — the same position as a draft made before this was recorded,
       // and the same consequence: no compare-and-swap on its next publish.
       ...(resp.data.cid ? { cid: resp.data.cid } : {}),
+      // Carried out for the same reason as the CID: a draft seeded from this
+      // record has to republish it without restamping when it was created.
+      ...(val.createdAt ? { createdAt: val.createdAt } : {}),
       timeline: {
         ...tl,
         events: hydrateBlobRefs(tl.events, base, did),

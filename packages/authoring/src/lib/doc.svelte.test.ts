@@ -121,6 +121,37 @@ describe('clean', () => {
     expect(t.baseCid).toBe(null);
   });
 
+  it('carries the record\'s createdAt so republishing preserves it', () => {
+    // Every publish used to restamp createdAt with the current time, so a
+    // field named for when the timeline was created said when it was last
+    // written instead — in public data, where anything reading the repo would
+    // take it at face value.
+    const t = new TimelineDoc();
+    t.load({ events: [moon], settings: {} }, { atUri: 'at://did:plc:x/c/1', createdAt: '2026-07-24T00:00:00.000Z' });
+
+    expect(t.createdAt).toBe('2026-07-24T00:00:00.000Z');
+  });
+
+  it('drops createdAt with the URI, since it belongs to the record left behind', () => {
+    // Same reasoning as the base CID above: publishing as new mints a fresh
+    // rkey, and carrying the old record's creation time onto a different
+    // record would backdate it.
+    const t = new TimelineDoc();
+    t.load({ events: [moon], settings: {} }, { atUri: 'at://did:plc:x/c/1', createdAt: '2026-07-24T00:00:00.000Z' });
+
+    t.setAtUri(null);
+    expect(t.createdAt).toBe(null);
+  });
+
+  it('records the createdAt minted by a first publish', () => {
+    const t = new TimelineDoc();
+    t.load({ events: [moon], settings: {} });
+    expect(t.createdAt).toBe(null);
+
+    t.setCreatedAt('2026-11-14T10:00:00.000Z');
+    expect(t.createdAt).toBe('2026-11-14T10:00:00.000Z');
+  });
+
   it('is clean after adopting the published version as its own content', () => {
     const t = new TimelineDoc();
     t.load({ events: [moon], settings: {} });
