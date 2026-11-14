@@ -44,6 +44,9 @@
      * asked to join one. Temporary, with `?collab=` — see lib/collabSession.ts.
      */
     collabError?: string | null;
+    /** True when authorizing again would fix it, which turns the note into an offer. */
+    collabNeedsAuth?: boolean;
+    onreauthorize?: () => void;
     ondismissnote?: () => void;
     /**
      * Offered beside the note when a merge or fast-forward brought something
@@ -97,7 +100,7 @@
 
   let {
     timelineTitle, titleEvent, entries, selectedId, selectedEvent, isEditingTitle,
-    timeline, atUri, pdsClean, publishStatus, publishTone = 'ok', syncNote = null, collabError = null, ondismissnote,
+    timeline, atUri, pdsClean, publishStatus, publishTone = 'ok', syncNote = null, collabError = null, collabNeedsAuth = false, onreauthorize, ondismissnote,
     onreviewincoming = null,
     forkCount = 0, settledForkCount = 0, onreviewfork, onforgetsettledforks,
     isFork = false, forkParentTitle = null, onresolvefork,
@@ -575,7 +578,22 @@
   -->
   {#if collabError}
     <div class="collab-note" role="alert">
-      <span>Not connected to the collaboration session — {collabError}</span>
+      {#if collabNeedsAuth}
+        <!--
+          The raw message here names a scope string, which is true and no use
+          to anyone. What the person needs to know is that their account is
+          fine and the app is asking for something it did not ask for before.
+        -->
+        <span>
+          Not connected: this app now needs your permission to collaborate on
+          your behalf. Your account is fine — it just has to be granted once.
+        </span>
+        {#if onreauthorize}
+          <button class="collab-note__action" onclick={onreauthorize}>Grant permission</button>
+        {/if}
+      {:else}
+        <span>Not connected to the collaboration session — {collabError}</span>
+      {/if}
     </div>
   {/if}
 
@@ -1096,6 +1114,22 @@
     border-bottom: 1px solid #f5c6c0;
     font-size: 0.82rem;
     color: #611a15;
+  }
+
+  .collab-note__action {
+    margin: 0 0 0 auto;
+    padding: 0.2rem 0.6rem;
+    background: #fff;
+    border: 1px solid #e0a9a2;
+    border-radius: 4px;
+    font: inherit;
+    color: #611a15;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .collab-note__action:hover {
+    background: #fff6f5;
   }
 
   /*

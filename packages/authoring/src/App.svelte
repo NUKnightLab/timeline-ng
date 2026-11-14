@@ -3,9 +3,9 @@
   import type { TLEvent, TLTimeline, TLSettings } from '@knight-lab/timeline-ng-core';
   import { toTL3CSV, assignSlideIds } from '@knight-lab/timeline-ng-core';
   import { getAuthState, publishTimeline, signOut, uploadBlob, blobUrl, extractCid, listTimelines, getTimeline } from './lib/atproto.svelte.ts';
-  import { initAuth } from './lib/atproto.svelte.ts';
+  import { initAuth, signIn } from './lib/atproto.svelte.ts';
   import { generatePoster } from './lib/poster.ts';
-  import { collabRoom, attachCollab, forgetCollabRoom, type CollabSession } from './lib/collabSession.ts';
+  import { collabRoom, attachCollab, forgetCollabRoom, CollabUnavailable, type CollabSession } from './lib/collabSession.ts';
   import { listDrafts, newDocId, noteDraft, forgetDraft, forgetDraftWithForks, persistDoc, readDraftTimeline,
     removeDraftEntries, restoreDraftEntries, commitDraftDeletions, sweepPendingDeletions } from './lib/localStore.ts';
   import type { DraftSummary } from './lib/localStore.ts';
@@ -59,6 +59,8 @@
   let collab: CollabSession | null = null;
   /** Why a collaboration session could not start — almost always "not signed in". */
   let collabError = $state<string | null>(null);
+  /** Set when the only thing wrong is a session that predates the rpc: scope. */
+  let collabNeedsAuth = $state(false);
 
   /** Set when the browser will not store drafts locally — see persistDoc. */
   let persistWarning = $state<string | null>(null);
@@ -886,6 +888,7 @@
           collab = await attachCollab(tldoc.doc, room);
         } catch (cause) {
           collabError = cause instanceof Error ? cause.message : String(cause);
+          collabNeedsAuth = cause instanceof CollabUnavailable && cause.needsAuthorization;
         }
         return;
       }
@@ -933,7 +936,22 @@
     // just walked out of.
     forgetCollabRoom();
     collabError = null;
+    collabNeedsAuth = false;
     view = 'home';
+  }
+
+  /**
+   * Re-run the authorization flow for the account already signed in.
+   *
+   * atproto cannot widen an existing session's scope, so the only way to gain
+   * the `rpc:` permission is to authorize again — [P20]'s re-consent, as a
+   * button rather than as advice. The room survives the redirect, so this
+   * returns to the session it was clicked from.
+   */
+  async function handleReauthorize() {
+    const auth = getAuthState();
+    if (auth.status !== 'signed-in') return;
+    await signIn(auth.handle, 'editor');
   }
 
   async function handleSignOut() {
@@ -1321,6 +1339,8 @@
 {:else}
   <EditorView
     {collabError}
+    {collabNeedsAuth}
+    onreauthorize={handleReauthorize}
     {timelineTitle}
     {titleEvent}
     entries={tldoc.entries}

@@ -44,6 +44,39 @@ export interface CollabSession {
 }
 
 /**
+ * Why a session could not start, and whether the person can do anything.
+ *
+ * `needsAuthorization` is the interesting one: the account is signed in and
+ * working, but its session predates the `rpc:` permission being added to the
+ * client metadata ([P19]), and atproto has no way to widen an existing
+ * session's scope — the authorization flow has to run again. Without the
+ * distinction the message is accurate and useless, since "missing required
+ * scope" tells someone nothing they can act on.
+ */
+export class CollabUnavailable extends Error {
+  constructor(
+    message: string,
+    readonly needsAuthorization: boolean,
+  ) {
+    super(message);
+    this.name = 'CollabUnavailable';
+  }
+}
+
+/**
+ * Does this failure mean "re-authorize", rather than something else?
+ *
+ * The PDS builds this error from `RpcPermission.scopeNeededFor()`, so it names
+ * the exact scope string it wanted. Matching on the message is not lovely, but
+ * the alternative is treating every mint failure as fatal, and this is the one
+ * failure with an obvious remedy.
+ */
+function isMissingScope(cause: unknown): boolean {
+  const text = cause instanceof Error ? cause.message : String(cause);
+  return /missing required scope|insufficient access|invalid(_|\s)?scope/i.test(text);
+}
+
+/**
  * The base URL of the collaboration server, or undefined outside dev.
  *
  * Deliberately an env var with no production default: there is nothing
@@ -115,8 +148,16 @@ export async function attachCollab(doc: Y.Doc, room: string): Promise<CollabSess
   // route and the room name is the last segment: `…/draft/<room>`.
   const base = `${COLLAB_URL!.replace(/\/$/, '')}/draft`;
 
+  let token: string;
+  try {
+    token = await mintServiceAuth(COLLAB_DID, SERVICE_LXM);
+  } catch (cause) {
+    const message = cause instanceof Error ? cause.message : String(cause);
+    throw new CollabUnavailable(message, isMissingScope(cause));
+  }
+
   const provider = new WebsocketProvider(base, room, doc, {
-    protocols: [AUTH_PROTOCOL, await mintServiceAuth(COLLAB_DID, SERVICE_LXM)],
+    protocols: [AUTH_PROTOCOL, token],
   });
 
   /**
