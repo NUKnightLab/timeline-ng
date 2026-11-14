@@ -5,6 +5,7 @@
   import { getAuthState, publishTimeline, signOut, uploadBlob, blobUrl, extractCid, listTimelines, getTimeline } from './lib/atproto.svelte.ts';
   import { initAuth } from './lib/atproto.svelte.ts';
   import { generatePoster } from './lib/poster.ts';
+  import { collabRoom, attachCollab, type CollabSession } from './lib/collabSession.ts';
   import { listDrafts, newDocId, noteDraft, forgetDraft, forgetDraftWithForks, persistDoc, readDraftTimeline,
     removeDraftEntries, restoreDraftEntries, commitDraftDeletions, sweepPendingDeletions } from './lib/localStore.ts';
   import type { DraftSummary } from './lib/localStore.ts';
@@ -54,6 +55,8 @@
   let tldoc = $state(new TimelineDoc());
   let docId = $state<string | null>(null);
   let provider: IndexeddbPersistence | null = null;
+  /** Stage 0's network provider, when the app was opened with `?collab=`. */
+  let collab: CollabSession | null = null;
 
   /** Set when the browser will not store drafts locally — see persistDoc. */
   let persistWarning = $state<string | null>(null);
@@ -279,6 +282,10 @@
     if (provider) {
       await provider.destroy();
       provider = null;
+    }
+    if (collab) {
+      collab.destroy();
+      collab = null;
     }
     tldoc.destroy();
     docId = null;
@@ -853,6 +860,16 @@
       // Documents whose deletion the last session did not outlive. Nothing in
       // the list can reach them; this is the storage they were still holding.
       void sweepPendingDeletions();
+
+      // Stage 0 only: `?collab=<room>` joins a shared document instead of
+      // opening a local draft, and takes nothing from the drafts store. See
+      // lib/collabSession.ts for why it must start from an empty document.
+      const room = collabRoom();
+      if (room) {
+        collab = await attachCollab(tldoc.doc, room);
+        view = 'editor';
+        return;
+      }
 
       // Returning from an OAuth redirect, reopen whatever was being edited.
       if (_startInEditor && _restoreDocId) await openDraft(_restoreDocId);
