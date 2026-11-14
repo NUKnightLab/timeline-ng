@@ -309,11 +309,23 @@ already calls this *"the draft store"* and makes it the source of truth for medi
 the scope string is self-consistent and legible on a consent screen:
 
 ```
-rpc:com.knightlab.drafts.connect?aud=did:web:drafts.knightlab.com
+rpc:com.knightlab.drafts.connect?aud=did:web:drafts.knightlab.com%23collab
 ```
 
-No `#serviceId` fragment — that is for a DID hosting several services, and it would only buy a `%23`
-in every copy of the string. `com.knightlab.*` is unused in the lexicon index, so nothing collides.
+`com.knightlab.*` is unused in the lexicon index, so nothing collides.
+
+**The `%23collab` is required, and an earlier version of this entry said the opposite.** It claimed
+no `#serviceId` fragment was needed and that one would "only buy a `%23` in every copy of the
+string". A `rpc:` permission's audience must be an absolute DID *service reference* —
+`RpcPermission.fromString` returns null for a bare `did:web:host`, verified against the PDS's own
+`@atproto/oauth-scopes`. Note what `getServiceAuth` does by contrast: it accepts *either* form, so
+the two halves disagree and only the scope is strict.
+
+**The failure that teaches this is silent**, which is why it is worth the paragraph. An unparseable
+permission is dropped from the granted scope rather than refused, so authorization succeeds, the
+consent screen looks right, and the first `getServiceAuth` call fails with "missing required scope"
+naming a string that appears to be exactly what was asked for. The token's `aud` must carry the same
+fragment, so the service DID is `did:web:drafts.knightlab.com#collab` everywhere it is compared.
 
 **One method, and it should stay one thing.** All it authorizes is establishing a session with the
 draft service. Phase 3's server-side publishing is a different capability — the owner letting the
@@ -528,7 +540,8 @@ additive, and the first thing to cut if Stages 0–5 run long.
   real users, and there is a long way to go before anyone meets a wall. The hostname half is settled by [P26]; what
   is left is operational rather than a decision — a DNS record in each zone.
 - **[A2] — closed.** The NSID and `aud` are decided in [P26] and [P27]:
-  `rpc:com.knightlab.drafts.connect?aud=did:web:drafts.knightlab.com`, no service fragment.
+  `rpc:com.knightlab.drafts.connect?aud=did:web:drafts.knightlab.com%23collab`. The fragment is
+  mandatory, not stylistic — see [P27].
 - **[A3] — answered: out of Phase 2, and it is easy to add later provided one thing.** The risk was
   never the feature, it was baking "every connection has an identity" into the DO's invariants — the
   same shape of mistake as [P6]'s "has collaborators". So: **[P23] the DO authorizes a connection by
@@ -569,7 +582,8 @@ additive, and the first thing to cut if Stages 0–5 run long.
 - [P24] Phase 2 retention: promoted drafts live, abandoned ones warn at 12 months, purge at 18.
 - [P25] No core dependency in the service, as §10.6's seam made checkable.
 - [P26] `drafts.knightlab.com` — a dedicated, app-neutral host, named for what it holds.
-- [P27] `com.knightlab.drafts.connect`, one method, no service fragment.
+- [P27] `com.knightlab.drafts.connect`, one method, with the `#collab` service fragment a
+  `rpc:` scope requires.
 - [P28] `meta` is owner-only — [P22] one level down, and already tagged by `BOOKKEEPING_ORIGIN`.
 - [P29] The record version travels with the draft, keeping [P25]'s seam intact at Phase 3.
 - [P30] The sync protocol is written directly against y-protocols, not Hocuspocus — [P2] decided it.

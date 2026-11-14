@@ -25,11 +25,55 @@
  * day that stamp varies between clients.
  */
 import type * as Y from 'yjs';
+import { mintServiceAuth } from './atproto.svelte.ts';
+
+/**
+ * The subprotocol carrying the token, and the method it is minted for.
+ *
+ * A browser cannot set a header on a WebSocket, and a bearer credential has
+ * no business in a URL, so it rides as the second subprotocol value. The
+ * server echoes the first value back on the 101.
+ */
+const AUTH_PROTOCOL = 'atproto-service-auth';
+const SERVICE_LXM = 'com.knightlab.drafts.connect';
 
 /** What the provider resolves to, narrowed to what callers here need. */
 export interface CollabSession {
   room: string;
   destroy: () => void;
+}
+
+/**
+ * Why a session could not start, and whether the person can do anything.
+ *
+ * `needsAuthorization` is the interesting one: the account is signed in and
+ * working, but its session predates the `rpc:` permission being added to the
+ * client metadata ([P19]), and atproto has no way to widen an existing
+ * session's scope — the authorization flow has to run again. Without the
+ * distinction the message is accurate and useless, since "missing required
+ * scope" tells someone nothing they can act on.
+ */
+export class CollabUnavailable extends Error {
+  constructor(
+    message: string,
+    readonly needsAuthorization: boolean,
+  ) {
+    super(message);
+    this.name = 'CollabUnavailable';
+  }
+}
+
+/**
+ * Does this failure mean "re-authorize", rather than something else?
+ *
+ * The PDS builds this error from `RpcPermission.scopeNeededFor()`, so it names
+ * the exact scope string it wanted. Matching on the message is not lovely, but
+ * the alternative is treating every mint failure as fatal, and this is the one
+ * failure with an obvious remedy.
+ */
+function isMissingScope(cause: unknown): boolean {
+  const text = cause instanceof Error ? cause.message : String(cause);
+  return /missing required scope|insufficient access|invalid(_|\s)?scope/i.test(text);
 }
 
 /**
@@ -41,19 +85,54 @@ export interface CollabSession {
  */
 const COLLAB_URL = import.meta.env.VITE_COLLAB_URL as string | undefined;
 
+/** The service's own DID, which tokens are minted for. Differs per deployment. */
+const COLLAB_DID = import.meta.env.VITE_COLLAB_DID as string | undefined;
+
+/** Where the room is remembered across an OAuth redirect. */
+const ROOM_KEY = 'tl-collab-room';
+
 /**
  * The room named by `?collab=`, when collaboration is available at all.
  *
  * Returns null — meaning "behave exactly as before" — when the env var is
  * unset, so nothing about this reaches a normal build.
+ *
+ * **Falls back to session storage**, because signing in loses the query
+ * string: the OAuth redirect comes back to a bare `redirect_uri`, so a person
+ * who signs in from a collaboration session would otherwise land on the home
+ * screen having lost the room they were in. The app already keeps
+ * `tl-post-auth-view` and `tl-current-doc` across the same round trip; this is
+ * the same idea for a session that has no draft id to restore.
  */
 export function collabRoom(search = window.location.search): string | null {
   if (!COLLAB_URL) return null;
-  const room = new URLSearchParams(search).get('collab');
-  if (!room) return null;
+  let room = new URLSearchParams(search).get('collab');
+  if (!room) {
+    try {
+      room = sessionStorage.getItem(ROOM_KEY);
+    } catch {
+      room = null;
+    }
+  }
   // The server accepts this character set and nothing else; failing here
   // gives a clearer error than a socket that closes without saying why.
-  return /^[A-Za-z0-9_-]{1,128}$/.test(room) ? room : null;
+  if (!room || !/^[A-Za-z0-9_-]{1,128}$/.test(room)) return null;
+  try {
+    sessionStorage.setItem(ROOM_KEY, room);
+  } catch {
+    // A browser that will not store this still works; it just cannot survive
+    // a sign-in round trip, which is the thing the storage is for.
+  }
+  return room;
+}
+
+/** Forget the room, so leaving a collaboration session actually leaves it. */
+export function forgetCollabRoom(): void {
+  try {
+    sessionStorage.removeItem(ROOM_KEY);
+  } catch {
+    // Nothing was stored; nothing to forget.
+  }
 }
 
 /**
@@ -63,11 +142,47 @@ export function collabRoom(search = window.location.search): string | null {
  * every build that does not set `VITE_COLLAB_URL`.
  */
 export async function attachCollab(doc: Y.Doc, room: string): Promise<CollabSession> {
+  if (!COLLAB_DID) throw new Error('VITE_COLLAB_DID is not set.');
   const { WebsocketProvider } = await import('y-websocket');
   // y-websocket joins its two arguments with a slash, so the base carries the
   // route and the room name is the last segment: `…/draft/<room>`.
   const base = `${COLLAB_URL!.replace(/\/$/, '')}/draft`;
-  const provider = new WebsocketProvider(base, room, doc);
+
+  let token: string;
+  try {
+    token = await mintServiceAuth(COLLAB_DID, SERVICE_LXM);
+  } catch (cause) {
+    const message = cause instanceof Error ? cause.message : String(cause);
+    throw new CollabUnavailable(message, isMissingScope(cause));
+  }
+
+  const provider = new WebsocketProvider(base, room, doc, {
+    protocols: [AUTH_PROTOCOL, token],
+  });
+
+  /**
+   * Re-mint before reconnecting.
+   *
+   * Tokens last at most an hour and the server closes a socket once its token
+   * expires (4401), so a long editing session *will* reconnect. y-websocket
+   * reads `provider.protocols` afresh on each attempt, which makes replacing
+   * the token in place the whole mechanism — and is why [P5] needs no timer.
+   *
+   * A failure here leaves the previous token in place: it may still be valid,
+   * and a reconnect that is refused is a better outcome than one that never
+   * happens because minting threw.
+   */
+  const refresh = () => {
+    void mintServiceAuth(COLLAB_DID, SERVICE_LXM)
+      .then((token) => {
+        provider.protocols = [AUTH_PROTOCOL, token];
+      })
+      .catch(() => {});
+  };
+  provider.on('status', (event: { status: string }) => {
+    if (event.status === 'disconnected') refresh();
+  });
+
   return {
     room,
     destroy: () => provider.destroy(),

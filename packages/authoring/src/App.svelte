@@ -3,9 +3,9 @@
   import type { TLEvent, TLTimeline, TLSettings } from '@knight-lab/timeline-ng-core';
   import { toTL3CSV, assignSlideIds } from '@knight-lab/timeline-ng-core';
   import { getAuthState, publishTimeline, signOut, uploadBlob, blobUrl, extractCid, listTimelines, getTimeline } from './lib/atproto.svelte.ts';
-  import { initAuth } from './lib/atproto.svelte.ts';
+  import { initAuth, signIn } from './lib/atproto.svelte.ts';
   import { generatePoster } from './lib/poster.ts';
-  import { collabRoom, attachCollab, type CollabSession } from './lib/collabSession.ts';
+  import { collabRoom, attachCollab, forgetCollabRoom, CollabUnavailable, type CollabSession } from './lib/collabSession.ts';
   import { listDrafts, newDocId, noteDraft, forgetDraft, forgetDraftWithForks, persistDoc, readDraftTimeline,
     removeDraftEntries, restoreDraftEntries, commitDraftDeletions, sweepPendingDeletions } from './lib/localStore.ts';
   import type { DraftSummary } from './lib/localStore.ts';
@@ -57,6 +57,10 @@
   let provider: IndexeddbPersistence | null = null;
   /** Stage 0's network provider, when the app was opened with `?collab=`. */
   let collab: CollabSession | null = null;
+  /** Why a collaboration session could not start — almost always "not signed in". */
+  let collabError = $state<string | null>(null);
+  /** Set when the only thing wrong is a session that predates the rpc: scope. */
+  let collabNeedsAuth = $state(false);
 
   /** Set when the browser will not store drafts locally — see persistDoc. */
   let persistWarning = $state<string | null>(null);
@@ -868,13 +872,24 @@
       // the list can reach them; this is the storage they were still holding.
       void sweepPendingDeletions();
 
-      // Stage 0 only: `?collab=<room>` joins a shared document instead of
+      // Stage 0/1 only: `?collab=<room>` joins a shared document instead of
       // opening a local draft, and takes nothing from the drafts store. See
       // lib/collabSession.ts for why it must start from an empty document.
+      //
+      // Auth is awaited first, not raced: since Stage 1 the server requires a
+      // service auth token, and minting one needs a signed-in session. The
+      // ordinary startup path below deliberately does not wait — only this one
+      // has a hard dependency on identity.
       const room = collabRoom();
       if (room) {
-        collab = await attachCollab(tldoc.doc, room);
         view = 'editor';
+        await initAuth();
+        try {
+          collab = await attachCollab(tldoc.doc, room);
+        } catch (cause) {
+          collabError = cause instanceof Error ? cause.message : String(cause);
+          collabNeedsAuth = cause instanceof CollabUnavailable && cause.needsAuthorization;
+        }
         return;
       }
 
@@ -882,7 +897,7 @@
       if (_startInEditor && _restoreDocId) await openDraft(_restoreDocId);
     })();
 
-    void initAuth();
+    if (!collabRoom()) void initAuth();
   });
 
   // ── Navigation ────────────────────────────────────────────────────────────────
@@ -916,7 +931,27 @@
     if (id !== null && empty) await forgetDraft(id);
 
     drafts = listDrafts();
+    // Leaving means leaving: the room is remembered across a sign-in redirect,
+    // so without this a reload would drop the author back into a session they
+    // just walked out of.
+    forgetCollabRoom();
+    collabError = null;
+    collabNeedsAuth = false;
     view = 'home';
+  }
+
+  /**
+   * Re-run the authorization flow for the account already signed in.
+   *
+   * atproto cannot widen an existing session's scope, so the only way to gain
+   * the `rpc:` permission is to authorize again — [P20]'s re-consent, as a
+   * button rather than as advice. The room survives the redirect, so this
+   * returns to the session it was clicked from.
+   */
+  async function handleReauthorize() {
+    const auth = getAuthState();
+    if (auth.status !== 'signed-in') return;
+    await signIn(auth.handle, 'editor');
   }
 
   async function handleSignOut() {
@@ -1303,6 +1338,9 @@
   />
 {:else}
   <EditorView
+    {collabError}
+    {collabNeedsAuth}
+    onreauthorize={handleReauthorize}
     {timelineTitle}
     {titleEvent}
     entries={tldoc.entries}
@@ -1399,3 +1437,6 @@
     ondismiss={dismissConflict}
   />
 {/if}
+
+<style>
+</style>

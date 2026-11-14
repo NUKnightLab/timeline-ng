@@ -12,6 +12,15 @@
   "name": "timeline-collab",
   "main": "src/index.ts",
   "compatibility_date": "2026-07-20",
+  "vars": {
+    // Our own identity ([P26]) and the one method we accept ([P27]). A token
+    // minted for any other audience or method is refused.
+    "SERVICE_DID": "did:web:drafts.devnet.internal#collab",
+    "SERVICE_LXM": "com.knightlab.drafts.connect",
+    // Local dev default: the devnet PLC. Production resolves against the real
+    // directory, so this is overridden per environment when one exists.
+    "PLC_URL": "http://localhost:2582"
+  },
   "durable_objects": {
     "bindings": [
       { "name": "DRAFT", "class_name": "DraftRoom" }
