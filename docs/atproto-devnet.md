@@ -7,7 +7,7 @@ How to run a local ATProto PDS with full OAuth write-scope support for browser-b
 ## What you get
 
 - A local PDS (Personal Data Server) at `https://devnet.internal`
-- Browser ATProto OAuth that grants `transition:generic` write scope (required for `putRecord`)
+- Browser ATProto OAuth that grants write scope (required for `putRecord`) — see *Which scope* below
 - Postgres + maildev bundled in the devnet (no separate local DB/SMTP needed)
 - Pre-seeded test accounts
 
@@ -30,11 +30,21 @@ The PDS service endpoint must be HTTPS for browser OAuth to work. A plain HTTP l
 
 ### Constraint 2: Write scope requires a declared scope
 
-The default ATProto loopback client (`http://localhost?redirect_uri=...`) only grants `atproto` scope, which is read-only identity access. Writing records (e.g. `com.atproto.repo.putRecord`) requires `transition:generic` scope.
+The default ATProto loopback client (`http://localhost?redirect_uri=...`) only grants `atproto` scope, which is read-only identity access. Writing records (e.g. `com.atproto.repo.putRecord`) requires a declared write scope.
+
+#### Which scope
+
+```
+atproto repo:com.knightlab.timeline blob:*/*
+```
+
+Granular permissions, not the `transition:generic` compatibility scope — and the same string in every environment, devnet included (`buildWriteLoopbackClientId` in `packages/authoring/src/lib/atproto.svelte.ts`, plus all of the `client-metadata*.json` files). An earlier revision of this guide documented `transition:generic`; the code moved off it and the guide did not, so treat any copy of that string as stale.
+
+The distinction matters beyond tidiness. `transition:generic` blanket-allows RPC — `ScopePermissionsTransition.allowsRpc` returns true for any `lxm` outside `chat.bsky.` — whereas granular scopes require an explicit `rpc:<lxm>?aud=<aud>` permission per service. Anything that calls `com.atproto.server.getServiceAuth` therefore needs its own declared `rpc:` permission; see [phase2-plan.md](phase2-plan.md) [P19].
 
 ### Constraint 3: Discoverable client is blocked by SSRF protection
 
-The natural solution would be a discoverable client: serve `client-metadata.json` at an HTTPS URL declaring `transition:generic` scope, and the PDS fetches it. This fails locally because:
+The natural solution would be a discoverable client: serve `client-metadata.json` at an HTTPS URL declaring the write scope, and the PDS fetches it. This fails locally because:
 
 1. `@atproto-labs/fetch-node`'s `unicastFetchWrap` does SSRF protection — it resolves the hostname and rejects RFC 1918 addresses (`'private'` in `ipaddr.js`, not `'unicast'`)
 2. Inside Docker, even `devnet.internal` resolves to a Docker bridge IP (172.20.x.x), which is RFC 1918
@@ -197,7 +207,7 @@ Update `redirect_uris` to match your dev server port:
   "client_id": "https://devnet.internal/client-metadata.json",
   "client_name": "My App (devnet)",
   "redirect_uris": ["http://127.0.0.1:5173/"],
-  "scope": "atproto transition:generic",
+  "scope": "atproto repo:com.knightlab.timeline blob:*/*",
   "grant_types": ["authorization_code", "refresh_token"],
   "response_types": ["code"],
   "token_endpoint_auth_method": "none",
@@ -315,7 +325,7 @@ function buildWriteLoopbackClientId(location: Location): string {
   const host = location.hostname === 'localhost' ? '127.0.0.1' : location.hostname;
   const port = location.port ? `:${location.port}` : '';
   const redirectUri = `http://${host}${port}/`;
-  return `http://localhost?redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent('atproto transition:generic')}`;
+  return `http://localhost?redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent('atproto repo:com.knightlab.timeline blob:*/*')}`;
 }
 
 let _client: BrowserOAuthClient | null = null;
@@ -379,6 +389,6 @@ To reset a stuck OAuth session in the browser: `localStorage.clear()` in the dev
 | Sign-in does nothing, no visible error | `redirect_uri` uses `localhost` hostname | Use `127.0.0.1` in redirect URI (RFC 8252) |
 | `isLocalHostname` error | TLD is `.test`, `.local`, etc. | Use `.internal` |
 | `Hostname resolved to non-unicast address` | PDS SSRF protection blocks Docker IPs | Use loopback client ID (not discoverable client) |
-| `putRecord` scope error | Loopback client has `atproto` scope only | Encode `scope=atproto transition:generic` in client ID URL |
+| `putRecord` scope error | Loopback client has `atproto` scope only | Encode the granular write scope in the client ID URL (see *Which scope*) |
 | PDS can't resolve `devnet.internal` | mkcert CA not trusted by Node | Set `NODE_EXTRA_CA_CERTS` to mkcert CA root in PDS container |
 | Seeded accounts missing after restart | init container skipped seeding | Delete `accounts.json`, restart init container |
