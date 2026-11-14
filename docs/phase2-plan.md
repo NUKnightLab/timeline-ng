@@ -33,12 +33,17 @@ describe does not ship until Phase 3.
 **Nothing blocks Stage 0.** It needs a Cloudflare account that can deploy a Worker with a
 SQLite-backed Durable Object, which the free plan does, and no decision in this document.
 
-**Two things must land before Stage 1 ships a scope**, both for the same reason: they appear in
-client metadata that users approve on a consent screen, and changing either costs another round of
-re-consent ([P20]).
+**The two things that had to land before Stage 1 ships a scope have landed** — both appear in client
+metadata that users approve on a consent screen, and changing either costs another round of
+re-consent ([P20]), so they were worth deciding before any code. [P26] fixes the service at
+`drafts.knightlab.com` and [P27] the method at `com.knightlab.drafts.connect`, giving the one string
+Stage 1 has to ship:
 
-1. **The service hostname**, which fixes `aud` ([P4]) and the `rpc:` permission string ([P19]).
-2. **The NSID** the token is minted for — `com.knightlab.timeline.connect` is a placeholder ([A2]).
+```
+rpc:com.knightlab.drafts.connect?aud=did:web:drafts.knightlab.com
+```
+
+What is left of them is operational: a DNS record in the `knightlab.com` and `knilab.com` zones.
 
 **Everything else is already decided, answered by building, or needed later than the code.** [R1]
 (hibernation) and [R4] (whether the editor accepts a remote change at all) are findings Stage 0
@@ -249,13 +254,55 @@ stands today** — `ScopeMissingError`, because no `rpc:` permission is declared
 but not for free: it needs
 
 ```
-rpc:com.knightlab.timeline.connect?aud=did:web:timeline.knightlab.com%23collab
+rpc:com.knightlab.drafts.connect?aud=did:web:drafts.knightlab.com
 ```
 
 added alongside the existing three (`rpc:*?aud=*` is explicitly forbidden, so the `aud` must be
-named, and a `did#serviceId` carries its `#` as `%23`). Helpfully the failure is self-documenting:
+named). Helpfully the failure is self-documenting:
 `assertRpc` builds the error from `RpcPermission.scopeNeededFor(options)`, so the PDS names the
 scope string it wanted.
+
+**[P26] The service is `drafts.knightlab.com`, and its DID is `did:web:drafts.knightlab.com`.**
+Staging is `drafts.knilab.com`, matching the `timeline.knightlab.com` / `timeline.knilab.com` split
+`scripts/deploy.sh` already uses; devnet is `did:web:drafts.devnet.internal`, which never resolves
+and does not need to — the PDS checks `aud` for syntax only, and we are the verifier.
+
+Three things decided it. **A dedicated host rather than a path on `timeline.knightlab.com`**: a
+path-based `did:web` is `did:web:timeline.knightlab.com:ng:collab`, resolving at `/ng/collab/did.json`,
+which bakes a timeline-ng URL path into the service's permanent identity. A bare host puts the
+document at `/.well-known/did.json`, which the Worker serves in a line. (`workers/og-preview` does
+route on a path, but it is a timeline-specific service and this one is deliberately not.)
+
+**An app-neutral name, because §10.6 says so and this is the expensive thing to get wrong.**
+StoryMapJS is expected to need exactly this machinery, under *"separate OAuth clients, shared
+custody"* — the client is per-app, the service is not. A hostname is the one choice [P20] makes
+costly to revisit, so it is where honoring that seam actually matters.
+
+**`drafts`, not `collab`,** for the same reason [P6] is about promotion and [P22] is about
+ownership: name it for what it holds, not for the first thing it is used for. The deferred
+cross-device trigger (§3.3, Q12) is a promoted timeline with no collaborators at all, and §4.5
+already calls this *"the draft store"* and makes it the source of truth for media.
+
+**[P27] The method is `com.knightlab.drafts.connect`.** The NSID's authority mirrors the host, so
+the scope string is self-consistent and legible on a consent screen:
+
+```
+rpc:com.knightlab.drafts.connect?aud=did:web:drafts.knightlab.com
+```
+
+No `#serviceId` fragment — that is for a DID hosting several services, and it would only buy a `%23`
+in every copy of the string. `com.knightlab.*` is unused in the lexicon index, so nothing collides.
+
+**One method, and it should stay one thing.** All it authorizes is establishing a session with the
+draft service. Phase 3's server-side publishing is a different capability — the owner letting the
+service write to their repo while they are away — and belongs in its own permission rather than
+quietly widening this one.
+
+*Two notes for whoever sets it up.* The DID document is **not load-bearing in Phase 2**: nothing
+resolves it, since the PDS does not check `aud` and we verify the user rather than ourselves. Serve
+one anyway — it is cheap, a 404 at a published `did:web` is a bad look, and Phase 3 may want it.
+And this needs a DNS record in the existing `knightlab.com` zone (the one `og-preview`'s wrangler
+config already names) plus its `knilab.com` counterpart, which is Joe's to add, not the Worker's.
 
 **[P20] Budget for re-consent.** A scope is fixed at authorization, so every currently signed-in
 author holds a session without the new permission. They cannot be upgraded silently — the first
@@ -395,14 +442,10 @@ additive, and the first thing to cut if Stages 0–5 run long.
 
 - **[A1] — the money half is answered: not yet, and not a concern.** Build and pilot on Workers
   Free; §10.8's argument for the $5 plan is about overage instead of cutoff, which only bites with
-  real users, and there is a long way to go before anyone meets a wall. **What survives is not about
-  payment: the service hostname**, because [P4]'s `aud` and [P19]'s scope string both bake it in and
-  changing it later costs another round of re-consent ([P20]). That one has to be settled before
-  Stage 1 ships a scope, though not before Stage 0 is written.
-- **[A2] — answered. What remains is your call on the NSID.** `com.knightlab.timeline.connect` is a
-  placeholder; it goes in client metadata that users see on a consent screen and is awkward to
-  change afterwards ([P20]). Worth naming deliberately, and worth deciding at the same time whether
-  the `aud` is a plain `did:web:<host>` or a `did:web:<host>#collab` service reference.
+  real users, and there is a long way to go before anyone meets a wall. The hostname half is settled by [P26]; what
+  is left is operational rather than a decision — a DNS record in each zone.
+- **[A2] — closed.** The NSID and `aud` are decided in [P26] and [P27]:
+  `rpc:com.knightlab.drafts.connect?aud=did:web:drafts.knightlab.com`, no service fragment.
 - **[A3] — answered: out of Phase 2, and it is easy to add later provided one thing.** The risk was
   never the feature, it was baking "every connection has an identity" into the DO's invariants — the
   same shape of mistake as [P6]'s "has collaborators". So: **[P23] the DO authorizes a connection by
@@ -442,6 +485,8 @@ additive, and the first thing to cut if Stages 0–5 run long.
 - [P23] Connections are authorized by capability, not by identity — what keeps [A3] cheap.
 - [P24] Phase 2 retention: promoted drafts live, abandoned ones warn at 12 months, purge at 18.
 - [P25] No core dependency in the service, as §10.6's seam made checkable.
+- [P26] `drafts.knightlab.com` — a dedicated, app-neutral host, named for what it holds.
+- [P27] `com.knightlab.drafts.connect`, one method, no service fragment.
 - [P19] A new `rpc:` permission in client metadata, as a Stage 1 prerequisite rather than a
   production-hygiene item — the app declares none today, so [P4] does not work without it.
 - [P20] Re-consent is a rollout step, not an accident.
