@@ -33,11 +33,26 @@ export function getAvailableCollections() { return _availableCollections; }
 
 // ── Client singleton ─────────────────────────────────────────────────────────
 
+/**
+ * Scope for the loopback client devnet signs in with.
+ *
+ * The `rpc:` permission is what lets the app call `getServiceAuth` for the
+ * collaboration server — granular scopes require one naming the exact
+ * (lxm, aud) pair, and `transition:generic` (which would blanket-allow it)
+ * is deliberately not used anywhere here. See docs/phase2-plan.md [P19].
+ *
+ * The audience is devnet's own service DID, which resolves nowhere and does
+ * not need to: a PDS validates `aud` for syntax only.
+ */
+const DEVNET_SCOPE =
+  'atproto repo:com.knightlab.timeline blob:*/* ' +
+  'rpc:com.knightlab.drafts.connect?aud=did:web:drafts.devnet.internal';
+
 function buildWriteLoopbackClientId(location: Location): string {
   const host = location.hostname === 'localhost' ? '127.0.0.1' : location.hostname;
   const port = location.port ? `:${location.port}` : '';
   const redirectUri = `http://${host}${port}/`;
-  return `http://localhost?redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent('atproto repo:com.knightlab.timeline blob:*/*')}`;
+  return `http://localhost?redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(DEVNET_SCOPE)}`;
 }
 
 let _client: BrowserOAuthClient | null = null;
@@ -186,6 +201,36 @@ export type PublishResult =
    */
   | { ok: false; conflict: true; error: string }
   | { ok: false; conflict?: false; error: string };
+
+/**
+ * Mint a short-lived service auth token naming `aud`.
+ *
+ * This is how the collaboration server learns who someone is without us ever
+ * handing it a credential that can act on their behalf — docs/phase2-plan.md
+ * [P4]. The PDS signs the token with the account's own repo key; the server
+ * checks that signature against the DID document and nothing else.
+ *
+ * `lxm` is not optional in practice: the PDS caps a method-less token at one
+ * minute, and the server refuses one outright because it would authenticate
+ * its bearer for anything.
+ *
+ * Requires the session to hold an `rpc:<lxm>?aud=<aud>` permission. Granular
+ * scopes do not grant RPC by default, so a session authorized before that
+ * permission was added to the client metadata will fail here — see [P20] on
+ * re-consent.
+ */
+export async function mintServiceAuth(aud: string, lxm: string, lifetimeSeconds = 3_000): Promise<string> {
+  if (_state.status !== 'signed-in') throw new Error('Not signed in.');
+  const { agent } = _state;
+  const resp = await agent.com.atproto.server.getServiceAuth({
+    aud,
+    lxm,
+    // The ceiling is an hour; staying under it leaves room for clock skew
+    // without the PDS refusing with BadExpiration.
+    exp: Math.floor(Date.now() / 1000) + lifetimeSeconds,
+  });
+  return resp.data.token;
+}
 
 export async function uploadBlob(file: Blob): Promise<ATProtoBlobRef> {
   if (_state.status !== 'signed-in') throw new Error('Not signed in.');

@@ -57,6 +57,8 @@
   let provider: IndexeddbPersistence | null = null;
   /** Stage 0's network provider, when the app was opened with `?collab=`. */
   let collab: CollabSession | null = null;
+  /** Why a collaboration session could not start — almost always "not signed in". */
+  let collabError = $state<string | null>(null);
 
   /** Set when the browser will not store drafts locally — see persistDoc. */
   let persistWarning = $state<string | null>(null);
@@ -868,13 +870,23 @@
       // the list can reach them; this is the storage they were still holding.
       void sweepPendingDeletions();
 
-      // Stage 0 only: `?collab=<room>` joins a shared document instead of
+      // Stage 0/1 only: `?collab=<room>` joins a shared document instead of
       // opening a local draft, and takes nothing from the drafts store. See
       // lib/collabSession.ts for why it must start from an empty document.
+      //
+      // Auth is awaited first, not raced: since Stage 1 the server requires a
+      // service auth token, and minting one needs a signed-in session. The
+      // ordinary startup path below deliberately does not wait — only this one
+      // has a hard dependency on identity.
       const room = collabRoom();
       if (room) {
-        collab = await attachCollab(tldoc.doc, room);
         view = 'editor';
+        await initAuth();
+        try {
+          collab = await attachCollab(tldoc.doc, room);
+        } catch (cause) {
+          collabError = cause instanceof Error ? cause.message : String(cause);
+        }
         return;
       }
 
@@ -882,7 +894,7 @@
       if (_startInEditor && _restoreDocId) await openDraft(_restoreDocId);
     })();
 
-    void initAuth();
+    if (!collabRoom()) void initAuth();
   });
 
   // ── Navigation ────────────────────────────────────────────────────────────────
@@ -1286,6 +1298,18 @@
   }
 </script>
 
+<!--
+  Stage 0/1 dev affordance: `?collab=` needs a signed-in session to mint a
+  service auth token, and the failure is otherwise silent — an editor that
+  looks fine and syncs with nobody. Goes when Stage 2 replaces the query
+  parameter with a real invitation flow.
+-->
+{#if collabError}
+  <p class="collab-error" role="alert">
+    Could not join the collaboration session: {collabError}
+  </p>
+{/if}
+
 {#if view === 'home'}
   <HomeView
     {drafts}
@@ -1399,3 +1423,14 @@
     ondismiss={dismissConflict}
   />
 {/if}
+
+<style>
+  .collab-error {
+    margin: 0;
+    padding: 0.6rem 1rem;
+    background: #fdecea;
+    color: #611a15;
+    border-bottom: 1px solid #f5c6c0;
+    font-size: 0.9rem;
+  }
+</style>
