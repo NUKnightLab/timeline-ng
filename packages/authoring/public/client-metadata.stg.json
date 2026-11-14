@@ -4,7 +4,7 @@
   "redirect_uris": [
     "https://timeline.knilab.com/ng/"
   ],
-  "scope": "atproto repo:com.knightlab.timeline blob:*/* rpc:com.knightlab.drafts.connect?aud=did:web:drafts.knilab.com",
+  "scope": "atproto repo:com.knightlab.timeline blob:*/* rpc:com.knightlab.drafts.connect?aud=did:web:drafts.knilab.com%23collab",
   "grant_types": [
     "authorization_code",
     "refresh_token"

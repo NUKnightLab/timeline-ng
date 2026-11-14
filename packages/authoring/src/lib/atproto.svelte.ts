@@ -41,12 +41,16 @@ export function getAvailableCollections() { return _availableCollections; }
  * (lxm, aud) pair, and `transition:generic` (which would blanket-allow it)
  * is deliberately not used anywhere here. See docs/phase2-plan.md [P19].
  *
- * The audience is devnet's own service DID, which resolves nowhere and does
- * not need to: a PDS validates `aud` for syntax only.
+ * **The `%23collab` is load-bearing.** A `rpc:` permission's audience must be
+ * an absolute DID *service reference* — `did#serviceId` — not a bare DID.
+ * `RpcPermission.fromString` returns null for a bare one, and an unparseable
+ * permission is dropped from the granted scope without comment, so the sign-in
+ * appears to work and `getServiceAuth` then fails with "missing required
+ * scope". The token's `aud` has to carry the same fragment to match.
  */
 const DEVNET_SCOPE =
   'atproto repo:com.knightlab.timeline blob:*/* ' +
-  'rpc:com.knightlab.drafts.connect?aud=did:web:drafts.devnet.internal';
+  'rpc:com.knightlab.drafts.connect?aud=did:web:drafts.devnet.internal%23collab';
 
 function buildWriteLoopbackClientId(location: Location): string {
   const host = location.hostname === 'localhost' ? '127.0.0.1' : location.hostname;

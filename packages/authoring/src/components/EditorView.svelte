@@ -581,13 +581,11 @@
       {#if collabNeedsAuth}
         <!--
           The raw message here names a scope string, which is true and no use
-          to anyone. What the person needs to know is that their account is
-          fine and the app is asking for something it did not ask for before.
+          to anyone. One sentence, saying what is missing and that the button
+          fixes it — no reassurance nobody asked for, and nothing about acting
+          "on your behalf", which describes the mechanism and alarms the reader.
         -->
-        <span>
-          Not connected: this app now needs your permission to collaborate on
-          your behalf. Your account is fine — it just has to be granted once.
-        </span>
+        <span>Not connected — collaborating needs one more permission from your account.</span>
         {#if onreauthorize}
           <button class="collab-note__action" onclick={onreauthorize}>Grant permission</button>
         {/if}
