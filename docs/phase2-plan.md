@@ -381,27 +381,35 @@ themselves" become questions. Presence and cursors do want everyone rendered uni
 included, but that is derived from who is connected rather than from who is invited.
 
 **[P31] Making the editor render incoming changes is Stage 2's largest piece, and Stage 0 measured
-it.** Two browsers in one room behave differently depending on what changed:
+it.** Three behaviours, all observed in two browsers sharing a room:
 
-| Change | What the other browser does |
+| Where a remote edit lands | What it does |
 | --- | --- |
-| A slide added or removed | Appears immediately. The slide list rebuilds from the snapshot. |
-| A rich-text field edited | **Nothing**, until a reload — after which it is all there. |
+| The slide list | **Renders live.** |
+| The same field in the editor panel | **Stale** — the value as of when the panel mounted. |
+| That field once clicked into | **Flashes to the current value**, as Tiptap mounts against the live fragment. |
 
-So this is a rendering gap, not a sync gap: the document is correct in both browsers the whole time.
-The cause is the one [phase1-plan.md](phase1-plan.md) already named — `EditorView` wraps the editor
-in `{#key selectedId}` and its `$state` fields initialise from the `event` prop once at mount, so
-data changing underneath does nothing on screen. That document calls it *"real Phase 1 work, not a
-Phase 2 concern, and the hardest single piece"*, and it did not get done. It is Phase 2's now, and
-its approach still looks right: derive the fields from the snapshot, with a local override while a
-field has focus so an incoming change never fights the user's cursor.
+**The first two happen at once, on one screen.** A browser whose collaborator renamed a slide shows
+the new name in the list and the old one in the field beside it, simultaneously. That is the finding
+worth carrying: not "edits do not appear" but *the editor contradicts itself in front of the
+author*. Someone seeing it would reasonably conclude the app is broken, and the flash makes it
+worse — text changing at the instant you click to edit reads as though you caused it.
 
-**One claim in that note is wrong, and only running it showed it.** It says rich-text fields
-*"sidestep it entirely, since Tiptap binds to the fragment directly"*. That holds only while a
-Tiptap editor is mounted on the field — and in this UI a field is a placeholder until someone clicks
-into it. The resting state renders the derived HTML mirror through the snapshot, so it is on the
-broken path, not the exempt one. Phase 1's estimate of this work was therefore too small: it is not
-just the non-rich-text fields.
+**It is a display lie, not a correctness bug.** Nobody ever edits from a stale base: Tiptap binds to
+the current fragment when it mounts, so what you start typing into is real. That is what keeps this
+a Stage 2 polish problem rather than a data-integrity one.
+
+**And the split is the good news.** The list rendering live proves the snapshot is reactive and the
+HTML mirror syncs — the whole data path works. The broken piece is narrow: `EventEditor` *copies
+out* of the snapshot into `$state` once at mount, under `EditorView`'s `{#key selectedId}`, instead
+of deriving from it. So this is not "make a 2,000-line editor collaborative" — a working model of
+the right pattern is a few components away in the same codebase.
+
+What stays genuinely hard is what [phase1-plan.md](phase1-plan.md) already named: fields cannot
+simply become derived, or an incoming change yanks the text out from under someone mid-sentence.
+Hence derive when the field is not focused, hold local state while it is. Rich text needs both
+halves, since collapsed it is on the derive path and expanded it is on Tiptap's — which is the
+practical cost of the correction to that document's "Tiptap sidesteps it entirely".
 
 **[P32] The empty state is keyed on selection, not on the document.** A browser holding slides it
 has received but not selected shows *"Get started by adding slides to your timeline."* Harmless with
@@ -498,9 +506,10 @@ additive, and the first thing to cut if Stages 0–5 run long.
   re-consent.
 - **[R3] Two upload paths** ([P14]) is the fiddliest part of Stage 4 and the easiest to get subtly
   wrong, because it is invisible until publish.
-- **[R4] — confirmed, and it is the biggest thing in Phase 2.** Stage 0 found out: structural
-  changes arrive and render, rich-text edits arrive and do **not**. See [P31]. No longer a risk in
-  the sense of an unknown; it is now known work, and it is Stage 2's largest piece.
+- **[R4] — confirmed, and it is the biggest thing in Phase 2.** Stage 0 found out, and the answer
+  is sharper than the question: the slide list renders a remote edit live while the field beside it
+  shows the old value, so the editor disagrees with itself in front of the author. See [P31]. No
+  longer a risk in the sense of an unknown; it is known work, and it is Stage 2's largest piece.
 
 ## Gates
 
@@ -564,7 +573,8 @@ additive, and the first thing to cut if Stages 0–5 run long.
 - [P28] `meta` is owner-only — [P22] one level down, and already tagged by `BOOKKEEPING_ORIGIN`.
 - [P29] The record version travels with the draft, keeping [P25]'s seam intact at Phase 3.
 - [P30] The sync protocol is written directly against y-protocols, not Hocuspocus — [P2] decided it.
-- [P31] The editor must render incoming changes; Stage 0 measured which changes it drops today.
+- [P31] The editor must render incoming changes. Stage 0 measured it: the list renders live while
+  the field beside it goes stale, so the editor contradicts itself on screen.
 - [P32] The empty state is keyed on selection rather than on the document.
 - [P19] A new `rpc:` permission in client metadata, as a Stage 1 prerequisite rather than a
   production-hygiene item — the app declares none today, so [P4] does not work without it.
