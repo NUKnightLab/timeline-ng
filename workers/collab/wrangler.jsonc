@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "timeline-collab",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-20",
+  "durable_objects": {
+    "bindings": [
+      { "name": "DRAFT", "class_name": "DraftRoom" }
+    ]
+  },
+  "migrations": [
+    // SQLite-backed, which is what the free plan allows and the right choice
+    // here regardless — see docs/phase2-plan.md §10.8.
+    { "tag": "v1", "new_sqlite_classes": ["DraftRoom"] }
+  ]
+}

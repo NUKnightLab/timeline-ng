@@ -294,6 +294,28 @@ importers:
         specifier: ^3.0.0
         version: 3.2.4(@types/node@26.1.0)(happy-dom@20.14.0)(jsdom@30.0.1)
 
+  workers/collab:
+    dependencies:
+      lib0:
+        specifier: ^0.2.99
+        version: 0.2.117
+      y-protocols:
+        specifier: ^1.0.7
+        version: 1.0.7(yjs@13.6.33)
+      yjs:
+        specifier: ^13.6.33
+        version: 13.6.33
+    devDependencies:
+      '@cloudflare/workers-types':
+        specifier: ^5.20260719.1
+        version: 5.20260719.1
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+      wrangler:
+        specifier: ^4.112.0
+        version: 4.112.0(@cloudflare/workers-types@5.20260719.1)
+
   workers/og-preview:
     dependencies:
       '@knight-lab/timeline-ng-core':
@@ -2336,6 +2358,10 @@ packages:
     resolution: {integrity: sha512-lfiJIIC4Xayt5ItynE407ehlE03pCjeOc4hkR4yxxvvNJ4kuiN25B0g+Qp8XagYz361LLL7DCzR5bvFJ81QKtQ==}
     engines: {node: '>=16.0.0', npm: '>=8.0.0'}
 
+  yjs@13.6.33:
+    resolution: {integrity: sha512-q/UYvr1gOk4XII+Cu1CW2dINjYqJJFifTzogEaIARznrvX7uOlHsdTEXcnOBMuIsrCGEEKdNxi74kyMLZlKVfw==}
+    engines: {node: '>=16.0.0', npm: '>=8.0.0'}
+
   youch-core@0.3.3:
     resolution: {integrity: sha512-ho7XuGjLaJ2hWHoK8yFnsUGy2Y5uDpqSTq1FkHLK4/oqKtyUU1AFbOOxY4IpC9f0fTLjwYbslUz0Po5BpD1wrA==}
 
@@ -4289,7 +4315,16 @@ snapshots:
       lib0: 0.2.117
       yjs: 13.6.32
 
+  y-protocols@1.0.7(yjs@13.6.33):
+    dependencies:
+      lib0: 0.2.117
+      yjs: 13.6.33
+
   yjs@13.6.32:
+    dependencies:
+      lib0: 0.2.117
+
+  yjs@13.6.33:
     dependencies:
       lib0: 0.2.117
 
