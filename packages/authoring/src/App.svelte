@@ -5,7 +5,7 @@
   import { getAuthState, publishTimeline, signOut, uploadBlob, blobUrl, extractCid, listTimelines, getTimeline } from './lib/atproto.svelte.ts';
   import { initAuth } from './lib/atproto.svelte.ts';
   import { generatePoster } from './lib/poster.ts';
-  import { collabRoom, attachCollab, type CollabSession } from './lib/collabSession.ts';
+  import { collabRoom, attachCollab, forgetCollabRoom, type CollabSession } from './lib/collabSession.ts';
   import { listDrafts, newDocId, noteDraft, forgetDraft, forgetDraftWithForks, persistDoc, readDraftTimeline,
     removeDraftEntries, restoreDraftEntries, commitDraftDeletions, sweepPendingDeletions } from './lib/localStore.ts';
   import type { DraftSummary } from './lib/localStore.ts';
@@ -928,6 +928,11 @@
     if (id !== null && empty) await forgetDraft(id);
 
     drafts = listDrafts();
+    // Leaving means leaving: the room is remembered across a sign-in redirect,
+    // so without this a reload would drop the author back into a session they
+    // just walked out of.
+    forgetCollabRoom();
+    collabError = null;
     view = 'home';
   }
 
@@ -1298,18 +1303,6 @@
   }
 </script>
 
-<!--
-  Stage 0/1 dev affordance: `?collab=` needs a signed-in session to mint a
-  service auth token, and the failure is otherwise silent — an editor that
-  looks fine and syncs with nobody. Goes when Stage 2 replaces the query
-  parameter with a real invitation flow.
--->
-{#if collabError}
-  <p class="collab-error" role="alert">
-    Could not join the collaboration session: {collabError}
-  </p>
-{/if}
-
 {#if view === 'home'}
   <HomeView
     {drafts}
@@ -1327,6 +1320,7 @@
   />
 {:else}
   <EditorView
+    {collabError}
     {timelineTitle}
     {titleEvent}
     entries={tldoc.entries}
@@ -1425,12 +1419,4 @@
 {/if}
 
 <style>
-  .collab-error {
-    margin: 0;
-    padding: 0.6rem 1rem;
-    background: #fdecea;
-    color: #611a15;
-    border-bottom: 1px solid #f5c6c0;
-    font-size: 0.9rem;
-  }
 </style>

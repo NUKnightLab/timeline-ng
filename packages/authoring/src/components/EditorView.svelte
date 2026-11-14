@@ -39,6 +39,11 @@
      * (Scripts 3, 7 and 8, and an automatic merge). A statement, not a prompt.
      */
     syncNote?: string | null;
+    /**
+     * Why this editor is not connected to a collaboration session, when it was
+     * asked to join one. Temporary, with `?collab=` — see lib/collabSession.ts.
+     */
+    collabError?: string | null;
     ondismissnote?: () => void;
     /**
      * Offered beside the note when a merge or fast-forward brought something
@@ -92,7 +97,7 @@
 
   let {
     timelineTitle, titleEvent, entries, selectedId, selectedEvent, isEditingTitle,
-    timeline, atUri, pdsClean, publishStatus, publishTone = 'ok', syncNote = null, ondismissnote,
+    timeline, atUri, pdsClean, publishStatus, publishTone = 'ok', syncNote = null, collabError = null, ondismissnote,
     onreviewincoming = null,
     forkCount = 0, settledForkCount = 0, onreviewfork, onforgetsettledforks,
     isFork = false, forkParentTitle = null, onresolvefork,
@@ -561,6 +566,18 @@
       <AuthButton {onsignout} />
     </div>
   </nav>
+
+  <!--
+    Like .fork-note, this is a state rather than an event: the session is not
+    connected and will not become connected on its own, so there is nothing to
+    dismiss. It sits above the others because nothing below it is reaching
+    anyone else while it is up.
+  -->
+  {#if collabError}
+    <div class="collab-note" role="alert">
+      <span>Not connected to the collaboration session — {collabError}</span>
+    </div>
+  {/if}
 
   <!--
     A line under the subnav rather than a modal: each of these is something
@@ -1063,6 +1080,22 @@
     border-bottom: 1px solid #d3dde6;
     font-size: 0.82rem;
     color: #2d4356;
+  }
+
+  /*
+   * The same line as .fork-note and .sync-note, in the register that says
+   * something is wrong rather than pending: nothing this person types is
+   * reaching anybody.
+   */
+  .collab-note {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    padding: 0.5rem 1.25rem;
+    background: #fdecea;
+    border-bottom: 1px solid #f5c6c0;
+    font-size: 0.82rem;
+    color: #611a15;
   }
 
   /*

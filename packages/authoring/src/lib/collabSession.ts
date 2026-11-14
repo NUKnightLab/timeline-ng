@@ -55,19 +55,51 @@ const COLLAB_URL = import.meta.env.VITE_COLLAB_URL as string | undefined;
 /** The service's own DID, which tokens are minted for. Differs per deployment. */
 const COLLAB_DID = import.meta.env.VITE_COLLAB_DID as string | undefined;
 
+/** Where the room is remembered across an OAuth redirect. */
+const ROOM_KEY = 'tl-collab-room';
+
 /**
  * The room named by `?collab=`, when collaboration is available at all.
  *
  * Returns null — meaning "behave exactly as before" — when the env var is
  * unset, so nothing about this reaches a normal build.
+ *
+ * **Falls back to session storage**, because signing in loses the query
+ * string: the OAuth redirect comes back to a bare `redirect_uri`, so a person
+ * who signs in from a collaboration session would otherwise land on the home
+ * screen having lost the room they were in. The app already keeps
+ * `tl-post-auth-view` and `tl-current-doc` across the same round trip; this is
+ * the same idea for a session that has no draft id to restore.
  */
 export function collabRoom(search = window.location.search): string | null {
   if (!COLLAB_URL) return null;
-  const room = new URLSearchParams(search).get('collab');
-  if (!room) return null;
+  let room = new URLSearchParams(search).get('collab');
+  if (!room) {
+    try {
+      room = sessionStorage.getItem(ROOM_KEY);
+    } catch {
+      room = null;
+    }
+  }
   // The server accepts this character set and nothing else; failing here
   // gives a clearer error than a socket that closes without saying why.
-  return /^[A-Za-z0-9_-]{1,128}$/.test(room) ? room : null;
+  if (!room || !/^[A-Za-z0-9_-]{1,128}$/.test(room)) return null;
+  try {
+    sessionStorage.setItem(ROOM_KEY, room);
+  } catch {
+    // A browser that will not store this still works; it just cannot survive
+    // a sign-in round trip, which is the thing the storage is for.
+  }
+  return room;
+}
+
+/** Forget the room, so leaving a collaboration session actually leaves it. */
+export function forgetCollabRoom(): void {
+  try {
+    sessionStorage.removeItem(ROOM_KEY);
+  } catch {
+    // Nothing was stored; nothing to forget.
+  }
 }
 
 /**
