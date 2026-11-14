@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **`TIMELINE_RECORD_VERSION`.** The version of the published
+  `com.knightlab.timeline` record shape, stamped onto records as `schemaVersion`
+  by the authoring app. Distinct from the authoring app's own draft schema
+  version, which describes the Yjs document rather than the record. An absent
+  `schemaVersion` means a record written before this existed, which is the only
+  distinction it draws at version 1 — and the reason to start stamping while few
+  records exist, since one written without it can afterwards only be identified
+  by guessing at its shape.
+
+  A `lexicons/com.knightlab.timeline.json` now describes the record. It is a
+  repo artifact rather than a published lexicon: nothing resolves it, and
+  publishing it would invite PDS-side validation of a schema that is still
+  expected to gain a `contributors` field.
+
 ## [0.5.0] - 2026-10-16
 
 ### Added

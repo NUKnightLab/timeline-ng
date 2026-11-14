@@ -1,0 +1,194 @@
+{
+  "lexicon": 1,
+  "id": "com.knightlab.timeline",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A published TimelineJS timeline. Written by the authoring app and read by the player and embeds; this record is the durable artifact, and drafts live elsewhere. Record keys are app-generated strings rather than TIDs.",
+      "key": "any",
+      "record": {
+        "type": "object",
+        "required": ["timeline", "createdAt"],
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "The timeline's name, for listings. Distinct from `timeline.title`, which is the title slide; this is a plain string and that is an event."
+          },
+          "schemaVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Version of this record's shape. Absent means the record predates versioning, which is the only distinction it draws at version 1 — and the reason to stamp it now rather than when it is first needed."
+          },
+          "timeline": {
+            "type": "ref",
+            "ref": "#timeline",
+            "description": "The timeline itself."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime",
+            "description": "Set on every publish, so in practice this is when the record was last written rather than when the timeline was created. Named for the atproto convention it follows."
+          }
+        }
+      }
+    },
+
+    "timeline": {
+      "type": "object",
+      "description": "Slides and display settings.",
+      "required": ["events"],
+      "properties": {
+        "title": {
+          "type": "ref",
+          "ref": "#event",
+          "description": "Optional title slide. Shown first and pinned there; carries no date."
+        },
+        "events": {
+          "type": "array",
+          "description": "The dated slides. Ordered by date at render time, not by position here.",
+          "items": { "type": "ref", "ref": "#event" }
+        },
+        "settings": { "type": "ref", "ref": "#settings" }
+      }
+    },
+
+    "event": {
+      "type": "object",
+      "description": "One slide. `start_date` is required on every event except the title slide.",
+      "properties": {
+        "unique_id": {
+          "type": "string",
+          "description": "Author-facing slide identifier, used as the anchor in deep links. Meant to stay legible, so it is editable and not a stable key: uniqueness is checked at publish rather than guaranteed by the structure."
+        },
+        "start_date": { "type": "ref", "ref": "#date" },
+        "end_date": { "type": "ref", "ref": "#date" },
+        "text": { "type": "ref", "ref": "#text" },
+        "media": { "type": "ref", "ref": "#media" },
+        "media_position": {
+          "type": "string",
+          "enum": ["left", "right"],
+          "description": "Which side the media column appears on. Defaults to left."
+        },
+        "group": {
+          "type": "string",
+          "description": "Optional grouping label, used to band slides in the time navigation."
+        },
+        "background": { "type": "ref", "ref": "#background" }
+      }
+    },
+
+    "date": {
+      "type": "object",
+      "description": "A variable-resolution date: supply only the precision you have. Years may fall outside the range JavaScript dates can express, so cosmological scales are representable and a negative year means BCE.",
+      "required": ["year"],
+      "properties": {
+        "year": {
+          "type": "integer",
+          "description": "Negative for BCE. Deliberately unbounded."
+        },
+        "month": { "type": "integer", "minimum": 1, "maximum": 12, "description": "1-based." },
+        "day": { "type": "integer", "minimum": 1, "maximum": 31 },
+        "hour": { "type": "integer", "minimum": 0, "maximum": 23 },
+        "minute": { "type": "integer", "minimum": 0, "maximum": 59 },
+        "second": { "type": "integer", "minimum": 0, "maximum": 59 },
+        "millisecond": { "type": "integer", "minimum": 0, "maximum": 999 },
+        "display_date": {
+          "type": "string",
+          "description": "Replaces the rendered date string entirely. The structured fields still order the slide."
+        }
+      }
+    },
+
+    "text": {
+      "type": "object",
+      "description": "Slide prose. Both fields may carry inline HTML, sanitized on the way in.",
+      "properties": {
+        "headline": { "type": "string" },
+        "text": { "type": "string" }
+      }
+    },
+
+    "media": {
+      "type": "object",
+      "description": "Slide media. Either `url` for externally hosted media or `blobRef` for media uploaded to the author's repo — when a blob is present the URL is derived from it at read time and is not stored.",
+      "properties": {
+        "url": { "type": "string", "format": "uri" },
+        "blobRef": {
+          "type": "blob",
+          "accept": ["image/*", "audio/*", "video/*"]
+        },
+        "mimeType": {
+          "type": "string",
+          "description": "Type hint that takes precedence over matching on the URL. Derived from the blob when one is present, so it is stored only for external media."
+        },
+        "caption": { "type": "string" },
+        "credit": { "type": "string" },
+        "thumbnail": { "type": "string", "format": "uri" },
+        "alt": {
+          "type": "string",
+          "description": "Alt text for image media. Falls back to the caption when omitted."
+        }
+      }
+    },
+
+    "background": {
+      "type": "object",
+      "description": "Slide background. A color, an image, or both.",
+      "properties": {
+        "color": { "type": "string", "description": "Any CSS color." },
+        "url": { "type": "string", "format": "uri" },
+        "blobRef": { "type": "blob", "accept": ["image/*"] }
+      }
+    },
+
+    "ogImage": {
+      "type": "object",
+      "description": "Social-share preview image, generated at publish time.",
+      "properties": {
+        "url": { "type": "string", "format": "uri" },
+        "blobRef": { "type": "blob", "accept": ["image/*"] }
+      }
+    },
+
+    "settings": {
+      "type": "object",
+      "description": "Display and playback configuration. Every field is optional; an omitted field means the player's default.",
+      "properties": {
+        "language": {
+          "type": "string",
+          "description": "UI locale for chrome and date formatting. Currently 'en' (default) and 'es'."
+        },
+        "theme": {
+          "type": "string",
+          "enum": ["light", "dark", "auto"],
+          "description": "Defaults to auto, which follows the viewer's own preference."
+        },
+        "fontPairing": {
+          "type": "string",
+          "knownValues": [
+            "georgia-helvetica", "pt", "ubuntu", "oldstandard", "abril-droidsans",
+            "amatic-andika", "bevan-pontanosans", "bitter-raleway", "clicker-garamond",
+            "dancing-ledger", "fjalla-average", "lustria-lato", "medula-lato",
+            "opensans-gentiumbook", "playfair", "playfair-faunaone", "roboto-megrim",
+            "rufina-sintony", "unicaone-vollkorn"
+          ],
+          "description": "Heading and body font pair, carried forward from TimelineJS 3. Defaults to georgia-helvetica, the only pairing built from system fonts and so the only one covering every writing system. Open rather than closed, since pairings may be added."
+        },
+        "highContrast": {
+          "type": "boolean",
+          "description": "Raises text and marks to WCAG AAA contrast. Applies over whichever theme is in effect rather than replacing it."
+        },
+        "initialIndex": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Zero-based index of the slide shown first, counting the title slide when there is one."
+        },
+        "reverseOrder": {
+          "type": "boolean",
+          "description": "Show events newest first. The title slide stays first regardless."
+        },
+        "ogImage": { "type": "ref", "ref": "#ogImage" }
+      }
+    }
+  }
+}

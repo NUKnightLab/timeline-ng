@@ -18,6 +18,7 @@ export { parseTLDate, detectScale, compareDates, formatDate } from './date/index
 export type { DateFormatPrecision } from './date/index.ts';
 
 export { validateTimeline } from './validate.ts';
+export { TIMELINE_RECORD_VERSION } from './types.ts';
 
 export { fromTL3 } from './adapters/tl3.ts';
 export { fromTL3CSV, toTL3CSV } from './adapters/tl3csv.ts';

@@ -205,6 +205,8 @@ export class TimelineDoc {
   get atUri(): string | null { return this.#meta.atUri ?? null; }
   /** The version of the published record this document last agreed with. */
   get baseCid(): string | null { return this.#meta.baseCid ?? null; }
+  /** When the published record was first written, for republishing to preserve. */
+  get createdAt(): string | null { return this.#meta.createdAt ?? null; }
 
   get isEmpty(): boolean { return this.#entries.length === 0 && !this.#titleEvent; }
 
@@ -345,6 +347,19 @@ export class TimelineDoc {
    * different ones. It is omitted where the agreement is not with a record —
    * a local import, or a load whose meta already carries the CID it came with.
    */
+  /**
+   * Record the `createdAt` the document's record carries, so later publishes
+   * can send it back rather than minting a new one. Written on the first
+   * publish and on loading an existing record.
+   */
+  setCreatedAt(createdAt: string): void {
+    if (this.#meta.createdAt === createdAt) return;
+    this.doc.transact(
+      () => writeMeta(this.doc, { ...this.#meta, createdAt }),
+      BOOKKEEPING_ORIGIN,
+    );
+  }
+
   markClean(baseCid?: string): void {
     this.flushMirrors();
     this.doc.transact(
@@ -526,7 +541,7 @@ export class TimelineDoc {
       () => writeMeta(this.doc, {
         ...this.#meta,
         atUri: atUri ?? undefined,
-        ...(atUri === null ? { baseCid: undefined } : {}),
+        ...(atUri === null ? { baseCid: undefined, createdAt: undefined } : {}),
       }),
       BOOKKEEPING_ORIGIN,
     );
