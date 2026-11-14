@@ -27,22 +27,31 @@ import * as syncProtocol from 'y-protocols/sync';
 const MESSAGE_SYNC = 0;
 const MESSAGE_AWARENESS = 1;
 
-/** Storage key holding the document as a single merged update. */
+/** Storage key holding the compacted document as a single merged update. */
 const DOC_KEY = 'doc';
 
 /**
- * How long writes are coalesced before one hits storage.
+ * Prefix for updates that have arrived since the last compaction.
  *
- * Rows-written is the tightest limit on the free plan (§10.8) and Yjs is
- * chatty while someone is actively typing, so a row per update is the one
- * cost model to avoid. Batching is standard practice for Yjs providers
- * regardless of who is paying.
+ * **Keys need only be unique, not ordered.** Yjs updates are commutative —
+ * applying them in any order converges on the same document — so there is no
+ * sequence number to keep, and therefore nothing that breaks when the object
+ * is evicted and loses whatever counter it was holding.
  */
-const PERSIST_DEBOUNCE_MS = 2_000;
+const PENDING_PREFIX = 'u:';
+
+/**
+ * How long after a change the room compacts its pending updates into one.
+ *
+ * This is a storage-shape optimization, not a durability mechanism: every
+ * update is already durable before its message is acknowledged. Compaction
+ * only bounds how many rows a busy room accumulates, so the delay can be
+ * generous.
+ */
+const COMPACT_DELAY_MS = 10_000;
 
 export class DraftRoom implements DurableObject {
   #cached: Y.Doc | null = null;
-  #persistQueued = false;
 
   constructor(
     private readonly ctx: DurableObjectState,
@@ -61,27 +70,48 @@ export class DraftRoom implements DurableObject {
     const doc = new Y.Doc();
     const stored = await this.ctx.storage.get<ArrayBuffer>(DOC_KEY);
     if (stored) Y.applyUpdate(doc, new Uint8Array(stored));
+    // Anything written since the last compaction. Order does not matter.
+    const pending = await this.ctx.storage.list<ArrayBuffer>({ prefix: PENDING_PREFIX });
+    for (const value of pending.values()) Y.applyUpdate(doc, new Uint8Array(value));
     this.#cached = doc;
     return doc;
   }
 
   /**
-   * Write the merged document back, at most once per debounce window.
+   * Make an update durable, and make sure a compaction is coming.
    *
-   * `waitUntil` rather than a bare promise: the object may be evicted as soon
-   * as the message that triggered this returns, and an un-awaited write would
-   * be cancelled with it.
+   * **Awaited, not deferred.** The first version of this debounced the write
+   * behind `ctx.waitUntil(scheduler.wait(...))`, which loses data: a timer is
+   * not durable, and a room that goes quiet — the normal case for an editor —
+   * is evicted before it fires, taking the pending write with it. Local
+   * Durable Object storage showed the symptom plainly: the room exercised by a
+   * four-second script had a `doc` key, while the room edited through a
+   * browser over several minutes had no storage at all.
+   *
+   * So the update is written before its message is acknowledged, and the
+   * alarm only merges what has accumulated. Alarms, unlike timers, are
+   * persisted by the platform and wake the object to run.
    */
-  #schedulePersist(doc: Y.Doc): void {
-    if (this.#persistQueued) return;
-    this.#persistQueued = true;
-    this.ctx.waitUntil(
-      (async () => {
-        await scheduler.wait(PERSIST_DEBOUNCE_MS);
-        this.#persistQueued = false;
-        await this.ctx.storage.put(DOC_KEY, Y.encodeStateAsUpdate(doc));
-      })(),
-    );
+  async #persist(update: Uint8Array): Promise<void> {
+    await this.ctx.storage.put(PENDING_PREFIX + crypto.randomUUID(), update);
+    if ((await this.ctx.storage.getAlarm()) === null) {
+      await this.ctx.storage.setAlarm(Date.now() + COMPACT_DELAY_MS);
+    }
+  }
+
+  /**
+   * Merge the pending updates into the stored document.
+   *
+   * Purely housekeeping: the room reads the same either side of this, since
+   * `#doc()` replays whatever has not been compacted yet. Deleting the pending
+   * keys after the merge is what keeps a long editing session from growing an
+   * unbounded number of rows.
+   */
+  async alarm(): Promise<void> {
+    const doc = await this.#doc();
+    const pending = await this.ctx.storage.list({ prefix: PENDING_PREFIX });
+    await this.ctx.storage.put(DOC_KEY, Y.encodeStateAsUpdate(doc));
+    if (pending.size) await this.ctx.storage.delete([...pending.keys()]);
   }
 
   async fetch(request: Request): Promise<Response> {
@@ -116,11 +146,11 @@ export class DraftRoom implements DurableObject {
     const reply = encoding.createEncoder();
     encoding.writeVarUint(reply, MESSAGE_SYNC);
 
-    // Tracks whether this message changed the document, so an update is
-    // relayed to the other sockets but a sync handshake is not.
-    let changed = false;
-    const onUpdate = () => {
-      changed = true;
+    // Collects what this message actually changed, so an update is relayed and
+    // stored while a sync handshake is neither.
+    const changes: Uint8Array[] = [];
+    const onUpdate = (update: Uint8Array) => {
+      changes.push(update);
     };
     doc.on('update', onUpdate);
     try {
@@ -134,9 +164,11 @@ export class DraftRoom implements DurableObject {
     if (encoding.length(reply) > 1) {
       ws.send(encoding.toUint8Array(reply));
     }
-    if (changed) {
+    if (changes.length) {
       this.#broadcast(message, ws);
-      this.#schedulePersist(doc);
+      // One row per message rather than per update, which matters because
+      // rows-written is the tightest limit on the free plan (§10.8).
+      await this.#persist(changes.length === 1 ? changes[0] : Y.mergeUpdates(changes));
     }
   }
 
