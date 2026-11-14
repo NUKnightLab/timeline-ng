@@ -358,6 +358,18 @@ depending on list membership, where "remove the last collaborator" and "can the 
 themselves" become questions. Presence and cursors do want everyone rendered uniformly, owner
 included, but that is derived from who is connected rather than from who is invited.
 
+**[P28] `meta` is owner-only, and that is an access rule rather than a convention.** The Yjs `meta`
+map holds `atUri`, `publishedSnapshot`, `baseCid` and now `createdAt` — four facts about the owner's
+published record, none of them a collaborator's to write. Phase 1 never had to say so, having one
+writer. Phase 2 syncs that map through the Durable Object to everyone on the socket, so a
+collaborator's client must sync `meta` and never originate a write to it.
+
+The code already half-draws this line: `doc.svelte.ts` has a `BOOKKEEPING_ORIGIN` for *"facts about
+the document rather than content in it"*. Today that governs undo. Phase 2 needs the same split as
+authorization, which is convenient — the mutation sites are already tagged. This is [P22] one level
+down: the owner is distinguished by what they own, and their bookkeeping travels with the document
+without becoming shared property.
+
 **[P9] Two permission levels, read/write and read-only** (Longform's model, §2), both of them levels
 *for collaborators*; the owner is not a third ([P22]). Not three, not
 per-slide. The public draft link is **not** in Phase 2 — it is a separate consent decision and it is
@@ -404,6 +416,19 @@ noise. Agreed, and it is also the expensive half.
 reads a snapshot; collaborators keep typing. A lock would be a server-held mutex over a human-scale
 operation, and the failure mode — a collaborator's edit landing in the next publish instead of this
 one — is the normal case anyway.
+
+**[P29] The record's `schemaVersion` travels with the draft; the service never knows it.** The
+published record now carries a `schemaVersion` from `TIMELINE_RECORD_VERSION` in `packages/core`.
+Phase 2 is unaffected — the owner's browser publishes ([P1]), so it stamps the value the way it does
+today. Phase 3 is where it bites: the server materializes the record, and [P25] says the service
+never imports core, so it cannot know the current version to stamp.
+
+§10.6 already answers it in the abstract — *"the service syncs a Yjs document and publishes a record;
+**which** record shape is a parameter"* — and this is the first concrete thing that tests it. The
+version therefore belongs in the draft, written by the client that knows it, and the publish layer
+copies it out rather than supplying it. Worth settling in Phase 2 even though nothing depends on it
+yet, because the alternative is discovered at Phase 3 as a reason to add a core dependency "just for
+this one constant", which is exactly how a seam goes.
 
 ### Stage 6 — live cursors
 
@@ -487,6 +512,8 @@ additive, and the first thing to cut if Stages 0–5 run long.
 - [P25] No core dependency in the service, as §10.6's seam made checkable.
 - [P26] `drafts.knightlab.com` — a dedicated, app-neutral host, named for what it holds.
 - [P27] `com.knightlab.drafts.connect`, one method, no service fragment.
+- [P28] `meta` is owner-only — [P22] one level down, and already tagged by `BOOKKEEPING_ORIGIN`.
+- [P29] The record version travels with the draft, keeping [P25]'s seam intact at Phase 3.
 - [P19] A new `rpc:` permission in client metadata, as a Stage 1 prerequisite rather than a
   production-hygiene item — the app declares none today, so [P4] does not work without it.
 - [P20] Re-consent is a rollout step, not an accident.
